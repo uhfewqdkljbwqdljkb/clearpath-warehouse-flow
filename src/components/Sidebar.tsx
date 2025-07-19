@@ -80,7 +80,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed }) => {
                     `flex items-center px-3 py-2 text-xs font-medium rounded-[8px] transition-colors ${
                       isActive
                         ? 'bg-red-500 text-white'
-                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'
+                        : 'text-gray-600 hover:text-gray-800'
                     }`
                   }
                 >
