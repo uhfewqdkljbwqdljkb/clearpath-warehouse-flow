@@ -8,7 +8,6 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { Login } from "@/components/Login";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Dashboard } from "@/components/Dashboard";
-import { Inventory } from "@/pages/Inventory";
 import { Locations } from "@/pages/Locations";
 import { Users } from "@/pages/Users";
 import NotFound from "./pages/NotFound";
@@ -43,18 +42,8 @@ const App = () => {
                 </ProtectedRoute>
               }>
                 <Route index element={<Dashboard />} />
-                <Route path="inventory" element={<Inventory />} />
                 <Route path="locations" element={<Locations />} />
                 <Route path="users" element={<Users />} />
-                <Route path="orders" element={<div>Orders - Coming Soon</div>} />
-                <Route path="receiving" element={<div>Receiving - Coming Soon</div>} />
-                <Route path="shipping" element={<div>Shipping - Coming Soon</div>} />
-                <Route path="reports" element={<div>Reports - Coming Soon</div>} />
-                <Route path="settings" element={<div>Settings - Coming Soon</div>} />
-                <Route path="my-orders" element={<div>My Orders - Coming Soon</div>} />
-                <Route path="inventory-levels" element={<Inventory />} />
-                <Route path="order-history" element={<div>Order History - Coming Soon</div>} />
-                <Route path="contact" element={<div>Contact - Coming Soon</div>} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
