@@ -85,7 +85,7 @@ export const Login: React.FC = () => {
                   placeholder=""
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full h-12 rounded-lg border border-gray-300 px-4 py-3 pr-12 text-base focus:border-gray-400 focus:ring-0 focus:outline-none"
+                  className="w-full h-12 rounded-lg border border-black bg-white px-4 py-3 pr-12 text-base focus:border-black focus:ring-0 focus:outline-none"
                   required
                 />
                 <button
