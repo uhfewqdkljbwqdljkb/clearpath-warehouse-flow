@@ -29,7 +29,7 @@ export const DashboardLayout: React.FC = () => {
         </div>
 
         {/* Main content */}
-        <main className="flex-1 overflow-auto p-6 bg-background">
+        <main className="flex-1 overflow-auto p-6" style={{ backgroundColor: '#F0F0F0' }}>
           <Outlet />
         </main>
       </div>
