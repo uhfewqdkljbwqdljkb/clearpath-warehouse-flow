@@ -1,14 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { WarehouseUser, UserRole } from '@/types/warehouse';
+import { authenticateUser, getStoredSession, createSession, destroySession } from '@/services/authService';
 
-export type UserRole = 'admin' | 'client';
+export interface User extends WarehouseUser {}
 
-export interface User {
-  id: number;
-  email: string;
-  name: string;
-  role: UserRole;
-  companyId?: number;
-}
+export type { UserRole };
 
 interface AuthContextType {
   user: User | null;
@@ -19,21 +15,15 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users for demo
-const mockUsers: User[] = [
-  { id: 1, email: 'admin@clearpath.com', name: 'John Administrator', role: 'admin' },
-  { id: 2, email: 'client@acme.com', name: 'Sarah Johnson', role: 'client', companyId: 1 },
-];
-
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Check for stored user session
-    const storedUser = localStorage.getItem('clearpath_user');
+    const storedUser = getStoredSession();
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      setUser(storedUser);
     }
     setIsLoading(false);
   }, []);
@@ -41,15 +31,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const foundUser = mockUsers.find(u => u.email === email);
-    if (foundUser && password === 'password') {
-      setUser(foundUser);
-      localStorage.setItem('clearpath_user', JSON.stringify(foundUser));
-      setIsLoading(false);
-      return true;
+    try {
+      const authenticatedUser = await authenticateUser(email, password);
+      if (authenticatedUser) {
+        setUser(authenticatedUser);
+        createSession(authenticatedUser);
+        setIsLoading(false);
+        return true;
+      }
+    } catch (error) {
+      console.error('Login error:', error);
     }
     
     setIsLoading(false);
@@ -58,7 +49,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('clearpath_user');
+    destroySession();
   };
 
   return (

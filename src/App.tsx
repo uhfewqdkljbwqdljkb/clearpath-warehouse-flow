@@ -9,6 +9,8 @@ import { Login } from "@/components/Login";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Dashboard } from "@/components/Dashboard";
 import { Inventory } from "@/pages/Inventory";
+import { Locations } from "@/pages/Locations";
+import { Users } from "@/pages/Users";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -42,6 +44,8 @@ const App = () => {
               }>
                 <Route index element={<Dashboard />} />
                 <Route path="inventory" element={<Inventory />} />
+                <Route path="locations" element={<Locations />} />
+                <Route path="users" element={<Users />} />
                 <Route path="orders" element={<div>Orders - Coming Soon</div>} />
                 <Route path="receiving" element={<div>Receiving - Coming Soon</div>} />
                 <Route path="shipping" element={<div>Shipping - Coming Soon</div>} />

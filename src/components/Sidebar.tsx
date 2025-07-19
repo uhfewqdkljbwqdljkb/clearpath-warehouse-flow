@@ -25,7 +25,7 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'warehouse_staff';
 
   const adminNavItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
