@@ -32,20 +32,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Locations', path: '/locations', icon: Warehouse },
     { name: 'Users', path: '/users', icon: User },
-    { name: 'Inventory', path: '/inventory', icon: Package },
-    { name: 'Orders', path: '/orders', icon: FileText },
-    { name: 'Receiving', path: '/receiving', icon: Calendar },
-    { name: 'Shipping', path: '/shipping', icon: DollarSign },
-    { name: 'Reports', path: '/reports', icon: BarChart3 },
-    { name: 'Settings', path: '/settings', icon: Settings },
   ];
 
   const clientNavItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'My Orders', path: '/my-orders', icon: FileText },
-    { name: 'Inventory Levels', path: '/inventory-levels', icon: Package },
-    { name: 'Order History', path: '/order-history', icon: Calendar },
-    { name: 'Contact', path: '/contact', icon: Bell },
+    { name: 'Locations', path: '/locations', icon: Warehouse },
   ];
 
   const navItems = isAdmin ? adminNavItems : clientNavItems;
