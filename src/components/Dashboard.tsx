@@ -20,27 +20,25 @@ export const Dashboard: React.FC = () => {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">Dynamic Statistics</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-foreground">7,391</div>
-                  <div className="text-xs text-success">+18.4%</div>
-                  <div className="text-xs text-muted-foreground">Last 6 months</div>
+            <CardContent className="p-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-1">
+                  <div className="text-3xl font-bold text-foreground">7,391</div>
+                  <div className="text-sm font-medium text-success">+18.4%</div>
+                  <div className="text-sm text-muted-foreground">Last 6 months</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-foreground">5,698</div>
-                  <div className="text-xs text-destructive">-4.5%</div>
-                  <div className="text-xs text-muted-foreground">Last 4 months</div>
+                <div className="space-y-1">
+                  <div className="text-3xl font-bold text-foreground">5,698</div>
+                  <div className="text-sm font-medium text-destructive">-4.5%</div>
+                  <div className="text-sm text-muted-foreground">Last 4 months</div>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-foreground">1,243</div>
-                  <div className="text-xs text-muted-foreground">Active</div>
+                <div className="space-y-1">
+                  <div className="text-3xl font-bold text-foreground">1,243</div>
+                  <div className="text-sm text-muted-foreground">Active</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-foreground">945</div>
-                  <div className="text-xs text-muted-foreground">Completed</div>
+                <div className="space-y-1">
+                  <div className="text-3xl font-bold text-foreground">945</div>
+                  <div className="text-sm text-muted-foreground">Completed</div>
                 </div>
               </div>
             </CardContent>
