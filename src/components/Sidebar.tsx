@@ -60,7 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed }) => {
           </div>
           {!isCollapsed && (
             <div>
-              <h1 className="text-lg font-bold text-gray-900">SHIPNOW</h1>
+              <h1 className="text-lg font-bold text-gray-900">Clearpath</h1>
             </div>
           )}
         </div>
