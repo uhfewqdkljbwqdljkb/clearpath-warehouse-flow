@@ -13,7 +13,7 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="space-y-[15px]">
       {/* Dynamic Statistics Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-[15px]">
         {/* Statistics Cards */}
         <div className="lg:col-span-1 space-y-4">
           <Card>
