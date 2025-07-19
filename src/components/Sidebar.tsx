@@ -14,14 +14,16 @@ import {
   Bookmark, 
   Bell,
   User,
-  Settings
+  Settings,
+  Menu
 } from 'lucide-react';
 
 interface SidebarProps {
   isCollapsed: boolean;
+  onToggle: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
 
@@ -52,14 +54,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed }) => {
     } transition-all duration-300`}>
       {/* Logo Section */}
       <div className="p-4 border-b border-gray-200">
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-red-500 rounded flex items-center justify-center">
-            <div className="w-4 h-4 bg-white rounded-sm transform rotate-45"></div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-red-500 rounded flex items-center justify-center">
+              <div className="w-4 h-4 bg-white rounded-sm transform rotate-45"></div>
+            </div>
+            {!isCollapsed && (
+              <div>
+                <h1 className="text-lg font-bold text-gray-900">Clearpath</h1>
+              </div>
+            )}
           </div>
           {!isCollapsed && (
-            <div>
-              <h1 className="text-lg font-bold text-gray-900">Clearpath</h1>
-            </div>
+            <button 
+              onClick={onToggle}
+              className="p-1 rounded-md hover:bg-gray-100 transition-colors"
+            >
+              <Menu className="h-4 w-4 text-gray-600" />
+            </button>
           )}
         </div>
       </div>

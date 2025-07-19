@@ -11,7 +11,7 @@ export const DashboardLayout: React.FC = () => {
 
   return (
     <div className="h-screen flex bg-background">
-      <Sidebar isCollapsed={isSidebarCollapsed} />
+      <Sidebar isCollapsed={isSidebarCollapsed} onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)} />
       
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
