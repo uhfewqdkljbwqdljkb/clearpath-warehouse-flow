@@ -43,7 +43,7 @@ export const Login: React.FC = () => {
       <div className="hidden lg:flex lg:w-1/2 items-center justify-center bg-gray-50 p-16">
         <div className="max-w-lg">
           <img 
-            src={warehouseIsometric} 
+            src="/lovable-uploads/4912634c-d2f0-420c-8b10-e0a862fc5979.png" 
             alt="Modern warehouse operations" 
             className="w-full h-auto"
           />
