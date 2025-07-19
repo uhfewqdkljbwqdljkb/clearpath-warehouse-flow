@@ -159,7 +159,7 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Shipment History */}
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 h-full">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-muted-foreground">Shipment History</CardTitle>
