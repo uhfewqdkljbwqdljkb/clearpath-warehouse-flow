@@ -82,8 +82,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed }) => {
                     }`
                   }
                   style={({ isActive }) => ({
-                    backgroundColor: isActive ? '#00FF4D73' : 'transparent',
-                    color: isActive ? '#00FF4D' : undefined
+                    backgroundColor: isActive ? '#00FF4DCC' : 'transparent',
+                    color: isActive ? 'white' : undefined
                   })}
                 >
                   <Icon className={`${isCollapsed ? 'mx-auto' : 'mr-2'} h-4 w-4 flex-shrink-0`} />
