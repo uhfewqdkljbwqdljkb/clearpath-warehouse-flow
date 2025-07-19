@@ -69,7 +69,7 @@ export const Login: React.FC = () => {
                 placeholder=""
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full h-12 rounded-lg border border-gray-300 px-4 py-3 text-base focus:border-gray-400 focus:ring-0 focus:outline-none"
+                className="w-full h-12 rounded-lg border border-black bg-white px-4 py-3 text-base focus:border-black focus:ring-0 focus:outline-none"
                 required
               />
             </div>
