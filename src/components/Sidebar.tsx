@@ -26,7 +26,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed }) => {
   const isAdmin = user?.role === 'admin';
 
   const adminNavItems = [
-    { name: 'Start Free', path: '/', icon: Play },
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Calendar', path: '/calendar', icon: Calendar },
     { name: 'Expenses', path: '/expenses', icon: DollarSign },
@@ -39,7 +38,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed }) => {
   ];
 
   const clientNavItems = [
-    { name: 'Start Free', path: '/', icon: Play },
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Calendar', path: '/calendar', icon: Calendar },
     { name: 'Analytics', path: '/analytics', icon: BarChart3 },
