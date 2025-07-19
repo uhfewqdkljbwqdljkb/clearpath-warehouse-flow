@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Warehouse, Lock, Mail } from 'lucide-react';
-import warehouseHero from '@/assets/warehouse-hero.jpg';
+import { Eye, EyeOff } from 'lucide-react';
+import warehouseIsometric from '@/assets/warehouse-isometric.png';
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const { login, isLoading } = useAuth();
   const { toast } = useToast();
 
@@ -39,101 +39,102 @@ export const Login: React.FC = () => {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left side - Hero image */}
-      <div className="hidden lg:flex lg:w-1/2 relative">
-        <img 
-          src={warehouseHero} 
-          alt="Modern warehouse" 
-          className="object-cover w-full h-full"
-        />
-        <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-          <div className="text-center text-white p-8">
-            <Warehouse className="h-16 w-16 mx-auto mb-4" />
-            <h1 className="text-4xl font-bold mb-2">Clearpath WMS</h1>
-            <p className="text-xl">Modern Warehouse Management System</p>
-          </div>
+      {/* Left side - Warehouse illustration */}
+      <div className="hidden lg:flex lg:w-1/2 items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
+        <div className="max-w-lg">
+          <img 
+            src={warehouseIsometric} 
+            alt="Modern warehouse operations" 
+            className="w-full h-auto"
+          />
         </div>
       </div>
 
       {/* Right side - Login form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-muted/30">
-        <Card className="w-full max-w-md">
-          <CardHeader className="space-y-1">
-            <div className="flex items-center justify-center mb-4 lg:hidden">
-              <Warehouse className="h-8 w-8 text-primary mr-2" />
-              <span className="text-2xl font-bold">Clearpath</span>
-            </div>
-            <CardTitle className="text-2xl text-center">Welcome back</CardTitle>
-            <CardDescription className="text-center">
-              Sign in to access your warehouse dashboard
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white">
+        <div className="w-full max-w-md space-y-8">
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-gray-900">Sign in</h1>
+            <p className="mt-2 text-gray-600">Sign in to access your warehouse dashboard</p>
+          </div>
 
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <Label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                Email address
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
+                required
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                Password
+              </Label>
+              <div className="relative mt-1">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="block w-full rounded-md border border-gray-300 px-3 py-2 pr-10 focus:border-blue-500 focus:ring-blue-500"
+                  required
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 flex items-center pr-3"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4 text-gray-400" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-gray-400" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <Button 
+              type="submit" 
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors" 
+              disabled={isLoading}
+            >
+              {isLoading ? 'Signing in...' : 'Sign in'}
+            </Button>
+          </form>
+
+          <div className="mt-6 space-y-4">
+            <div className="text-center">
+              <p className="text-sm text-gray-600">Demo Accounts:</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <Button 
-                type="submit" 
-                className="w-full" 
-                disabled={isLoading}
+                variant="outline" 
+                size="sm" 
+                onClick={() => fillDemoCredentials('admin')}
+                className="text-sm border-gray-300 text-gray-700 hover:bg-gray-50"
               >
-                {isLoading ? 'Signing in...' : 'Sign In'}
+                Admin Demo
               </Button>
-            </form>
-
-            <div className="mt-6 space-y-2">
-              <p className="text-sm text-muted-foreground text-center">Demo Accounts:</p>
-              <div className="grid grid-cols-2 gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => fillDemoCredentials('admin')}
-                  className="text-xs"
-                >
-                  Admin Demo
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => fillDemoCredentials('client')}
-                  className="text-xs"
-                >
-                  Client Demo
-                </Button>
-              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => fillDemoCredentials('client')}
+                className="text-sm border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                Client Demo
+              </Button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   );
