@@ -54,8 +54,8 @@ export const Login: React.FC = () => {
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white">
         <div className="w-full max-w-md space-y-8">
           <div className="text-left">
-            <h1 className="text-4xl font-bold text-gray-900 mb-3">Sign in</h1>
-            <p className="text-gray-500 text-base">Sign in to access your warehouse dashboard</p>
+            <h1 className="text-4xl font-bold text-gray-900 mb-3">Sign up</h1>
+            <p className="text-gray-500 text-base">Sign up for free to access to in any of our products</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6 mt-12">
@@ -90,16 +90,27 @@ export const Login: React.FC = () => {
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 flex items-center pr-4"
+                  className="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-500 text-sm"
                   onClick={() => setShowPassword(!showPassword)}
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400" />
-                  ) : (
-                    <Eye className="h-5 w-5 text-gray-400" />
-                  )}
+                  Hide
                 </button>
               </div>
+              <p className="text-xs text-gray-500 mt-2">Use 8 or more characters with a mix of letters, numbers & symbols</p>
+            </div>
+
+            <div className="space-y-3 mt-6">
+              <label className="flex items-start space-x-3">
+                <input type="checkbox" className="w-4 h-4 mt-0.5 rounded border-gray-300 text-black focus:ring-0" defaultChecked />
+                <span className="text-sm text-gray-700">
+                  Agree to our <span className="underline">Terms of use</span> and <span className="underline">Privacy Policy</span>
+                </span>
+              </label>
+              
+              <label className="flex items-start space-x-3">
+                <input type="checkbox" className="w-4 h-4 mt-0.5 rounded border-gray-300 text-black focus:ring-0" defaultChecked />
+                <span className="text-sm text-gray-700">Subscribe to our monthly newsletter</span>
+              </label>
             </div>
 
             <Button 
@@ -107,15 +118,15 @@ export const Login: React.FC = () => {
               className="w-full h-12 bg-gray-400 hover:bg-gray-500 text-white font-medium rounded-lg transition-colors mt-8" 
               disabled={isLoading}
             >
-              {isLoading ? 'Signing in...' : 'Sign in'}
+              {isLoading ? 'Signing up...' : 'Sign up'}
             </Button>
           </form>
 
           <div className="text-center mt-8">
             <p className="text-gray-600 text-sm">
-              Don't have an account?{' '}
+              Already have an account?{' '}
               <span className="text-gray-900 font-medium cursor-pointer hover:underline">
-                Sign up
+                Log in
               </span>
             </p>
           </div>
