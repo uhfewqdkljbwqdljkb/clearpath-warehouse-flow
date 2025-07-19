@@ -140,7 +140,7 @@ export const Login: React.FC = () => {
                 variant="outline" 
                 size="sm" 
                 onClick={() => fillDemoCredentials('admin')}
-                className="text-sm border-gray-200 text-gray-600 hover:bg-gray-50 h-10 rounded-lg"
+                className="text-sm border-gray-200 bg-white text-gray-600 hover:bg-white shadow-md h-10 rounded-lg"
               >
                 Admin Demo
               </Button>
@@ -148,7 +148,7 @@ export const Login: React.FC = () => {
                 variant="outline" 
                 size="sm" 
                 onClick={() => fillDemoCredentials('client')}
-                className="text-sm border-gray-200 text-gray-600 hover:bg-gray-50 h-10 rounded-lg"
+                className="text-sm border-gray-200 bg-white text-gray-600 hover:bg-white shadow-md h-10 rounded-lg"
               >
                 Client Demo
               </Button>
