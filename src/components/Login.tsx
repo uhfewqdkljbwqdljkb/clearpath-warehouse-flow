@@ -40,7 +40,7 @@ export const Login: React.FC = () => {
   return (
     <div className="min-h-screen flex">
       {/* Left side - Warehouse illustration */}
-      <div className="hidden lg:flex lg:w-1/2 items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
+      <div className="hidden lg:flex lg:w-1/2 items-center justify-center bg-gray-50 p-16">
         <div className="max-w-lg">
           <img 
             src={warehouseIsometric} 
@@ -53,50 +53,50 @@ export const Login: React.FC = () => {
       {/* Right side - Login form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white">
         <div className="w-full max-w-md space-y-8">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold text-gray-900">Sign in</h1>
-            <p className="mt-2 text-gray-600">Sign in to access your warehouse dashboard</p>
+          <div className="text-left">
+            <h1 className="text-4xl font-bold text-gray-900 mb-3">Sign in</h1>
+            <p className="text-gray-500 text-base">Sign in to access your warehouse dashboard</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6 mt-12">
             <div>
-              <Label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <Label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                 Email address
               </Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="Enter your email"
+                placeholder=""
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-blue-500"
+                className="w-full h-12 rounded-lg border border-gray-300 px-4 py-3 text-base focus:border-gray-400 focus:ring-0 focus:outline-none"
                 required
               />
             </div>
             
             <div>
-              <Label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <Label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
                 Password
               </Label>
-              <div className="relative mt-1">
+              <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
+                  placeholder=""
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full rounded-md border border-gray-300 px-3 py-2 pr-10 focus:border-blue-500 focus:ring-blue-500"
+                  className="w-full h-12 rounded-lg border border-gray-300 px-4 py-3 pr-12 text-base focus:border-gray-400 focus:ring-0 focus:outline-none"
                   required
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 flex items-center pr-3"
+                  className="absolute inset-y-0 right-0 flex items-center pr-4"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <EyeOff className="h-4 w-4 text-gray-400" />
+                    <EyeOff className="h-5 w-5 text-gray-400" />
                   ) : (
-                    <Eye className="h-4 w-4 text-gray-400" />
+                    <Eye className="h-5 w-5 text-gray-400" />
                   )}
                 </button>
               </div>
@@ -104,23 +104,32 @@ export const Login: React.FC = () => {
 
             <Button 
               type="submit" 
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors" 
+              className="w-full h-12 bg-gray-400 hover:bg-gray-500 text-white font-medium rounded-lg transition-colors mt-8" 
               disabled={isLoading}
             >
               {isLoading ? 'Signing in...' : 'Sign in'}
             </Button>
           </form>
 
-          <div className="mt-6 space-y-4">
-            <div className="text-center">
-              <p className="text-sm text-gray-600">Demo Accounts:</p>
+          <div className="text-center mt-8">
+            <p className="text-gray-600 text-sm">
+              Don't have an account?{' '}
+              <span className="text-gray-900 font-medium cursor-pointer hover:underline">
+                Sign up
+              </span>
+            </p>
+          </div>
+
+          <div className="mt-8 pt-6 border-t border-gray-100">
+            <div className="text-center mb-4">
+              <p className="text-sm text-gray-500">Demo Accounts:</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Button 
                 variant="outline" 
                 size="sm" 
                 onClick={() => fillDemoCredentials('admin')}
-                className="text-sm border-gray-300 text-gray-700 hover:bg-gray-50"
+                className="text-sm border-gray-200 text-gray-600 hover:bg-gray-50 h-10 rounded-lg"
               >
                 Admin Demo
               </Button>
@@ -128,7 +137,7 @@ export const Login: React.FC = () => {
                 variant="outline" 
                 size="sm" 
                 onClick={() => fillDemoCredentials('client')}
-                className="text-sm border-gray-300 text-gray-700 hover:bg-gray-50"
+                className="text-sm border-gray-200 text-gray-600 hover:bg-gray-50 h-10 rounded-lg"
               >
                 Client Demo
               </Button>
