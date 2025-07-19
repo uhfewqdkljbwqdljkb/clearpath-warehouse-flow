@@ -26,38 +26,40 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
+const App = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/" element={
-              <ProtectedRoute>
-                <DashboardLayout />
-              </ProtectedRoute>
-            }>
-              <Route index element={<Dashboard />} />
-              <Route path="inventory" element={<Inventory />} />
-              <Route path="orders" element={<div>Orders - Coming Soon</div>} />
-              <Route path="receiving" element={<div>Receiving - Coming Soon</div>} />
-              <Route path="shipping" element={<div>Shipping - Coming Soon</div>} />
-              <Route path="reports" element={<div>Reports - Coming Soon</div>} />
-              <Route path="settings" element={<div>Settings - Coming Soon</div>} />
-              <Route path="my-orders" element={<div>My Orders - Coming Soon</div>} />
-              <Route path="inventory-levels" element={<Inventory />} />
-              <Route path="order-history" element={<div>Order History - Coming Soon</div>} />
-              <Route path="contact" element={<div>Contact - Coming Soon</div>} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+        <TooltipProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <DashboardLayout />
+                </ProtectedRoute>
+              }>
+                <Route index element={<Dashboard />} />
+                <Route path="inventory" element={<Inventory />} />
+                <Route path="orders" element={<div>Orders - Coming Soon</div>} />
+                <Route path="receiving" element={<div>Receiving - Coming Soon</div>} />
+                <Route path="shipping" element={<div>Shipping - Coming Soon</div>} />
+                <Route path="reports" element={<div>Reports - Coming Soon</div>} />
+                <Route path="settings" element={<div>Settings - Coming Soon</div>} />
+                <Route path="my-orders" element={<div>My Orders - Coming Soon</div>} />
+                <Route path="inventory-levels" element={<Inventory />} />
+                <Route path="order-history" element={<div>Order History - Coming Soon</div>} />
+                <Route path="contact" element={<div>Contact - Coming Soon</div>} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+          <Toaster />
+          <Sonner />
+        </TooltipProvider>
       </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+    </QueryClientProvider>
+  );
+};
 
 export default App;
