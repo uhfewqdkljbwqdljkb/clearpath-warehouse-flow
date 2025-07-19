@@ -77,14 +77,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed }) => {
                 <NavLink
                   to={item.path}
                   className={({ isActive }) =>
-                    `flex items-center px-4 py-3 text-sm font-medium rounded-full transition-colors ${
+                    `flex items-center px-3 py-2 text-xs font-medium rounded-full transition-colors ${
                       isActive
                         ? 'bg-red-500 text-white'
-                        : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'
                     }`
                   }
                 >
-                  <Icon className={`${isCollapsed ? 'mx-auto' : 'mr-3'} h-5 w-5 flex-shrink-0`} />
+                  <Icon className={`${isCollapsed ? 'mx-auto' : 'mr-2'} h-4 w-4 flex-shrink-0`} />
                   {!isCollapsed && <span>{item.name}</span>}
                 </NavLink>
               </li>
