@@ -15,7 +15,8 @@ import {
   Bell,
   User,
   Settings,
-  Menu
+  Menu,
+  Package
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -29,20 +30,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
 
   const adminNavItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'Calendar', path: '/calendar', icon: Calendar },
-    { name: 'Expenses', path: '/expenses', icon: DollarSign },
-    { name: 'Analytics', path: '/analytics', icon: BarChart3 },
-    { name: 'Warehouse', path: '/warehouse', icon: Warehouse },
-    { name: 'Reports', path: '/reports', icon: FileText },
-    { name: 'Bookmarks', path: '/bookmarks', icon: Bookmark },
-    { name: 'Notifications', path: '/notifications', icon: Bell },
+    { name: 'Locations', path: '/locations', icon: Warehouse },
+    { name: 'Users', path: '/users', icon: User },
+    { name: 'Inventory', path: '/inventory', icon: Package },
+    { name: 'Orders', path: '/orders', icon: FileText },
+    { name: 'Receiving', path: '/receiving', icon: Calendar },
+    { name: 'Shipping', path: '/shipping', icon: DollarSign },
+    { name: 'Reports', path: '/reports', icon: BarChart3 },
+    { name: 'Settings', path: '/settings', icon: Settings },
   ];
 
   const clientNavItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'Calendar', path: '/calendar', icon: Calendar },
-    { name: 'Analytics', path: '/analytics', icon: BarChart3 },
-    { name: 'Notifications', path: '/notifications', icon: Bell },
+    { name: 'My Orders', path: '/my-orders', icon: FileText },
+    { name: 'Inventory Levels', path: '/inventory-levels', icon: Package },
+    { name: 'Order History', path: '/order-history', icon: Calendar },
+    { name: 'Contact', path: '/contact', icon: Bell },
   ];
 
   const navItems = isAdmin ? adminNavItems : clientNavItems;
