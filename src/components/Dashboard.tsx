@@ -47,7 +47,7 @@ export const Dashboard: React.FC = () => {
 
         {/* Bar Chart */}
         <div className="lg:col-span-1">
-          <Card>
+          <Card className="h-full">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium text-muted-foreground">Dynamic Statistics</CardTitle>
