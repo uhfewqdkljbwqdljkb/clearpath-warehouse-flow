@@ -77,10 +77,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed }) => {
                   className={({ isActive }) =>
                     `flex items-center px-3 py-2 text-xs font-medium rounded-[8px] transition-colors ${
                       isActive
-                        ? 'bg-red-500 text-white'
+                        ? 'text-gray-600 hover:text-gray-800'
                         : 'text-gray-600 hover:text-gray-800'
                     }`
                   }
+                  style={({ isActive }) => ({
+                    backgroundColor: isActive ? '#00FF4D73' : 'transparent',
+                    color: isActive ? '#00FF4D' : undefined
+                  })}
                 >
                   <Icon className={`${isCollapsed ? 'mx-auto' : 'mr-2'} h-4 w-4 flex-shrink-0`} />
                   {!isCollapsed && <span>{item.name}</span>}
