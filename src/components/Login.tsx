@@ -69,7 +69,7 @@ export const Login: React.FC = () => {
                 placeholder=""
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full h-12 rounded-lg border border-black bg-white px-4 py-3 text-base focus:ring-0 focus:outline-none focus:shadow-[0_0_15px_-2px_rgba(0,0,0,0.2)]"
+                className="w-full h-12 rounded-lg border border-black bg-white px-4 py-3 text-base focus:ring-0 focus:ring-offset-0 focus:outline-none focus:shadow-[0_0_15px_-2px_rgba(0,0,0,0.2)]"
                 required
               />
             </div>
@@ -85,7 +85,7 @@ export const Login: React.FC = () => {
                   placeholder=""
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full h-12 rounded-lg border border-black bg-white px-4 py-3 pr-12 text-base focus:ring-0 focus:outline-none focus:shadow-[0_0_15px_-2px_rgba(0,0,0,0.2)]"
+                  className="w-full h-12 rounded-lg border border-black bg-white px-4 py-3 pr-12 text-base focus:ring-0 focus:ring-offset-0 focus:outline-none focus:shadow-[0_0_15px_-2px_rgba(0,0,0,0.2)]"
                   required
                 />
                 <button
