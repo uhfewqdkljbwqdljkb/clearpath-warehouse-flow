@@ -1,4 +1,4 @@
-import { Product, InventoryItem, Order, Location, Client, ClientProduct } from '@/types';
+import { Product, InventoryItem, Order, Location, Client, ClientProduct, ClientAllocation } from '@/types';
 
 export const mockProducts: Product[] = [
   {
@@ -429,4 +429,162 @@ export const generateInternalBarcode = (clientCode: string, sku: string) => {
 
 export const calculateCubicFeet = (length: number, width: number, height: number) => {
   return Math.round((length * width * height / 1728) * 1000) / 1000; // Round to 3 decimal places
+};
+
+// Sample Client Allocations
+export const mockClientAllocations: ClientAllocation[] = [
+  // TechShop Electronics gets entire Zone A (electronics storage)
+  {
+    id: "1",
+    client_id: "1", // TechShop Electronics
+    allocation_type: "zone",
+    zone_id: "A",
+    allocated_cubic_feet: 5000,
+    allocation_date: "2024-01-15",
+    is_active: true,
+    created_at: "2024-01-15T00:00:00Z",
+    updated_at: "2024-01-15T00:00:00Z"
+  },
+  // Fashion Forward gets rows B01-B07 in Zone B
+  {
+    id: "2",
+    client_id: "2", // Fashion Forward
+    allocation_type: "row_range",
+    zone_id: "B",
+    start_row_id: "B01",
+    end_row_id: "B07",
+    allocated_cubic_feet: 3500,
+    allocation_date: "2024-02-01",
+    is_active: true,
+    created_at: "2024-02-01T00:00:00Z",
+    updated_at: "2024-02-01T00:00:00Z"
+  },
+  // Home Essentials gets rows C01-C04 in Zone C
+  {
+    id: "3",
+    client_id: "3", // Home Essentials
+    allocation_type: "row_range",
+    zone_id: "C",
+    start_row_id: "C01",
+    end_row_id: "C04",
+    allocated_cubic_feet: 2000,
+    allocation_date: "2024-03-01",
+    is_active: true,
+    created_at: "2024-03-01T00:00:00Z",
+    updated_at: "2024-03-01T00:00:00Z"
+  },
+  // Global Imports had specific bins (now inactive)
+  {
+    id: "4",
+    client_id: "4", // Global Imports
+    allocation_type: "specific_bins",
+    zone_id: "D",
+    specific_bin_ids: ["D01-01", "D01-02", "D01-03", "D02-01", "D02-02"],
+    allocated_cubic_feet: 1200,
+    allocation_date: "2023-12-01",
+    is_active: false,
+    created_at: "2023-12-01T00:00:00Z",
+    updated_at: "2024-01-15T00:00:00Z"
+  }
+];
+
+// Enhanced warehouse zones with allocation tracking
+export const warehouseZones = [
+  {
+    id: "A",
+    name: "Zone A - Electronics",
+    total_rows: 10,
+    bins_per_row: 15,
+    cubic_feet_per_bin: 50,
+    total_cubic_feet: 7500,
+    allocated_cubic_feet: 5000,
+    client_id: "1", // TechShop Electronics
+    allocation_type: "zone"
+  },
+  {
+    id: "B", 
+    name: "Zone B - Apparel",
+    total_rows: 12,
+    bins_per_row: 12,
+    cubic_feet_per_bin: 40,
+    total_cubic_feet: 5760,
+    allocated_cubic_feet: 3500,
+    client_id: "2", // Fashion Forward (partial)
+    allocation_type: "row_range"
+  },
+  {
+    id: "C",
+    name: "Zone C - Home & Garden", 
+    total_rows: 8,
+    bins_per_row: 10,
+    cubic_feet_per_bin: 45,
+    total_cubic_feet: 3600,
+    allocated_cubic_feet: 2000,
+    client_id: "3", // Home Essentials (partial)
+    allocation_type: "row_range"
+  },
+  {
+    id: "D",
+    name: "Zone D - General Storage",
+    total_rows: 15,
+    bins_per_row: 20,
+    cubic_feet_per_bin: 35,
+    total_cubic_feet: 10500,
+    allocated_cubic_feet: 0, // Available
+    client_id: null,
+    allocation_type: null
+  }
+];
+
+// Helper functions for allocation management
+export const getAllocationsByClient = (clientId: string) => {
+  return mockClientAllocations.filter(allocation => 
+    allocation.client_id === clientId && allocation.is_active
+  );
+};
+
+export const getAvailableZones = () => {
+  const allocatedZones = mockClientAllocations
+    .filter(a => a.is_active && a.allocation_type === 'zone')
+    .map(a => a.zone_id);
+  
+  return warehouseZones.filter(zone => !allocatedZones.includes(zone.id));
+};
+
+export const checkAllocationConflict = (
+  zoneId: string, 
+  allocationType: string, 
+  startRow?: string, 
+  endRow?: string,
+  specificBins?: string[]
+) => {
+  const existingAllocations = mockClientAllocations.filter(a => 
+    a.is_active && a.zone_id === zoneId
+  );
+
+  // Check for zone-level conflicts
+  if (allocationType === 'zone') {
+    return existingAllocations.length > 0;
+  }
+
+  // Check for row range conflicts
+  if (allocationType === 'row_range' && startRow && endRow) {
+    return existingAllocations.some(allocation => {
+      if (allocation.allocation_type === 'zone') return true;
+      if (allocation.allocation_type === 'row_range') {
+        // Check if ranges overlap
+        return !(endRow < allocation.start_row_id! || startRow > allocation.end_row_id!);
+      }
+      return false;
+    });
+  }
+
+  return false;
+};
+
+export const calculateZoneUtilization = (zoneId: string) => {
+  const zone = warehouseZones.find(z => z.id === zoneId);
+  if (!zone) return 0;
+  
+  return Math.round((zone.allocated_cubic_feet / zone.total_cubic_feet) * 100);
 };

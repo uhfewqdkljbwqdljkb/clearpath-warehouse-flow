@@ -16,7 +16,8 @@ import {
   User,
   Settings,
   Menu,
-  Package
+  Package,
+  MapPin
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -33,6 +34,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
     { name: 'Locations', path: '/locations', icon: Warehouse },
     { name: 'Clients', path: '/clients', icon: User },
     { name: 'Products', path: '/products', icon: Package },
+    { name: 'Allocations', path: '/allocations', icon: MapPin },
     { name: 'Users', path: '/users', icon: Settings },
   ];
 

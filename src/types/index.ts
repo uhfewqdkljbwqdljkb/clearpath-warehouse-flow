@@ -101,3 +101,19 @@ export interface ClientProduct {
   created_at: string;
   updated_at: string;
 }
+
+// Location Allocation Types
+export interface ClientAllocation {
+  id: string;
+  client_id: string;
+  allocation_type: 'zone' | 'row_range' | 'specific_bins';
+  zone_id?: string; // if allocating entire zone
+  start_row_id?: string; // if allocating row range
+  end_row_id?: string; // if allocating row range
+  specific_bin_ids?: string[]; // if allocating specific bins
+  allocated_cubic_feet: number;
+  allocation_date: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
