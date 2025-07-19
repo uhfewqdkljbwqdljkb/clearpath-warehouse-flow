@@ -121,7 +121,7 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Shipping Revenue */}
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 h-full">
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
