@@ -1,6 +1,8 @@
+
 import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
+import { Header } from './Header';
 import { Button } from '@/components/ui/button';
 import { Menu } from 'lucide-react';
 
@@ -12,20 +14,22 @@ export const DashboardLayout: React.FC = () => {
       <Sidebar isCollapsed={isSidebarCollapsed} />
       
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="bg-card border-b border-border px-6 py-4 flex items-center">
+        <Header />
+        
+        {/* Toggle button */}
+        <div className="px-6 py-2 border-b border-border bg-background">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="mr-4"
+            className="h-8 w-8"
           >
-            <Menu className="h-5 w-5" />
+            <Menu className="h-4 w-4" />
           </Button>
-        </header>
+        </div>
 
         {/* Main content */}
-        <main className="flex-1 overflow-auto p-6 bg-muted/30">
+        <main className="flex-1 overflow-auto p-6 bg-background">
           <Outlet />
         </main>
       </div>

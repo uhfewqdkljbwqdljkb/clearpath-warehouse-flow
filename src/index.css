@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,7 +9,7 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 248 250 252;
+    --background: 255 255 255;
     --foreground: 15 23 42;
 
     --card: 255 255 255;
@@ -18,14 +19,14 @@ All colors MUST be HSL.
     --popover-foreground: 15 23 42;
 
     --primary: 37 99 235;
-    --primary-foreground: 248 250 252;
+    --primary-foreground: 255 255 255;
     --primary-hover: 29 78 216;
 
     --secondary: 241 245 249;
     --secondary-foreground: 51 65 85;
 
     --success: 34 197 94;
-    --success-foreground: 240 253 244;
+    --success-foreground: 255 255 255;
 
     --warning: 251 146 60;
     --warning-foreground: 255 251 235;
@@ -33,33 +34,29 @@ All colors MUST be HSL.
     --muted: 248 250 252;
     --muted-foreground: 100 116 139;
 
-    --accent: 99 102 241;
-    --accent-foreground: 248 250 252;
+    --accent: 34 197 94;
+    --accent-foreground: 255 255 255;
 
     --destructive: 239 68 68;
     --destructive-foreground: 254 242 242;
 
     --border: 226 232 240;
     --input: 226 232 240;
-    --ring: 37 99 235;
+    --ring: 34 197 94;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 98%;
+    --sidebar-background: 30 41 59;
+    --sidebar-foreground: 255 255 255;
+    --sidebar-primary: 34 197 94;
+    --sidebar-primary-foreground: 255 255 255;
+    --sidebar-accent: 34 197 94;
+    --sidebar-accent-foreground: 255 255 255;
+    --sidebar-border: 51 65 85;
+    --sidebar-ring: 34 197 94;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --header-background: 30 41 59;
+    --header-foreground: 255 255 255;
   }
 
   .dark {
@@ -109,4 +106,28 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
   }
+}
+
+.metric-card {
+  @apply bg-white rounded-lg shadow-sm border border-border p-6 hover:shadow-md transition-shadow;
+}
+
+.chart-container {
+  @apply bg-white rounded-lg shadow-sm border border-border p-6;
+}
+
+.status-badge-shipped {
+  @apply bg-success/10 text-success px-2 py-1 rounded-full text-xs font-medium;
+}
+
+.status-badge-progress {
+  @apply bg-primary/10 text-primary px-2 py-1 rounded-full text-xs font-medium;
+}
+
+.status-badge-pending {
+  @apply bg-warning/10 text-warning px-2 py-1 rounded-full text-xs font-medium;
+}
+
+.activity-dot {
+  @apply w-2 h-2 bg-accent rounded-full;
 }

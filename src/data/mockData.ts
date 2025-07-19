@@ -132,3 +132,56 @@ export const getLowStockItems = () => {
     item.product && item.quantity <= item.product.reorderLevel
   );
 };
+
+// Add new dashboard metrics
+export const dashboardMetrics = {
+  totalItems: 2394,
+  activeOrders: 156,
+  pendingOrders: 23,
+  lowStockItems: 18,
+  inventoryValue: 473265,
+  trends: {
+    totalItems: { value: 12, type: 'positive' as const },
+    activeOrders: { value: 8, type: 'positive' as const },
+    pendingOrders: { value: -5, type: 'negative' as const },
+    lowStockItems: { value: 3, type: 'neutral' as const },
+  }
+};
+
+// Enhanced orders data
+export const enhancedOrders = [
+  {
+    id: 'ORD-001',
+    client: 'ABC Store',
+    status: 'In Progress',
+    items: 12,
+    amount: 450,
+    createdDate: '2024-01-15',
+  },
+  {
+    id: 'ORD-002',
+    client: 'XYZ Corp',
+    status: 'Shipped',
+    items: 8,
+    amount: 320,
+    createdDate: '2024-01-14',
+  },
+  {
+    id: 'ORD-003',
+    client: 'DEF Ltd',
+    status: 'Pending',
+    items: 15,
+    amount: 675,
+    createdDate: '2024-01-13',
+  },
+];
+
+// Activity feed data
+export const recentActivities = [
+  { action: 'Inventory updated for SKU-12345', time: '2 minutes ago' },
+  { action: 'Order ORD-001 shipped to Los Angeles, CA', time: '15 minutes ago' },
+  { action: 'Low stock alert for Product ABC', time: '1 hour ago' },
+  { action: 'New order received from Client XYZ', time: '2 hours ago' },
+  { action: 'Warehouse Zone A maintenance completed', time: '3 hours ago' },
+  { action: 'Order ORD-002 picked and ready for shipping', time: '4 hours ago' },
+];
