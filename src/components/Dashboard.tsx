@@ -55,7 +55,7 @@ export const Dashboard: React.FC = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="h-32 flex items-end justify-between space-x-1">
+              <div className="flex-1 flex items-end justify-between space-x-1">
                 {[40, 60, 35, 80, 45, 70, 55].map((height, i) => (
                   <div key={i} className="bg-destructive rounded-sm flex-1" style={{height: `${height}%`}}></div>
                 ))}
