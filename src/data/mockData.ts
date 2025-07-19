@@ -1,4 +1,4 @@
-import { Product, InventoryItem, Order, Location } from '@/types';
+import { Product, InventoryItem, Order, Location, Client } from '@/types';
 
 export const mockProducts: Product[] = [
   {
@@ -184,4 +184,80 @@ export const recentActivities = [
   { action: 'New order received from Client XYZ', time: '2 hours ago' },
   { action: 'Warehouse Zone A maintenance completed', time: '3 hours ago' },
   { action: 'Order ORD-002 picked and ready for shipping', time: '4 hours ago' },
+];
+
+// Sample Clients for Phase 2
+export const mockClients: Client[] = [
+  {
+    id: "1",
+    client_code: "CLT001",
+    company_name: "TechShop Electronics",
+    contact_name: "John Smith",
+    email: "john@techshop.com",
+    phone: "+1-555-0123",
+    address: "123 Tech Street, San Francisco, CA 94105",
+    billing_address: "123 Tech Street, San Francisco, CA 94105",
+    contract_start_date: "2024-01-01",
+    contract_end_date: "2024-12-31",
+    storage_plan: "premium",
+    max_storage_cubic_feet: 5000,
+    monthly_fee: 2500,
+    is_active: true,
+    created_at: "2024-01-01T00:00:00Z",
+    updated_at: "2024-01-01T00:00:00Z"
+  },
+  {
+    id: "2",
+    client_code: "CLT002",
+    company_name: "Fashion Forward",
+    contact_name: "Sarah Johnson",
+    email: "sarah@fashionforward.com",
+    phone: "+1-555-0456",
+    address: "456 Fashion Ave, New York, NY 10001",
+    billing_address: "456 Fashion Ave, New York, NY 10001",
+    contract_start_date: "2024-02-01",
+    contract_end_date: "2025-01-31",
+    storage_plan: "enterprise",
+    max_storage_cubic_feet: 8000,
+    monthly_fee: 4000,
+    is_active: true,
+    created_at: "2024-02-01T00:00:00Z",
+    updated_at: "2024-02-01T00:00:00Z"
+  },
+  {
+    id: "3",
+    client_code: "CLT003",
+    company_name: "Home Essentials",
+    contact_name: "Mike Wilson",
+    email: "mike@homeessentials.com",
+    phone: "+1-555-0789",
+    address: "789 Home Blvd, Los Angeles, CA 90210",
+    billing_address: "789 Home Blvd, Los Angeles, CA 90210",
+    contract_start_date: "2024-03-01",
+    contract_end_date: "2024-08-31",
+    storage_plan: "basic",
+    max_storage_cubic_feet: 2000,
+    monthly_fee: 1200,
+    is_active: true,
+    created_at: "2024-03-01T00:00:00Z",
+    updated_at: "2024-03-01T00:00:00Z"
+  },
+  {
+    id: "4",
+    client_code: "CLT004",
+    company_name: "Global Imports",
+    contact_name: "Lisa Chen",
+    email: "lisa@globalimports.com",
+    phone: "+1-555-0321",
+    address: "321 Import Dr, Seattle, WA 98101",
+    billing_address: "321 Import Dr, Seattle, WA 98101",
+    contract_start_date: "2023-12-01",
+    contract_end_date: "2024-11-30",
+    storage_plan: "premium",
+    max_storage_cubic_feet: 6000,
+    monthly_fee: 3200,
+    is_active: false,
+    created_at: "2023-12-01T00:00:00Z",
+    updated_at: "2024-01-15T00:00:00Z"
+  }
 ];

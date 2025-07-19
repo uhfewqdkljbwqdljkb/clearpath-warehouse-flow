@@ -31,7 +31,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
   const adminNavItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Locations', path: '/locations', icon: Warehouse },
-    { name: 'Users', path: '/users', icon: User },
+    { name: 'Clients', path: '/clients', icon: User },
+    { name: 'Users', path: '/users', icon: Settings },
   ];
 
   const clientNavItems = [

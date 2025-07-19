@@ -48,3 +48,33 @@ export interface OrderItem {
 }
 
 export type OrderStatus = 'pending' | 'picking' | 'packed' | 'shipped' | 'delivered';
+
+// Client Management Types
+export interface Client {
+  id: string;
+  client_code: string;
+  company_name: string;
+  contact_name: string;
+  email: string;
+  phone: string;
+  address: string;
+  billing_address: string;
+  contract_start_date: string;
+  contract_end_date: string;
+  storage_plan: 'basic' | 'premium' | 'enterprise';
+  max_storage_cubic_feet: number;
+  monthly_fee: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClientUser {
+  id: string;
+  client_id: string;
+  username: string;
+  email: string;
+  role: 'client_admin' | 'client_viewer';
+  is_active: boolean;
+  last_login?: string;
+}

@@ -10,6 +10,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Dashboard } from "@/components/Dashboard";
 import { Locations } from "@/pages/Locations";
 import { Users } from "@/pages/Users";
+import { Clients } from "@/pages/Clients";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -44,6 +45,7 @@ const App = () => {
                 <Route index element={<Dashboard />} />
                 <Route path="locations" element={<Locations />} />
                 <Route path="users" element={<Users />} />
+                <Route path="clients" element={<Clients />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
