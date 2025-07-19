@@ -11,7 +11,7 @@ export const Dashboard: React.FC = () => {
   const { user } = useAuth();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-[15px]">
       {/* Dynamic Statistics Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Statistics Cards */}
