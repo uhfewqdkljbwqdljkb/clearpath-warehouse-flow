@@ -32,6 +32,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Locations', path: '/locations', icon: Warehouse },
     { name: 'Clients', path: '/clients', icon: User },
+    { name: 'Products', path: '/products', icon: Package },
     { name: 'Users', path: '/users', icon: Settings },
   ];
 

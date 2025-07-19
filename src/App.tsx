@@ -11,6 +11,7 @@ import { Dashboard } from "@/components/Dashboard";
 import { Locations } from "@/pages/Locations";
 import { Users } from "@/pages/Users";
 import { Clients } from "@/pages/Clients";
+import { Products } from "@/pages/Products";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -46,6 +47,7 @@ const App = () => {
                 <Route path="locations" element={<Locations />} />
                 <Route path="users" element={<Users />} />
                 <Route path="clients" element={<Clients />} />
+                <Route path="products" element={<Products />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

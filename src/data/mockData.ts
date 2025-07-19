@@ -1,4 +1,4 @@
-import { Product, InventoryItem, Order, Location, Client } from '@/types';
+import { Product, InventoryItem, Order, Location, Client, ClientProduct } from '@/types';
 
 export const mockProducts: Product[] = [
   {
@@ -261,3 +261,172 @@ export const mockClients: Client[] = [
     updated_at: "2024-01-15T00:00:00Z"
   }
 ];
+
+// Sample Products per Client
+export const mockClientProducts: ClientProduct[] = [
+  // TechShop Electronics Products
+  {
+    id: "1",
+    client_id: "1",
+    sku: "TS-WH001",
+    product_name: "Wireless Headphones",
+    description: "Premium noise-canceling wireless headphones with 30-hour battery life",
+    category: "Audio",
+    dimensions_length: 8,
+    dimensions_width: 6,
+    dimensions_height: 3,
+    weight_lbs: 1.2,
+    cubic_feet: 1.0, // calculated: 8*6*3 / 1728
+    storage_requirements: "ambient",
+    product_barcode: "123456789012",
+    internal_barcode: "PRD-CLT001-TS-WH001",
+    reorder_level: 10,
+    cost_per_unit: 89.99,
+    is_active: true,
+    created_at: "2024-01-15T00:00:00Z",
+    updated_at: "2024-01-15T00:00:00Z"
+  },
+  {
+    id: "2",
+    client_id: "1",
+    sku: "TS-PH002",
+    product_name: "Smartphone Case",
+    description: "Protective case for iPhone 15 Pro with built-in screen protector",
+    category: "Accessories",
+    dimensions_length: 6,
+    dimensions_width: 3,
+    dimensions_height: 1,
+    weight_lbs: 0.3,
+    cubic_feet: 0.01, // 6*3*1 / 1728
+    storage_requirements: "ambient",
+    product_barcode: "123456789013",
+    internal_barcode: "PRD-CLT001-TS-PH002",
+    reorder_level: 25,
+    cost_per_unit: 24.99,
+    is_active: true,
+    created_at: "2024-01-16T00:00:00Z",
+    updated_at: "2024-01-16T00:00:00Z"
+  },
+  {
+    id: "3",
+    client_id: "1",
+    sku: "TS-CH003",
+    product_name: "Fast Charging Cable",
+    description: "USB-C to Lightning fast charging cable 6ft length",
+    category: "Accessories",
+    dimensions_length: 4,
+    dimensions_width: 2,
+    dimensions_height: 1,
+    weight_lbs: 0.2,
+    cubic_feet: 0.005, // 4*2*1 / 1728
+    storage_requirements: "ambient",
+    product_barcode: "123456789014",
+    internal_barcode: "PRD-CLT001-TS-CH003",
+    reorder_level: 50,
+    cost_per_unit: 19.99,
+    is_active: true,
+    created_at: "2024-01-17T00:00:00Z",
+    updated_at: "2024-01-17T00:00:00Z"
+  },
+
+  // Fashion Forward Products
+  {
+    id: "4",
+    client_id: "2",
+    sku: "FF-TS001",
+    product_name: "Cotton T-Shirt",
+    description: "100% organic cotton t-shirt in various colors and sizes",
+    category: "Apparel",
+    dimensions_length: 12,
+    dimensions_width: 8,
+    dimensions_height: 2,
+    weight_lbs: 0.5,
+    cubic_feet: 0.11, // 12*8*2 / 1728
+    storage_requirements: "ambient",
+    product_barcode: "234567890123",
+    internal_barcode: "PRD-CLT002-FF-TS001",
+    reorder_level: 20,
+    cost_per_unit: 15.99,
+    is_active: true,
+    created_at: "2024-02-01T00:00:00Z",
+    updated_at: "2024-02-01T00:00:00Z"
+  },
+  {
+    id: "5",
+    client_id: "2",
+    sku: "FF-JE002",
+    product_name: "Denim Jeans",
+    description: "Premium stretch denim jeans with sustainable fabric",
+    category: "Apparel",
+    dimensions_length: 14,
+    dimensions_width: 10,
+    dimensions_height: 3,
+    weight_lbs: 1.1,
+    cubic_feet: 0.24, // 14*10*3 / 1728
+    storage_requirements: "ambient",
+    product_barcode: "234567890124",
+    internal_barcode: "PRD-CLT002-FF-JE002",
+    reorder_level: 15,
+    cost_per_unit: 79.99,
+    is_active: true,
+    created_at: "2024-02-02T00:00:00Z",
+    updated_at: "2024-02-02T00:00:00Z"
+  },
+
+  // Home Essentials Products
+  {
+    id: "6",
+    client_id: "3",
+    sku: "HE-MG001",
+    product_name: "Ceramic Coffee Mug",
+    description: "Handcrafted ceramic coffee mug with ergonomic handle",
+    category: "Kitchen",
+    dimensions_length: 4,
+    dimensions_width: 4,
+    dimensions_height: 4,
+    weight_lbs: 0.8,
+    cubic_feet: 0.037, // 4*4*4 / 1728
+    storage_requirements: "fragile",
+    product_barcode: "345678901234",
+    internal_barcode: "PRD-CLT003-HE-MG001",
+    reorder_level: 30,
+    cost_per_unit: 12.99,
+    is_active: true,
+    created_at: "2024-03-01T00:00:00Z",
+    updated_at: "2024-03-01T00:00:00Z"
+  },
+  {
+    id: "7",
+    client_id: "3",
+    sku: "HE-CL002",
+    product_name: "Kitchen Cleaner",
+    description: "Eco-friendly all-purpose kitchen cleaner spray",
+    category: "Cleaning",
+    dimensions_length: 8,
+    dimensions_width: 3,
+    dimensions_height: 10,
+    weight_lbs: 1.5,
+    cubic_feet: 0.14, // 8*3*10 / 1728
+    storage_requirements: "hazardous",
+    product_barcode: "345678901235",
+    internal_barcode: "PRD-CLT003-HE-CL002",
+    reorder_level: 40,
+    cost_per_unit: 8.99,
+    is_active: true,
+    created_at: "2024-03-02T00:00:00Z",
+    updated_at: "2024-03-02T00:00:00Z"
+  }
+];
+
+// Helper functions for product management
+export const getProductsByClient = (clientId: string) => {
+  return mockClientProducts.filter(product => product.client_id === clientId);
+};
+
+export const generateInternalBarcode = (clientCode: string, sku: string) => {
+  return `PRD-${clientCode}-${sku}`;
+};
+
+export const calculateCubicFeet = (length: number, width: number, height: number) => {
+  return Math.round((length * width * height / 1728) * 1000) / 1000; // Round to 3 decimal places
+};

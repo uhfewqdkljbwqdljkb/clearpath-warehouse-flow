@@ -78,3 +78,26 @@ export interface ClientUser {
   is_active: boolean;
   last_login?: string;
 }
+
+// Product Catalog Types
+export interface ClientProduct {
+  id: string;
+  client_id: string;
+  sku: string;
+  product_name: string;
+  description: string;
+  category: string;
+  dimensions_length: number; // inches
+  dimensions_width: number; // inches  
+  dimensions_height: number; // inches
+  weight_lbs: number;
+  cubic_feet: number; // calculated from dimensions
+  storage_requirements: 'ambient' | 'refrigerated' | 'fragile' | 'hazardous';
+  product_barcode: string; // Client's product barcode
+  internal_barcode: string; // Our warehouse barcode PRD-[CLIENT_CODE]-[SKU]
+  reorder_level: number;
+  cost_per_unit: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
