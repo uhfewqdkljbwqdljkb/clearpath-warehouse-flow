@@ -59,9 +59,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <h1 className="text-lg font-bold text-gray-900">Clearpath</h1>
               </div>}
           </div>
-          {!isCollapsed && <button onClick={onToggle} className="p-1 rounded-md hover:bg-gray-100 transition-colors">
-              <Menu className="h-4 w-4 text-gray-600" />
-            </button>}
+          <button onClick={onToggle} className="p-1 rounded-md hover:bg-gray-100 transition-colors">
+            <Menu className="h-4 w-4 text-gray-600" />
+          </button>
         </div>
       </div>
 
