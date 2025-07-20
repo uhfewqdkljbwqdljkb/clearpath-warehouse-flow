@@ -19,7 +19,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     path: '/',
     icon: LayoutDashboard
   }, {
-    name: 'Locations',
+    name: 'Warehouse',
     path: '/locations',
     icon: Warehouse
   }, {
@@ -44,7 +44,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     path: '/',
     icon: LayoutDashboard
   }, {
-    name: 'Locations',
+    name: 'Warehouse',
     path: '/locations',
     icon: Warehouse
   }];
