@@ -22,8 +22,8 @@ export const CapacityUsageDonut: React.FC<CapacityUsageDonutProps> = ({
         <CardTitle>Capacity Usage</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col items-center">
-        <div className="relative w-32 h-32 mb-4">
-          <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 100 100">
+        <div className="relative w-40 h-40 mb-4">
+          <svg className="w-40 h-40 transform -rotate-90" viewBox="0 0 100 100">
             {/* Background circle */}
             <circle
               cx="50"
