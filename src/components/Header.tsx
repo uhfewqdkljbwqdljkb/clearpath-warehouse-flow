@@ -12,40 +12,29 @@ export const Header: React.FC = () => {
   });
 
   return (
-    <header className="bg-blue-700 text-white px-6 py-4 flex items-center justify-between border-b">
-      {/* Left Side - Logo and Title */}
-      <div className="flex items-center space-x-4">
-        <div className="flex items-center space-x-2">
-          <Warehouse className="h-6 w-6" />
-          <span className="text-xl font-bold">CLEARPATH</span>
-        </div>
-        <div className="text-sm opacity-75">
-          <span>Warehouse Dashboard</span>
-        </div>
+    <header className="bg-white text-gray-900 px-6 py-4 flex items-center justify-between border-b border-gray-200">
+      {/* Left Side - Page Title */}
+      <div className="flex items-center">
+        <h1 className="text-lg font-medium text-gray-900">Dashboard</h1>
       </div>
 
       {/* Right Side - Action Buttons */}
-      <div className="flex items-center space-x-3">
-        <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white">
+      <div className="flex items-center space-x-2">
+        <Button variant="outline" size="sm" className="text-gray-700 border-gray-300">
           <Bell className="h-4 w-4 mr-2" />
-          Receive
+          Send Email
         </Button>
-        <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white">
+        <Button variant="outline" size="sm" className="text-gray-700 border-gray-300">
           <Settings className="h-4 w-4 mr-2" />
-          Ship
+          Dashboard
         </Button>
-        <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white">
+        <Button variant="outline" size="sm" className="text-gray-700 border-gray-300">
           <User className="h-4 w-4 mr-2" />
-          Track
+          Onlineshop
         </Button>
-        <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white">
-          Reports
-        </Button>
-        <Button variant="ghost" size="sm" className="text-white hover:bg-blue-600">
-          <Bell className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="sm" className="text-white hover:bg-blue-600">
-          <User className="h-4 w-4" />
+        <Button variant="default" size="sm" className="bg-gray-900 text-white">
+          <User className="h-4 w-4 mr-2" />
+          All Features
         </Button>
       </div>
     </header>
