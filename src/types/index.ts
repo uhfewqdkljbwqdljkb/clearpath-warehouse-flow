@@ -79,6 +79,72 @@ export interface ClientUser {
   last_login?: string;
 }
 
+// Analytics and Reporting Types
+export interface CapacityMetrics {
+  zoneId: string;
+  zoneName: string;
+  totalCapacity: number;
+  usedCapacity: number;
+  availableCapacity: number;
+  utilizationPercentage: number;
+  trend: 'increasing' | 'decreasing' | 'stable';
+}
+
+export interface AnalyticsTimeframe {
+  label: string;
+  value: '24h' | '7d' | '30d' | '90d' | '1y';
+}
+
+export interface ActivityLog {
+  id: string;
+  timestamp: Date;
+  action: 'allocation_created' | 'allocation_updated' | 'allocation_deleted' | 'product_added' | 'product_updated' | 'client_added';
+  entityType: 'allocation' | 'product' | 'client';
+  entityId: string;
+  performedBy: string;
+  details: string;
+  metadata?: Record<string, any>;
+}
+
+export interface CapacityAlert {
+  id: string;
+  zoneId: string;
+  zoneName: string;
+  alertType: 'high_utilization' | 'over_capacity' | 'low_utilization';
+  severity: 'low' | 'medium' | 'high';
+  message: string;
+  threshold: number;
+  currentValue: number;
+  createdAt: Date;
+  acknowledged: boolean;
+}
+
+export interface UtilizationTrend {
+  date: string;
+  utilization: number;
+  capacity: number;
+  allocations: number;
+}
+
+export interface ClientAnalytics {
+  clientId: string;
+  clientName: string;
+  totalAllocations: number;
+  totalCapacityUsed: number;
+  averageUtilization: number;
+  growthRate: number;
+  lastActivity: Date;
+}
+
+export interface ZonePerformance {
+  zoneId: string;
+  zoneName: string;
+  efficiency: number;
+  throughput: number;
+  averageAccessTime: number;
+  maintenanceScore: number;
+}
+
 // Product Catalog Types
 export interface ClientProduct {
   id: string;

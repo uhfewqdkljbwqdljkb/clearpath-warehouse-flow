@@ -262,6 +262,193 @@ export const mockClients: Client[] = [
   }
 ];
 
+// Analytics Mock Data
+import { CapacityMetrics, ActivityLog, CapacityAlert, UtilizationTrend, ClientAnalytics, ZonePerformance } from '@/types';
+
+export const mockCapacityMetrics: CapacityMetrics[] = [
+  {
+    zoneId: 'zone-a',
+    zoneName: 'Zone A - General Storage',
+    totalCapacity: 10000,
+    usedCapacity: 7500,
+    availableCapacity: 2500,
+    utilizationPercentage: 75,
+    trend: 'increasing'
+  },
+  {
+    zoneId: 'zone-b', 
+    zoneName: 'Zone B - Refrigerated',
+    totalCapacity: 5000,
+    usedCapacity: 3200,
+    availableCapacity: 1800,
+    utilizationPercentage: 64,
+    trend: 'stable'
+  },
+  {
+    zoneId: 'zone-c',
+    zoneName: 'Zone C - Fragile Items',
+    totalCapacity: 3000,
+    usedCapacity: 2800,
+    availableCapacity: 200,
+    utilizationPercentage: 93,
+    trend: 'increasing'
+  },
+  {
+    zoneId: 'zone-d',
+    zoneName: 'Zone D - Bulk Storage',
+    totalCapacity: 15000,
+    usedCapacity: 8500,
+    availableCapacity: 6500,
+    utilizationPercentage: 57,
+    trend: 'decreasing'
+  }
+];
+
+export const mockActivityLogs: ActivityLog[] = [
+  {
+    id: '1',
+    timestamp: new Date('2024-01-20T10:30:00'),
+    action: 'allocation_created',
+    entityType: 'allocation',
+    entityId: 'alloc-001',
+    performedBy: 'John Smith',
+    details: 'Created new zone allocation for TechCorp in Zone A',
+    metadata: { zone: 'Zone A', cubic_feet: 500 }
+  },
+  {
+    id: '2',
+    timestamp: new Date('2024-01-20T09:15:00'),
+    action: 'product_added',
+    entityType: 'product',
+    entityId: 'prod-001',
+    performedBy: 'Sarah Johnson',
+    details: 'Added new product: Industrial Printer for GlobalTech',
+    metadata: { sku: 'GT-PRINTER-001', category: 'Electronics' }
+  },
+  {
+    id: '3',
+    timestamp: new Date('2024-01-19T16:45:00'),
+    action: 'allocation_updated',
+    entityType: 'allocation',
+    entityId: 'alloc-002',
+    performedBy: 'Mike Davis',
+    details: 'Updated allocation capacity for RetailPlus',
+    metadata: { old_capacity: 300, new_capacity: 450 }
+  },
+  {
+    id: '4',
+    timestamp: new Date('2024-01-19T14:20:00'),
+    action: 'client_added',
+    entityType: 'client',
+    entityId: 'client-004',
+    performedBy: 'Admin',
+    details: 'New client registered: StartupXYZ',
+    metadata: { plan: 'basic', storage_limit: 1000 }
+  }
+];
+
+export const mockCapacityAlerts: CapacityAlert[] = [
+  {
+    id: 'alert-001',
+    zoneId: 'zone-c',
+    zoneName: 'Zone C - Fragile Items',
+    alertType: 'high_utilization',
+    severity: 'high',
+    message: 'Zone C is at 93% capacity - immediate attention required',
+    threshold: 90,
+    currentValue: 93,
+    createdAt: new Date('2024-01-20T08:00:00'),
+    acknowledged: false
+  },
+  {
+    id: 'alert-002',
+    zoneId: 'zone-a',
+    zoneName: 'Zone A - General Storage',
+    alertType: 'high_utilization',
+    severity: 'medium',
+    message: 'Zone A is approaching capacity at 75%',
+    threshold: 70,
+    currentValue: 75,
+    createdAt: new Date('2024-01-19T15:30:00'),
+    acknowledged: true
+  }
+];
+
+export const mockUtilizationTrends: UtilizationTrend[] = [
+  { date: '2024-01-14', utilization: 65, capacity: 18000, allocations: 45 },
+  { date: '2024-01-15', utilization: 68, capacity: 18000, allocations: 47 },
+  { date: '2024-01-16', utilization: 70, capacity: 18000, allocations: 48 },
+  { date: '2024-01-17', utilization: 72, capacity: 18000, allocations: 52 },
+  { date: '2024-01-18', utilization: 69, capacity: 18000, allocations: 50 },
+  { date: '2024-01-19', utilization: 74, capacity: 18000, allocations: 53 },
+  { date: '2024-01-20', utilization: 71, capacity: 18000, allocations: 51 }
+];
+
+export const mockClientAnalytics: ClientAnalytics[] = [
+  {
+    clientId: 'client-001',
+    clientName: 'TechCorp Solutions',
+    totalAllocations: 3,
+    totalCapacityUsed: 1500,
+    averageUtilization: 85,
+    growthRate: 12.5,
+    lastActivity: new Date('2024-01-20T10:30:00')
+  },
+  {
+    clientId: 'client-002', 
+    clientName: 'GlobalTech Industries',
+    totalAllocations: 2,
+    totalCapacityUsed: 800,
+    averageUtilization: 67,
+    growthRate: -5.2,
+    lastActivity: new Date('2024-01-19T14:15:00')
+  },
+  {
+    clientId: 'client-003',
+    clientName: 'RetailPlus',
+    totalAllocations: 4,
+    totalCapacityUsed: 2200,
+    averageUtilization: 78,
+    growthRate: 8.3,
+    lastActivity: new Date('2024-01-20T09:45:00')
+  }
+];
+
+export const mockZonePerformance: ZonePerformance[] = [
+  {
+    zoneId: 'zone-a',
+    zoneName: 'Zone A - General Storage',
+    efficiency: 87,
+    throughput: 156,
+    averageAccessTime: 4.2,
+    maintenanceScore: 92
+  },
+  {
+    zoneId: 'zone-b',
+    zoneName: 'Zone B - Refrigerated', 
+    efficiency: 91,
+    throughput: 89,
+    averageAccessTime: 5.8,
+    maintenanceScore: 88
+  },
+  {
+    zoneId: 'zone-c',
+    zoneName: 'Zone C - Fragile Items',
+    efficiency: 78,
+    throughput: 45,
+    averageAccessTime: 7.1,
+    maintenanceScore: 85
+  },
+  {
+    zoneId: 'zone-d',
+    zoneName: 'Zone D - Bulk Storage',
+    efficiency: 82,
+    throughput: 203,
+    averageAccessTime: 3.9,
+    maintenanceScore: 89
+  }
+];
+
 // Sample Products per Client
 export const mockClientProducts: ClientProduct[] = [
   // TechShop Electronics Products
