@@ -28,14 +28,6 @@ export const Header: React.FC = () => {
           <Settings className="h-4 w-4 mr-2" />
           Dashboard
         </Button>
-        <Button variant="outline" size="sm" className="text-gray-700 border-gray-300">
-          <User className="h-4 w-4 mr-2" />
-          Onlineshop
-        </Button>
-        <Button variant="default" size="sm" className="bg-gray-900 text-white">
-          <User className="h-4 w-4 mr-2" />
-          All Features
-        </Button>
       </div>
     </header>
   );
