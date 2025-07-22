@@ -50,7 +50,7 @@ export const WarehouseStorageTable: React.FC = () => {
                   <td className="py-3">
                     <div className="w-24 bg-gray-200 rounded-full h-2">
                       <div 
-                        className="bg-red-500 h-2 rounded-full" 
+                        className="bg-green-500 h-2 rounded-full" 
                         style={{ width: `${row.percentage}%` }}
                       ></div>
                     </div>
