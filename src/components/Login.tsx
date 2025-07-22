@@ -41,11 +41,11 @@ export const Login: React.FC = () => {
     <div className="min-h-screen flex">
       {/* Left side - Warehouse illustration */}
       <div className="hidden lg:flex lg:w-1/2 items-center justify-center bg-gray-50 p-16">
-        <div className="max-w-lg">
+        <div className="max-w-lg xl:max-w-2xl 2xl:max-w-4xl">
           <img 
             src="/lovable-uploads/4912634c-d2f0-420c-8b10-e0a862fc5979.png" 
             alt="Modern warehouse operations" 
-            className="w-full h-auto"
+            className="w-full h-auto xl:scale-110 2xl:scale-125"
           />
         </div>
       </div>
