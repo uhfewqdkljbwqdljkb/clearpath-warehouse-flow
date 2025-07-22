@@ -26,9 +26,9 @@ const floorData = {
     sections: [
       { id: 'E1', category: 'Beauty & Health', available: '25/100', color: 'bg-pink-100 border-pink-300' },
       { id: 'E2', category: 'Beauty & Health', available: '30/100', color: 'bg-pink-100 border-pink-300' },
-      { id: 'F1', category: 'Sports Equipment', available: '20/100', color: 'bg-orange-100 border-orange-300' },
-      { id: 'F2', category: 'Sports Equipment', available: '35/100', color: 'bg-orange-100 border-orange-300' },
-      { id: 'F3', category: 'Sports Equipment', available: '45/100', color: 'bg-orange-100 border-orange-300' },
+      { id: 'F1', category: 'Sports Equipment', available: '20/100', color: 'bg-green-100 border-green-300' },
+      { id: 'F2', category: 'Sports Equipment', available: '35/100', color: 'bg-green-100 border-green-300' },
+      { id: 'F3', category: 'Sports Equipment', available: '45/100', color: 'bg-green-100 border-green-300' },
     ]
   }
 };

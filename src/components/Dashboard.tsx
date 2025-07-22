@@ -104,7 +104,7 @@ export const Dashboard: React.FC = () => {
                   <div className="text-sm text-gray-500">Used Capacity (ft³)</div>
                 </div>
                 <div className="text-center p-4 border rounded-lg">
-                  <div className="text-2xl font-bold text-orange-600">{(totalCapacity - usedCapacity).toLocaleString()}</div>
+                  <div className="text-2xl font-bold text-green-600">{(totalCapacity - usedCapacity).toLocaleString()}</div>
                   <div className="text-sm text-gray-500">Available Capacity (ft³)</div>
                 </div>
                 <div className="text-center p-4 border rounded-lg">
