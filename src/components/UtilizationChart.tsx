@@ -59,8 +59,8 @@ export const UtilizationChart: React.FC = () => {
               <Area
                 type="monotone"
                 dataKey="utilization"
-                stroke="#3b82f6"
-                fill="#3b82f6"
+                stroke="#10b981"
+                fill="#10b981"
                 fillOpacity={0.1}
                 strokeWidth={2}
               />
