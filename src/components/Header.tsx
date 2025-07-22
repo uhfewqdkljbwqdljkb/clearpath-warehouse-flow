@@ -1,9 +1,11 @@
 
 import React from 'react';
-import { Bell, Settings, User, Warehouse } from 'lucide-react';
+import { Bell, Settings, User, Warehouse, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const Header: React.FC = () => {
+  const { logout } = useAuth();
   const currentDate = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
@@ -27,6 +29,15 @@ export const Header: React.FC = () => {
         <Button variant="outline" size="sm" className="text-gray-700 border-gray-300">
           <Settings className="h-4 w-4 mr-2" />
           Dashboard
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="text-gray-700 border-gray-300 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
+          onClick={logout}
+        >
+          <LogOut className="h-4 w-4 mr-2" />
+          Logout
         </Button>
       </div>
     </header>
