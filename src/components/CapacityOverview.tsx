@@ -59,7 +59,7 @@ export const CapacityOverview: React.FC = () => {
               
               <Progress 
                 value={zone.utilizationPercentage} 
-                className={`h-2 [&>div]:${getProgressColor(zone.utilizationPercentage)}`}
+                className="h-2 [&>div]:bg-green-500"
               />
               
               <div className="flex justify-between text-xs text-gray-600">
