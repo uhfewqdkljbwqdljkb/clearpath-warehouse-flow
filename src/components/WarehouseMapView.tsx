@@ -4,9 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 const floorData = {
   'Floor 1': {
     sections: [
-      { id: 'A1', category: 'Electronics', available: '20/100', color: 'bg-red-100 border-red-300' },
-      { id: 'A2', category: 'Electronics', available: '15/100', color: 'bg-red-100 border-red-300' },
-      { id: 'A3', category: 'Electronics', available: '25/100', color: 'bg-red-100 border-red-300' },
+      { id: 'A1', category: 'Electronics', available: '20/100', color: 'bg-green-100 border-green-300' },
+      { id: 'A2', category: 'Electronics', available: '15/100', color: 'bg-green-100 border-green-300' },
+      { id: 'A3', category: 'Electronics', available: '25/100', color: 'bg-green-100 border-green-300' },
       { id: 'C1', category: 'Home & Kitchen', available: '10/100', color: 'bg-pink-100 border-pink-300' },
       { id: 'C2', category: 'Home & Kitchen', available: '5/100', color: 'bg-pink-100 border-pink-300' },
       { id: 'C3', category: 'Home & Kitchen', available: '8/100', color: 'bg-pink-100 border-pink-300' },
@@ -17,9 +17,9 @@ const floorData = {
       { id: 'B1', category: 'Apparel', available: '30/100', color: 'bg-pink-100 border-pink-300' },
       { id: 'B2', category: 'Apparel', available: '20/100', color: 'bg-pink-100 border-pink-300' },
       { id: 'B3', category: 'Apparel', available: '35/100', color: 'bg-pink-100 border-pink-300' },
-      { id: 'D1', category: 'Automotive Parts', available: '45/100', color: 'bg-red-100 border-red-300' },
-      { id: 'D2', category: 'Automotive Parts', available: '55/100', color: 'bg-red-100 border-red-300' },
-      { id: 'D3', category: 'Automotive Parts', available: '40/100', color: 'bg-red-100 border-red-300' },
+      { id: 'D1', category: 'Automotive Parts', available: '45/100', color: 'bg-green-100 border-green-300' },
+      { id: 'D2', category: 'Automotive Parts', available: '55/100', color: 'bg-green-100 border-green-300' },
+      { id: 'D3', category: 'Automotive Parts', available: '40/100', color: 'bg-green-100 border-green-300' },
     ]
   },
   'Floor 3': {
