@@ -129,7 +129,7 @@ export const Allocations: React.FC = () => {
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => setEditingAllocation(null)}>
+            <Button onClick={() => setEditingAllocation(null)} className="bg-green-600 hover:bg-green-700 text-white">
               <Plus className="h-4 w-4 mr-2" />
               New Allocation
             </Button>
