@@ -9,6 +9,7 @@ import { Login } from "@/components/Login";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Dashboard } from "@/components/Dashboard";
 import { Locations } from "@/pages/Locations";
+import { Warehouse } from "@/pages/Warehouse";
 import { Users } from "@/pages/Users";
 import { Clients } from "@/pages/Clients";
 import { Products } from "@/pages/Products";
@@ -46,6 +47,7 @@ const App = () => {
               }>
                 <Route index element={<Dashboard />} />
                 <Route path="locations" element={<Locations />} />
+                <Route path="warehouse" element={<Warehouse />} />
                 <Route path="users" element={<Users />} />
                 <Route path="clients" element={<Clients />} />
                 <Route path="products" element={<Products />} />

@@ -20,8 +20,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
     icon: LayoutDashboard
   }, {
     name: 'Warehouse',
-    path: '/locations',
+    path: '/warehouse',
     icon: Warehouse
+  }, {
+    name: 'Locations',
+    path: '/locations',
+    icon: MapPin
   }, {
     name: 'Clients',
     path: '/clients',
