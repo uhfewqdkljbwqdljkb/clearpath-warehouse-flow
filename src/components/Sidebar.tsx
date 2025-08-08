@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Play, LayoutDashboard, Calendar, DollarSign, BarChart3, Warehouse, FileText, Smartphone, Bookmark, Bell, User, Settings, Menu, Package, MapPin } from 'lucide-react';
+import { Play, LayoutDashboard, Calendar, DollarSign, BarChart3, Warehouse, FileText, Smartphone, Bookmark, Bell, User, Settings, Menu, Package, MapPin, MessageSquare } from 'lucide-react';
 interface SidebarProps {
   isCollapsed: boolean;
   onToggle: () => void;
@@ -22,6 +22,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     name: 'Warehouse',
     path: '/warehouse',
     icon: Warehouse
+  }, {
+    name: 'Messages',
+    path: '/messages',
+    icon: MessageSquare
   }, {
     name: 'Locations',
     path: '/locations',
