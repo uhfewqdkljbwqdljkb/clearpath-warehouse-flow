@@ -1,4 +1,98 @@
-// Warehouse zones with exact specifications
+// Client data with product relationships
+export const clients = [
+  {
+    id: "1",
+    name: "HealthPlus",
+    email: "contact@healthplus.com",
+    type: "Supplements Retailer",
+    products: ["Vitamin D", "Omega-3", "Multivitamins", "Protein Powder"],
+    totalValue: 45600,
+    monthlyOrders: 23,
+    color: "#10b981"
+  },
+  {
+    id: "2", 
+    name: "VitaStore",
+    email: "orders@vitastore.com",
+    type: "Health & Wellness",
+    products: ["Vitamin C", "Calcium", "Iron Supplements"],
+    totalValue: 32400,
+    monthlyOrders: 18,
+    color: "#059669"
+  },
+  {
+    id: "3",
+    name: "TechStore", 
+    email: "warehouse@techstore.com",
+    type: "Electronics Retailer",
+    products: ["Wireless Mouse", "USB Cables", "Phone Chargers", "Bluetooth Speakers"],
+    totalValue: 78900,
+    monthlyOrders: 45,
+    color: "#3b82f6"
+  },
+  {
+    id: "4",
+    name: "ElectroHub",
+    email: "supply@electrohub.com", 
+    type: "Tech Accessories",
+    products: ["HDMI Cables", "Power Banks", "Screen Protectors"],
+    totalValue: 54300,
+    monthlyOrders: 31,
+    color: "#1d4ed8"
+  },
+  {
+    id: "5",
+    name: "GadgetWorld",
+    email: "info@gadgetworld.com",
+    type: "Consumer Electronics", 
+    products: ["Smart Watches", "Wireless Earbuds", "Tablet Cases"],
+    totalValue: 43200,
+    monthlyOrders: 27,
+    color: "#2563eb"
+  },
+  {
+    id: "6",
+    name: "TechMart",
+    email: "orders@techmart.com",
+    type: "Electronics Wholesale",
+    products: ["Laptop Stands", "Webcams", "Gaming Mice", "Keyboards"],
+    totalValue: 67800,
+    monthlyOrders: 38,
+    color: "#1e40af"
+  },
+  {
+    id: "7", 
+    name: "DigitalPlus",
+    email: "contact@digitalplus.com",
+    type: "Digital Accessories",
+    products: ["Memory Cards", "USB Drives", "External Hard Drives"],
+    totalValue: 39100,
+    monthlyOrders: 22,
+    color: "#1e3a8a"
+  },
+  {
+    id: "8",
+    name: "BeautyBrand",
+    email: "warehouse@beautybrand.com",
+    type: "Cosmetics Company",
+    products: ["Face Cream", "Lipstick", "Foundation", "Moisturizer", "Serum"],
+    totalValue: 56700,
+    monthlyOrders: 34,
+    color: "#8b5cf6"
+  },
+  {
+    id: "9",
+    name: "MedSupply", 
+    email: "orders@medsupply.com",
+    type: "Medical Equipment",
+    products: ["Blood Pressure Monitors", "Thermometers", "First Aid Kits", "Syringes"],
+    totalValue: 82300,
+    monthlyOrders: 19,
+    color: "#ef4444"
+  }
+];
+
+// Warehouse zones with client and product relationships
 export const warehouseZones = [
   {
     id: "1",
@@ -9,7 +103,11 @@ export const warehouseZones = [
     occupied_locations: 2,
     utilization: 67,
     color: "#10b981", // Green
-    locations: ["CLPRW0001", "CLPRW0002", "CLPRW0003"]
+    locations: ["CLPRW0001", "CLPRW0002", "CLPRW0003"],
+    clients: ["HealthPlus", "VitaStore"],
+    productCategories: ["Vitamins", "Supplements", "Protein", "Minerals"],
+    totalValue: 78000,
+    totalItems: 215
   },
   {
     id: "2",
@@ -20,7 +118,11 @@ export const warehouseZones = [
     occupied_locations: 5,
     utilization: 71,
     color: "#3b82f6", // Blue
-    locations: ["CLPRW0004", "CLPRW0005", "CLPRW0006", "CLPRW0007", "CLPRW0008", "CLPCB0003", "CLPCB0005"]
+    locations: ["CLPRW0004", "CLPRW0005", "CLPRW0006", "CLPRW0007", "CLPRW0008", "CLPCB0003", "CLPCB0005"],
+    clients: ["TechStore", "ElectroHub", "GadgetWorld", "TechMart", "DigitalPlus"],
+    productCategories: ["Electronics", "Accessories", "Cables", "Audio", "Computing"],
+    totalValue: 283300,
+    totalItems: 565
   },
   {
     id: "3", 
@@ -31,7 +133,11 @@ export const warehouseZones = [
     occupied_locations: 1, 
     utilization: 50,
     color: "#8b5cf6", // Purple
-    locations: ["CLPRW0009", "CLPRW0010"]
+    locations: ["CLPRW0009", "CLPRW0010"],
+    clients: ["BeautyBrand"],
+    productCategories: ["Skincare", "Makeup", "Cosmetics", "Personal Care"],
+    totalValue: 56700,
+    totalItems: 68
   },
   {
     id: "4",
@@ -42,7 +148,11 @@ export const warehouseZones = [
     occupied_locations: 1,
     utilization: 50,
     color: "#ef4444", // Red
-    locations: ["CLPRW0011", "CLPCB0004"]
+    locations: ["CLPRW0011", "CLPCB0004"],
+    clients: ["MedSupply"],
+    productCategories: ["Medical Devices", "First Aid", "Diagnostics", "Supplies"],
+    totalValue: 82300,
+    totalItems: 51
   },
   {
     id: "5",
@@ -53,7 +163,11 @@ export const warehouseZones = [
     occupied_locations: 0,
     utilization: 0,
     color: "#6b7280", // Gray
-    locations: ["CLPCB0001", "CLPCB0002"]
+    locations: ["CLPCB0001", "CLPCB0002"],
+    clients: [],
+    productCategories: ["Miscellaneous", "Overflow", "General"],
+    totalValue: 0,
+    totalItems: 0
   }
 ];
 

@@ -16,11 +16,13 @@ import {
   AlertTriangle,
   CheckCircle
 } from 'lucide-react';
-import { warehouseZones, warehouseLocations, warehouseMetrics, recentWarehouseActivities } from '@/data/warehouseData';
+import { warehouseZones, warehouseLocations, warehouseMetrics, recentWarehouseActivities, clients } from '@/data/warehouseData';
 import { ZoneUtilizationChart } from '@/components/ZoneUtilizationChart';
 import { WarehouseLocationMap } from '@/components/WarehouseLocationMap';
 import { LocationsTable } from '@/components/LocationsTable';
 import { WarehouseActivityFeed } from '@/components/WarehouseActivityFeed';
+import { ClientPerformance } from '@/components/ClientPerformance';
+import { ZoneClientBreakdown } from '@/components/ZoneClientBreakdown';
 import { ReceiveInventoryModal } from '@/components/ReceiveInventoryModal';
 import { ShipOrderModal } from '@/components/ShipOrderModal';
 import { MoveInventoryModal } from '@/components/MoveInventoryModal';
@@ -179,86 +181,91 @@ export const Warehouse: React.FC = () => {
         </Card>
       </div>
 
-      {/* Third Row - Location Table & Activity Feed */}
+      {/* Third Row - Zone-Client Relationships */}
+      <ZoneClientBreakdown />
+
+      {/* Fourth Row - Client Performance & Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <LocationsTable locations={warehouseLocations} zones={warehouseZones} />
+        <ClientPerformance />
         <WarehouseActivityFeed activities={recentWarehouseActivities} />
       </div>
 
-      {/* Bottom Row - Interactive Map & Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
+      {/* Fifth Row - Location Table & Map */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <LocationsTable locations={warehouseLocations} zones={warehouseZones} />
+        <div className="lg:col-span-1">
           <WarehouseLocationMap zones={warehouseZones} locations={warehouseLocations} />
         </div>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions & Tasks</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                <div className="flex items-center space-x-3">
-                  <AlertTriangle className="h-5 w-5 text-yellow-600" />
-                  <div>
-                    <p className="text-sm font-medium text-yellow-800">Zone SUP at 67%</p>
-                    <p className="text-xs text-yellow-600">Review capacity</p>
-                  </div>
-                </div>
-                <Button size="sm" variant="outline" className="border-yellow-300 text-yellow-700">
-                  Review
-                </Button>
-              </div>
-
-              <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <div className="flex items-center space-x-3">
-                  <Package className="h-5 w-5 text-blue-600" />
-                  <div>
-                    <p className="text-sm font-medium text-blue-800">3 orders pending pickup</p>
-                    <p className="text-xs text-blue-600">Ready for shipping</p>
-                  </div>
-                </div>
-                <Button size="sm" variant="outline" className="border-blue-300 text-blue-700">
-                  Process
-                </Button>
-              </div>
-
-              <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                  <div>
-                    <p className="text-sm font-medium text-green-800">GAD zone optimized</p>
-                    <p className="text-xs text-green-600">71% utilization</p>
-                  </div>
-                </div>
-                <Badge variant="outline" className="text-green-600 border-green-200">
-                  Complete
-                </Badge>
-              </div>
-            </div>
-
-            <Separator />
-
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium text-gray-900">Pending Tasks</h4>
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2 text-sm">
-                  <Clock className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-600">Move inventory from CLPRW0007</span>
-                </div>
-                <div className="flex items-center space-x-2 text-sm">
-                  <Clock className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-600">Allocate CLPCB0001 to client</span>
-                </div>
-                <div className="flex items-center space-x-2 text-sm">
-                  <Clock className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-600">Generate weekly report</span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
+
+      {/* Bottom Row - Quick Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Quick Actions & Tasks</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+              <div className="flex items-center space-x-3">
+                <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                <div>
+                  <p className="text-sm font-medium text-yellow-800">Zone SUP at 67%</p>
+                  <p className="text-xs text-yellow-600">Review capacity</p>
+                </div>
+              </div>
+              <Button size="sm" variant="outline" className="border-yellow-300 text-yellow-700">
+                Review
+              </Button>
+            </div>
+
+            <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center space-x-3">
+                <Package className="h-5 w-5 text-blue-600" />
+                <div>
+                  <p className="text-sm font-medium text-blue-800">3 orders pending pickup</p>
+                  <p className="text-xs text-blue-600">Ready for shipping</p>
+                </div>
+              </div>
+              <Button size="sm" variant="outline" className="border-blue-300 text-blue-700">
+                Process
+              </Button>
+            </div>
+
+            <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+              <div className="flex items-center space-x-3">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                <div>
+                  <p className="text-sm font-medium text-green-800">GAD zone optimized</p>
+                  <p className="text-xs text-green-600">71% utilization</p>
+                </div>
+              </div>
+              <Badge variant="outline" className="text-green-600 border-green-200">
+                Complete
+              </Badge>
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium text-gray-900">Pending Tasks</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <div className="flex items-center space-x-2 text-sm">
+                <Clock className="h-4 w-4 text-gray-400" />
+                <span className="text-gray-600">Move inventory from CLPRW0007</span>
+              </div>
+              <div className="flex items-center space-x-2 text-sm">
+                <Clock className="h-4 w-4 text-gray-400" />
+                <span className="text-gray-600">Allocate CLPCB0001 to client</span>
+              </div>
+              <div className="flex items-center space-x-2 text-sm">
+                <Clock className="h-4 w-4 text-gray-400" />
+                <span className="text-gray-600">Generate weekly report</span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Modals */}
       <ReceiveInventoryModal 
