@@ -35,6 +35,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     path: '/products',
     icon: Package
   }, {
+    name: 'Client Portal',
+    path: '/client-portal',
+    icon: User
+  }, {
     name: 'Users',
     path: '/users',
     icon: Settings

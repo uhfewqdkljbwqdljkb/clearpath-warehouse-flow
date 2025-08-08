@@ -13,6 +13,7 @@ import { Messages } from "@/pages/Messages";
 import { Users } from "@/pages/Users";
 import { Clients } from "@/pages/Clients";
 import { Products } from "@/pages/Products";
+import { ClientDashboard } from "@/pages/ClientDashboard";
 
 import NotFound from "./pages/NotFound";
 
@@ -51,7 +52,7 @@ const App = () => {
                 <Route path="users" element={<Users />} />
                 <Route path="clients" element={<Clients />} />
                 <Route path="products" element={<Products />} />
-                
+                <Route path="client-portal" element={<ClientDashboard />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
