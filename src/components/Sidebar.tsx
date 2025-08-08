@@ -27,10 +27,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     path: '/messages',
     icon: MessageSquare
   }, {
-    name: 'Locations',
-    path: '/locations',
-    icon: MapPin
-  }, {
     name: 'Clients',
     path: '/clients',
     icon: User
@@ -38,10 +34,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     name: 'Products',
     path: '/products',
     icon: Package
-  }, {
-    name: 'Allocations',
-    path: '/allocations',
-    icon: MapPin
   }, {
     name: 'Users',
     path: '/users',

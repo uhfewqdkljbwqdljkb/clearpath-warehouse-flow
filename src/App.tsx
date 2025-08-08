@@ -8,7 +8,6 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { Login } from "@/components/Login";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Dashboard } from "@/components/Dashboard";
-import { Locations } from "@/pages/Locations";
 import { Warehouse } from "@/pages/Warehouse";
 import { Messages } from "@/pages/Messages";
 import { Users } from "@/pages/Users";
@@ -47,7 +46,6 @@ const App = () => {
                 </ProtectedRoute>
               }>
                 <Route index element={<Dashboard />} />
-                <Route path="locations" element={<Locations />} />
                 <Route path="warehouse" element={<Warehouse />} />
                 <Route path="messages" element={<Messages />} />
                 <Route path="users" element={<Users />} />
