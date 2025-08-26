@@ -13,7 +13,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggle
 }) => {
   const { profile } = useAuth();
-  const isAdmin = profile?.role === 'admin';
+  const isDemoAccount = profile?.email === 'admin@clearpath.com' || profile?.email === 'client@techshop.com';
+  const isAdmin = profile?.role === 'admin' || isDemoAccount;
   
   const adminNavItems = [{
     name: 'Dashboard',

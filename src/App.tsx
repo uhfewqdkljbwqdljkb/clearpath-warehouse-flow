@@ -20,6 +20,10 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+const isDemoAccount = (email: string) => {
+  return email === 'admin@clearpath.com' || email === 'client@techshop.com';
+};
+
 const AdminProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, profile, isLoading } = useAuth();
   
@@ -31,11 +35,12 @@ const AdminProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return <AdminLogin />;
   }
   
-  if (profile.role !== 'admin') {
-    return <Navigate to="/portal" replace />;
+  // Allow demo accounts to access admin routes regardless of role
+  if (isDemoAccount(profile.email) || profile.role === 'admin') {
+    return <>{children}</>;
   }
   
-  return <>{children}</>;
+  return <Navigate to="/portal" replace />;
 };
 
 const ClientProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -49,11 +54,12 @@ const ClientProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return <ClientLogin />;
   }
   
-  if (profile.role !== 'client') {
-    return <Navigate to="/" replace />;
+  // Allow demo accounts to access client routes regardless of role
+  if (isDemoAccount(profile.email) || profile.role === 'client') {
+    return <>{children}</>;
   }
   
-  return <>{children}</>;
+  return <Navigate to="/" replace />;
 };
 
 const RoleBasedRedirect = () => {
@@ -65,6 +71,11 @@ const RoleBasedRedirect = () => {
   
   if (!user || !profile) {
     return <AdminLogin />;
+  }
+  
+  // Demo accounts get redirected to admin dashboard by default
+  if (isDemoAccount(profile.email)) {
+    return <Navigate to="/dashboard" replace />;
   }
   
   if (profile.role === 'admin') {
