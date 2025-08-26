@@ -50,6 +50,17 @@ export const ClientLogin: React.FC = () => {
     setPassword('password123');
   };
 
+  const loginAsDemo = async () => {
+    const { error } = await signIn('client@techshop.com', 'password123');
+    if (error) {
+      toast({
+        title: 'Demo Login Failed',
+        description: error,
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen flex">
       {/* Left side - Client portal branding */}
@@ -166,14 +177,23 @@ export const ClientLogin: React.FC = () => {
             </button>
 
             {!isSignUp && (
-              <div>
+              <div className="space-y-2">
                 <Button 
                   variant="outline" 
                   size="sm" 
                   onClick={fillDemoCredentials}
-                  className="w-full mt-2"
+                  className="w-full"
                 >
-                  Use Demo Client Account
+                  Fill Demo Credentials
+                </Button>
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  onClick={loginAsDemo}
+                  className="w-full bg-green-600 hover:bg-green-700"
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Signing in...' : 'Quick Demo Login'}
                 </Button>
               </div>
             )}

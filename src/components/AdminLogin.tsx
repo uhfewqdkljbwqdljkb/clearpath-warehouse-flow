@@ -50,6 +50,17 @@ export const AdminLogin: React.FC = () => {
     setPassword('password123');
   };
 
+  const loginAsDemo = async () => {
+    const { error } = await signIn('admin@clearpath.com', 'password123');
+    if (error) {
+      toast({
+        title: 'Demo Login Failed',
+        description: error,
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="w-full max-w-md space-y-8 bg-white p-8 rounded-lg shadow-lg">
@@ -143,14 +154,23 @@ export const AdminLogin: React.FC = () => {
           </button>
 
           {!isSignUp && (
-            <div>
+            <div className="space-y-2">
               <Button 
                 variant="outline" 
                 size="sm" 
                 onClick={fillDemoCredentials}
-                className="w-full mt-2"
+                className="w-full"
               >
-                Use Demo Admin Account
+                Fill Demo Credentials
+              </Button>
+              <Button 
+                variant="default" 
+                size="sm" 
+                onClick={loginAsDemo}
+                className="w-full bg-blue-600 hover:bg-blue-700"
+                disabled={isLoading}
+              >
+                {isLoading ? 'Signing in...' : 'Quick Demo Login'}
               </Button>
             </div>
           )}
