@@ -11,17 +11,17 @@ export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const { login, isLoading } = useAuth();
+  const { signIn, isLoading } = useAuth();
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const success = await login(email, password);
-    if (!success) {
+    const { error } = await signIn(email, password);
+    if (error) {
       toast({
         title: 'Login Failed',
-        description: 'Invalid email or password. Try admin@clearpath.com or client@acme.com with password "password"',
+        description: error,
         variant: 'destructive',
       });
     }
