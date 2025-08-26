@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff, Shield } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 export const AdminLogin: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -15,6 +15,7 @@ export const AdminLogin: React.FC = () => {
   const [fullName, setFullName] = useState('');
   const { signIn, signUp, isLoading } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,6 +42,8 @@ export const AdminLogin: React.FC = () => {
           description: error,
           variant: 'destructive',
         });
+      } else {
+        navigate('/dashboard');
       }
     }
   };
@@ -58,6 +61,8 @@ export const AdminLogin: React.FC = () => {
         description: error,
         variant: 'destructive',
       });
+    } else {
+      navigate('/dashboard');
     }
   };
 
