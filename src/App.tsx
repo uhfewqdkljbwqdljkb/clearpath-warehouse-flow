@@ -30,6 +30,20 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+const LoginRoute = () => {
+  const { user, profile, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+  
+  if (user && profile) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  
+  return <AdminLogin />;
+};
+
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
@@ -37,7 +51,10 @@ const App = () => {
         <TooltipProvider>
           <BrowserRouter>
             <Routes>
-              {/* Dashboard routes only */}
+              {/* Login route - unprotected */}
+              <Route path="/dashboard/login" element={<LoginRoute />} />
+              
+              {/* Dashboard routes - protected */}
               <Route path="/dashboard" element={
                 <ProtectedRoute>
                   <DashboardLayout />
@@ -49,7 +66,6 @@ const App = () => {
                 <Route path="users" element={<Users />} />
                 <Route path="clients" element={<Clients />} />
                 <Route path="products" element={<Products />} />
-                <Route path="login" element={<AdminLogin />} />
               </Route>
               
               {/* Redirect all other routes to dashboard */}
