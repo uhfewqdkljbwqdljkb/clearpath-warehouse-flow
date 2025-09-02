@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Building } from 'lucide-react';
+import { Eye, EyeOff, ShieldCheck, Sparkles, ArrowLeft } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 export const ClientLogin: React.FC = () => {
@@ -67,45 +67,48 @@ export const ClientLogin: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left side - Client portal branding */}
-      <div className="hidden lg:flex lg:w-1/2 items-center justify-center bg-gradient-to-br from-green-50 to-blue-50 p-16">
-        <div className="max-w-lg text-center">
-          <Building className="h-20 w-20 text-green-600 mx-auto mb-6" />
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            Client Portal
-          </h2>
-          <p className="text-lg text-gray-600 mb-6">
-            Access your inventory, track orders, and manage your warehouse operations with ease.
-          </p>
-          <div className="bg-white/50 backdrop-blur-sm rounded-lg p-6">
-            <h3 className="font-semibold text-gray-900 mb-2">What you can do:</h3>
-            <ul className="text-sm text-gray-700 space-y-1">
-              <li>• View real-time inventory levels</li>
-              <li>• Track order status and shipments</li>
-              <li>• Monitor storage utilization</li>
-              <li>• Access detailed analytics</li>
-            </ul>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -inset-10 opacity-50">
+          <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
+          <div className="absolute top-1/3 right-1/4 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse animation-delay-2000"></div>
+          <div className="absolute bottom-1/4 left-1/3 w-72 h-72 bg-indigo-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse animation-delay-4000"></div>
         </div>
       </div>
 
-      {/* Right side - Login form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white">
-        <div className="w-full max-w-md space-y-8">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              {isSignUp ? 'Create Account' : 'Welcome Back'}
+      {/* Login Card */}
+      <div className="relative w-full max-w-md">
+        {/* Back to Admin Link */}
+        <div className="absolute -top-16 left-0">
+          <Link 
+            to="/admin/login" 
+            className="inline-flex items-center text-white/70 hover:text-white text-sm transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Admin
+          </Link>
+        </div>
+
+        {/* Main Card */}
+        <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 shadow-2xl p-8">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-2xl mb-6">
+              <ShieldCheck className="h-8 w-8 text-white" />
+            </div>
+            <h1 className="text-3xl font-bold text-white mb-2">
+              {isSignUp ? 'Join Our Platform' : 'Client Portal'}
             </h1>
-            <p className="text-gray-600">
-              {isSignUp ? 'Sign up for your client account' : 'Sign in to your client portal'}
+            <p className="text-white/70 text-sm">
+              {isSignUp ? 'Create your client account to get started' : 'Access your personalized dashboard'}
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {isSignUp && (
-              <div>
-                <Label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="space-y-2">
+                <Label htmlFor="fullName" className="text-white/90 text-sm font-medium">
                   Full Name
                 </Label>
                 <Input
@@ -114,29 +117,29 @@ export const ClientLogin: React.FC = () => {
                   placeholder="Enter your full name"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="w-full"
+                  className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-purple-400 focus:ring-purple-400"
                   required
                 />
               </div>
             )}
             
-            <div>
-              <Label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Email address
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-white/90 text-sm font-medium">
+                Email Address
               </Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="your@company.com"
+                placeholder="you@company.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full"
+                className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-purple-400 focus:ring-purple-400"
                 required
               />
             </div>
             
-            <div>
-              <Label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-white/90 text-sm font-medium">
                 Password
               </Label>
               <div className="relative">
@@ -146,7 +149,7 @@ export const ClientLogin: React.FC = () => {
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pr-12"
+                  className="bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:border-purple-400 focus:ring-purple-400 pr-12"
                   required
                 />
                 <button
@@ -155,9 +158,9 @@ export const ClientLogin: React.FC = () => {
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <EyeOff className="h-4 w-4 text-gray-400" />
+                    <EyeOff className="h-4 w-4 text-white/50 hover:text-white/70" />
                   ) : (
-                    <Eye className="h-4 w-4 text-gray-400" />
+                    <Eye className="h-4 w-4 text-white/50 hover:text-white/70" />
                   )}
                 </button>
               </div>
@@ -165,29 +168,44 @@ export const ClientLogin: React.FC = () => {
 
             <Button 
               type="submit" 
-              className="w-full bg-green-600 hover:bg-green-700" 
+              className="w-full bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white border-0 h-12 text-base font-medium rounded-xl shadow-lg hover:shadow-xl transition-all duration-200" 
               disabled={isLoading}
             >
-              {isLoading ? 'Please wait...' : (isSignUp ? 'Create Account' : 'Sign In')}
+              {isLoading ? (
+                <div className="flex items-center">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
+                  Please wait...
+                </div>
+              ) : (
+                <div className="flex items-center">
+                  {isSignUp ? 'Create Account' : 'Sign In'}
+                  <Sparkles className="h-4 w-4 ml-2" />
+                </div>
+              )}
             </Button>
           </form>
 
-          <div className="text-center space-y-4">
+          {/* Toggle Sign Up/Sign In */}
+          <div className="text-center mt-6">
             <button
               type="button"
               onClick={() => setIsSignUp(!isSignUp)}
-              className="text-green-600 hover:text-green-800 text-sm"
+              className="text-white/70 hover:text-white text-sm transition-colors"
             >
               {isSignUp ? 'Already have an account? Sign in' : 'Need an account? Sign up'}
             </button>
+          </div>
 
-            {!isSignUp && (
+          {/* Demo Options */}
+          {!isSignUp && (
+            <div className="mt-6 pt-6 border-t border-white/20">
+              <p className="text-white/70 text-xs text-center mb-4">Try the demo</p>
               <div className="space-y-2">
                 <Button 
                   variant="outline" 
                   size="sm" 
                   onClick={fillDemoCredentials}
-                  className="w-full"
+                  className="w-full bg-white/5 border-white/20 text-white/90 hover:bg-white/10 hover:text-white"
                 >
                   Fill Demo Credentials
                 </Button>
@@ -195,23 +213,28 @@ export const ClientLogin: React.FC = () => {
                   variant="default" 
                   size="sm" 
                   onClick={loginAsDemo}
-                  className="w-full bg-green-600 hover:bg-green-700"
+                  className="w-full bg-white/10 hover:bg-white/20 text-white border-white/20"
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Signing in...' : 'Quick Demo Login'}
+                  {isLoading ? (
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
+                      Signing in...
+                    </div>
+                  ) : (
+                    'Quick Demo Login'
+                  )}
                 </Button>
               </div>
-            )}
-
-            <div className="pt-4 border-t border-gray-200">
-              <Link 
-                to="/admin/login" 
-                className="text-sm text-gray-600 hover:text-gray-800"
-              >
-                ← Back to Admin Login
-              </Link>
             </div>
-          </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="text-center mt-6">
+          <p className="text-white/50 text-xs">
+            Secure • Reliable • Always Available
+          </p>
         </div>
       </div>
     </div>
