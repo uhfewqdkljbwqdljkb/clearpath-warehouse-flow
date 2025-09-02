@@ -16,27 +16,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
   
   const navItems = [{
     name: 'Dashboard',
-    path: '/',
+    path: '/dashboard',
     icon: LayoutDashboard
   }, {
     name: 'Warehouse',
-    path: '/warehouse',
+    path: '/dashboard/warehouse',
     icon: Warehouse
   }, {
     name: 'Messages',
-    path: '/messages',
+    path: '/dashboard/messages',
     icon: MessageSquare
   }, {
     name: 'Clients',
-    path: '/clients',
+    path: '/dashboard/clients',
     icon: User
   }, {
     name: 'Products',
-    path: '/products',
+    path: '/dashboard/products',
     icon: Package
   }, {
     name: 'Users',
-    path: '/users',
+    path: '/dashboard/users',
     icon: Settings
   }];
   
