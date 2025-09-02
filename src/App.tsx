@@ -13,7 +13,6 @@ import { Messages } from "@/pages/Messages";
 import { Users } from "@/pages/Users";
 import { Clients } from "@/pages/Clients";
 import { Products } from "@/pages/Products";
-import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
@@ -25,24 +24,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
   
   if (!user || !profile) {
-    return <AdminLogin />;
+    return <Navigate to="/dashboard/login" replace />;
   }
   
   return <>{children}</>;
-};
-
-const RoleBasedRedirect = () => {
-  const { user, profile, isLoading } = useAuth();
-  
-  if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-  }
-  
-  if (!user || !profile) {
-    return <AdminLogin />;
-  }
-  
-  return <Navigate to="/dashboard" replace />;
 };
 
 const App = () => {
@@ -52,20 +37,7 @@ const App = () => {
         <TooltipProvider>
           <BrowserRouter>
             <Routes>
-              {/* Root route - redirects to dashboard */}
-              <Route path="/" element={<RoleBasedRedirect />} />
-              
-              {/* Admin routes */}
-              <Route path="/admin/login" element={<AdminLogin />} />
-              <Route path="/admin" element={
-                <ProtectedRoute>
-                  <DashboardLayout />
-                </ProtectedRoute>
-              }>
-                <Route index element={<Navigate to="/dashboard" replace />} />
-              </Route>
-              
-              {/* Dashboard routes */}
+              {/* Dashboard routes only */}
               <Route path="/dashboard" element={
                 <ProtectedRoute>
                   <DashboardLayout />
@@ -77,17 +49,11 @@ const App = () => {
                 <Route path="users" element={<Users />} />
                 <Route path="clients" element={<Clients />} />
                 <Route path="products" element={<Products />} />
+                <Route path="login" element={<AdminLogin />} />
               </Route>
               
-              {/* Legacy routes (redirect to new structure) */}
-              <Route path="/warehouse" element={<Navigate to="/dashboard/warehouse" replace />} />
-              <Route path="/messages" element={<Navigate to="/dashboard/messages" replace />} />
-              <Route path="/users" element={<Navigate to="/dashboard/users" replace />} />
-              <Route path="/clients" element={<Navigate to="/dashboard/clients" replace />} />
-              <Route path="/products" element={<Navigate to="/dashboard/products" replace />} />
-              
-              {/* 404 */}
-              <Route path="*" element={<NotFound />} />
+              {/* Redirect all other routes to dashboard */}
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </BrowserRouter>
           <Toaster />
