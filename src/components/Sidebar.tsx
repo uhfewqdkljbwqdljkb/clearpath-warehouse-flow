@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Play, LayoutDashboard, Calendar, DollarSign, BarChart3, Warehouse, FileText, Smartphone, Bookmark, Bell, User, Settings, Menu, Package, MapPin, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, Warehouse, MessageSquare, User, Package, Settings, Menu } from 'lucide-react';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -13,10 +13,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggle
 }) => {
   const { profile } = useAuth();
-  const isDemoAccount = profile?.email === 'admin@clearpath.com' || profile?.email === 'client@techshop.com';
-  const isAdmin = profile?.role === 'admin' || isDemoAccount;
   
-  const adminNavItems = [{
+  const navItems = [{
     name: 'Dashboard',
     path: '/',
     icon: LayoutDashboard
@@ -41,26 +39,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     path: '/users',
     icon: Settings
   }];
-  
-  const clientNavItems = [{
-    name: 'Dashboard',
-    path: '/portal',
-    icon: LayoutDashboard
-  }, {
-    name: 'Inventory',
-    path: '/portal/inventory',
-    icon: Package
-  }, {
-    name: 'Orders',
-    path: '/portal/orders',
-    icon: FileText
-  }, {
-    name: 'Storage',
-    path: '/portal/storage',
-    icon: Warehouse
-  }];
-  
-  const navItems = isAdmin ? adminNavItems : clientNavItems;
   
   return (
     <div className={`bg-white h-screen flex flex-col border-r border-gray-200 ${isCollapsed ? 'w-16' : 'w-64'} transition-all duration-300`}>

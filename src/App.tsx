@@ -6,25 +6,18 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AdminLogin } from "@/components/AdminLogin";
-import { ClientLogin } from "@/components/ClientLogin";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { ClientPortalLayout } from "@/components/ClientPortalLayout";
 import { Dashboard } from "@/components/Dashboard";
 import { Warehouse } from "@/pages/Warehouse";
 import { Messages } from "@/pages/Messages";
 import { Users } from "@/pages/Users";
 import { Clients } from "@/pages/Clients";
 import { Products } from "@/pages/Products";
-import { ClientPortalDashboard } from "@/pages/portal/ClientPortalDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const isDemoAccount = (email: string) => {
-  return email === 'admin@clearpath.com' || email === 'client@techshop.com';
-};
-
-const AdminProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, profile, isLoading } = useAuth();
   
   if (isLoading) {
@@ -35,31 +28,7 @@ const AdminProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return <AdminLogin />;
   }
   
-  // Allow demo accounts to access admin routes regardless of role
-  if (isDemoAccount(profile.email) || profile.role === 'admin') {
-    return <>{children}</>;
-  }
-  
-  return <Navigate to="/portal" replace />;
-};
-
-const ClientProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, profile, isLoading } = useAuth();
-  
-  if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-  }
-  
-  if (!user || !profile) {
-    return <ClientLogin />;
-  }
-  
-  // Allow demo accounts to access client routes regardless of role
-  if (isDemoAccount(profile.email) || profile.role === 'client') {
-    return <>{children}</>;
-  }
-  
-  return <Navigate to="/" replace />;
+  return <>{children}</>;
 };
 
 const RoleBasedRedirect = () => {
@@ -73,16 +42,7 @@ const RoleBasedRedirect = () => {
     return <AdminLogin />;
   }
   
-  // Demo accounts get redirected to admin dashboard by default
-  if (isDemoAccount(profile.email)) {
-    return <Navigate to="/dashboard" replace />;
-  }
-  
-  if (profile.role === 'admin') {
-    return <Navigate to="/dashboard" replace />;
-  } else {
-    return <Navigate to="/portal" replace />;
-  }
+  return <Navigate to="/dashboard" replace />;
 };
 
 const App = () => {
@@ -92,24 +52,24 @@ const App = () => {
         <TooltipProvider>
           <BrowserRouter>
             <Routes>
-              {/* Root route - redirects based on role */}
+              {/* Root route - redirects to dashboard */}
               <Route path="/" element={<RoleBasedRedirect />} />
               
               {/* Admin routes */}
               <Route path="/admin/login" element={<AdminLogin />} />
               <Route path="/admin" element={
-                <AdminProtectedRoute>
+                <ProtectedRoute>
                   <DashboardLayout />
-                </AdminProtectedRoute>
+                </ProtectedRoute>
               }>
                 <Route index element={<Navigate to="/dashboard" replace />} />
               </Route>
               
-              {/* Admin dashboard routes */}
+              {/* Dashboard routes */}
               <Route path="/dashboard" element={
-                <AdminProtectedRoute>
+                <ProtectedRoute>
                   <DashboardLayout />
-                </AdminProtectedRoute>
+                </ProtectedRoute>
               }>
                 <Route index element={<Dashboard />} />
                 <Route path="warehouse" element={<Warehouse />} />
@@ -119,25 +79,12 @@ const App = () => {
                 <Route path="products" element={<Products />} />
               </Route>
               
-              {/* Legacy admin routes (redirect to new structure) */}
+              {/* Legacy routes (redirect to new structure) */}
               <Route path="/warehouse" element={<Navigate to="/dashboard/warehouse" replace />} />
               <Route path="/messages" element={<Navigate to="/dashboard/messages" replace />} />
               <Route path="/users" element={<Navigate to="/dashboard/users" replace />} />
               <Route path="/clients" element={<Navigate to="/dashboard/clients" replace />} />
               <Route path="/products" element={<Navigate to="/dashboard/products" replace />} />
-              
-              {/* Client portal routes */}
-              <Route path="/portal/login" element={<ClientLogin />} />
-              <Route path="/portal" element={
-                <ClientProtectedRoute>
-                  <ClientPortalLayout />
-                </ClientProtectedRoute>
-              }>
-                <Route index element={<ClientPortalDashboard />} />
-                <Route path="inventory" element={<div>Client Inventory Page</div>} />
-                <Route path="orders" element={<div>Client Orders Page</div>} />
-                <Route path="storage" element={<div>Client Storage Page</div>} />
-              </Route>
               
               {/* 404 */}
               <Route path="*" element={<NotFound />} />
