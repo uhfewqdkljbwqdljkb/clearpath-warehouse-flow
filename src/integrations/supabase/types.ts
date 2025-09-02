@@ -14,6 +14,170 @@ export type Database = {
   }
   public: {
     Tables: {
+      client_order_items: {
+        Row: {
+          client_product_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          order_id: string
+          quantity: number
+          unit_value: number | null
+        }
+        Insert: {
+          client_product_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          order_id: string
+          quantity: number
+          unit_value?: number | null
+        }
+        Update: {
+          client_product_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          order_id?: string
+          quantity?: number
+          unit_value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_order_items_client_product_id_fkey"
+            columns: ["client_product_id"]
+            isOneToOne: false
+            referencedRelation: "client_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "client_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_orders: {
+        Row: {
+          company_id: string
+          completed_date: string | null
+          created_at: string
+          created_by: string
+          id: string
+          notes: string | null
+          order_number: string
+          order_type: string
+          requested_date: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          completed_date?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          notes?: string | null
+          order_number: string
+          order_type: string
+          requested_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          completed_date?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          notes?: string | null
+          order_number?: string
+          order_type?: string
+          requested_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_orders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      client_products: {
+        Row: {
+          category: string | null
+          company_id: string
+          created_at: string
+          description: string | null
+          dimensions_height: number | null
+          dimensions_length: number | null
+          dimensions_width: number | null
+          id: string
+          is_active: boolean
+          name: string
+          sku: string
+          storage_requirements: string | null
+          unit_value: number | null
+          updated_at: string
+          weight: number | null
+        }
+        Insert: {
+          category?: string | null
+          company_id: string
+          created_at?: string
+          description?: string | null
+          dimensions_height?: number | null
+          dimensions_length?: number | null
+          dimensions_width?: number | null
+          id?: string
+          is_active?: boolean
+          name: string
+          sku: string
+          storage_requirements?: string | null
+          unit_value?: number | null
+          updated_at?: string
+          weight?: number | null
+        }
+        Update: {
+          category?: string | null
+          company_id?: string
+          created_at?: string
+          description?: string | null
+          dimensions_height?: number | null
+          dimensions_length?: number | null
+          dimensions_width?: number | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          sku?: string
+          storage_requirements?: string | null
+          unit_value?: number | null
+          updated_at?: string
+          weight?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_products_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           address: string | null
@@ -46,6 +210,69 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      inventory_items: {
+        Row: {
+          client_product_id: string
+          company_id: string
+          created_at: string
+          id: string
+          last_movement_date: string | null
+          location_bin: string | null
+          location_code: string | null
+          location_row: string | null
+          location_zone: string | null
+          movement_type: string | null
+          notes: string | null
+          quantity: number
+          updated_at: string
+        }
+        Insert: {
+          client_product_id: string
+          company_id: string
+          created_at?: string
+          id?: string
+          last_movement_date?: string | null
+          location_bin?: string | null
+          location_code?: string | null
+          location_row?: string | null
+          location_zone?: string | null
+          movement_type?: string | null
+          notes?: string | null
+          quantity?: number
+          updated_at?: string
+        }
+        Update: {
+          client_product_id?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          last_movement_date?: string | null
+          location_bin?: string | null
+          location_code?: string | null
+          location_row?: string | null
+          location_zone?: string | null
+          movement_type?: string | null
+          notes?: string | null
+          quantity?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_items_client_product_id_fkey"
+            columns: ["client_product_id"]
+            isOneToOne: false
+            referencedRelation: "client_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_items_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
