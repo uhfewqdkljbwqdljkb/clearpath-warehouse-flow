@@ -20,6 +20,8 @@ import { ClientDashboard } from "@/pages/client/ClientDashboard";
 import { ClientProducts } from "@/pages/client/ClientProducts";
 import { ClientInventory } from "@/pages/client/ClientInventory";
 import { ClientOrders } from "@/pages/client/ClientOrders";
+import { ClientAnalytics } from "@/pages/client/ClientAnalytics";
+import { ClientMessages } from "@/pages/client/ClientMessages";
 import { ClientProfile } from "@/pages/client/ClientProfile";
 
 const queryClient = new QueryClient();
@@ -126,8 +128,10 @@ const App = () => {
                 <Route index element={<ClientDashboard />} />
                 <Route path="products" element={<ClientProducts />} />
                 <Route path="inventory" element={<ClientInventory />} />
-                <Route path="orders" element={<ClientOrders />} />
-                <Route path="profile" element={<ClientProfile />} />
+              <Route path="orders" element={<ClientOrders />} />
+              <Route path="analytics" element={<ClientAnalytics />} />
+              <Route path="messages" element={<ClientMessages />} />
+              <Route path="profile" element={<ClientProfile />} />
               </Route>
               
               {/* Redirect root to appropriate dashboard */}

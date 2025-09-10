@@ -1,26 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { DashboardMetrics } from '@/components/client/DashboardMetrics';
+import { RecentActivity } from '@/components/client/RecentActivity';
+import { QuickActions } from '@/components/client/QuickActions';
+import { StorageAllocationCard } from '@/components/client/StorageAllocationCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Package, Warehouse, ClipboardList, DollarSign, Plus, FileText, Truck } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 
 interface DashboardStats {
   totalProducts: number;
   totalInventory: number;
   pendingOrders: number;
   totalValue: number;
+  lowStockAlerts: number;
+  storageUtilization: number;
+  monthlyFee: number;
 }
 
 export const ClientDashboard: React.FC = () => {
   const { profile, company } = useAuth();
-  const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats>({
     totalProducts: 0,
     totalInventory: 0,
     pendingOrders: 0,
-    totalValue: 0
+    totalValue: 0,
+    lowStockAlerts: 0,
+    storageUtilization: 0,
+    monthlyFee: 0
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -67,11 +73,28 @@ export const ClientDashboard: React.FC = () => {
         .eq('company_id', profile.company_id)
         .in('status', ['pending', 'approved', 'in_progress']);
 
+      // Calculate low stock alerts (products with less than 50 items)
+      const { data: lowStockData } = await supabase
+        .from('inventory_items')
+        .select('client_products!inner(*)')
+        .eq('company_id', profile.company_id)
+        .lt('quantity', 50);
+
+      const lowStockAlerts = lowStockData?.length || 0;
+
+      // Get company storage info  
+      const storageUtilization = (company as any)?.max_storage_cubic_feet ? 
+        Math.min((totalInventory * 0.001) / (company as any).max_storage_cubic_feet * 100, 100) : 0;
+      const monthlyFee = (company as any)?.monthly_fee || 0;
+
       setStats({
         totalProducts: productsCount || 0,
         totalInventory,
         pendingOrders: ordersCount || 0,
-        totalValue
+        totalValue,
+        lowStockAlerts,
+        storageUtilization,
+        monthlyFee
       });
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
@@ -96,64 +119,35 @@ export const ClientDashboard: React.FC = () => {
         </p>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Products</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalProducts}</div>
-            <p className="text-xs text-muted-foreground">
-              Active product catalog
-            </p>
-          </CardContent>
-        </Card>
+      {/* Enhanced Stats Grid */}
+      <DashboardMetrics
+        totalProducts={stats.totalProducts}
+        totalInventory={stats.totalInventory}
+        pendingOrders={stats.pendingOrders}
+        totalValue={stats.totalValue}
+        lowStockAlerts={stats.lowStockAlerts}
+        storageUtilization={stats.storageUtilization}
+        monthlyFee={stats.monthlyFee}
+      />
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Inventory Items</CardTitle>
-            <Warehouse className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalInventory}</div>
-            <p className="text-xs text-muted-foreground">
-              Items in warehouse
-            </p>
-          </CardContent>
-        </Card>
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Storage Allocation */}
+        <StorageAllocationCard
+          totalAllocated={((company as any)?.max_storage_cubic_feet || 6100) / 1000}
+          totalUsed={stats.totalInventory * 0.001}
+          utilizationPercentage={stats.storageUtilization}
+          monthlyCost={stats.monthlyFee}
+        />
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Orders</CardTitle>
-            <ClipboardList className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.pendingOrders}</div>
-            <p className="text-xs text-muted-foreground">
-              Awaiting processing
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Value</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              ${stats.totalValue.toLocaleString()}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Inventory value
-            </p>
-          </CardContent>
-        </Card>
+        {/* Recent Activity */}
+        <RecentActivity />
       </div>
 
-      {/* Company Information */}
+      {/* Quick Actions */}
+      <QuickActions />
+
+      {/* Company Information - Moved to Bottom */}
       {company && (
         <Card>
           <CardHeader>
@@ -180,42 +174,6 @@ export const ClientDashboard: React.FC = () => {
           </CardContent>
         </Card>
       )}
-
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-          <CardDescription>Common tasks to get you started</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button 
-              onClick={() => navigate('/client/products')}
-              className="h-16 flex-col gap-2"
-              variant="outline"
-            >
-              <Plus className="h-5 w-5" />
-              Add Products
-            </Button>
-            <Button 
-              onClick={() => navigate('/client/orders')}
-              className="h-16 flex-col gap-2"
-              variant="outline"
-            >
-              <FileText className="h-5 w-5" />
-              Create Order
-            </Button>
-            <Button 
-              onClick={() => navigate('/client/inventory')}
-              className="h-16 flex-col gap-2"
-              variant="outline"
-            >
-              <Truck className="h-5 w-5" />
-              View Inventory
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };
