@@ -6,7 +6,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AdminLogin } from "@/components/AdminLogin";
+import { ClientLogin } from "@/components/ClientLogin";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { ClientLayout } from "@/components/ClientLayout";
 import { Dashboard } from "@/components/Dashboard";
 import { Warehouse } from "@/pages/Warehouse";
 import { Messages } from "@/pages/Messages";
@@ -14,6 +16,11 @@ import { Users } from "@/pages/Users";
 import { Clients } from "@/pages/Clients";
 import { Products } from "@/pages/Products";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ClientDashboard } from "@/pages/client/ClientDashboard";
+import { ClientProducts } from "@/pages/client/ClientProducts";
+import { ClientInventory } from "@/pages/client/ClientInventory";
+import { ClientOrders } from "@/pages/client/ClientOrders";
+import { ClientProfile } from "@/pages/client/ClientProfile";
 
 const queryClient = new QueryClient();
 
@@ -25,11 +32,18 @@ const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode;
   }
   
   if (!user || !profile) {
+    if (requiredRole === 'client') {
+      return <Navigate to="/client/login" replace />;
+    }
     return <Navigate to="/dashboard/login" replace />;
   }
 
   if (requiredRole && profile.role !== requiredRole) {
-    return <Navigate to="/dashboard" replace />;
+    if (profile.role === 'admin') {
+      return <Navigate to="/dashboard" replace />;
+    } else if (profile.role === 'client') {
+      return <Navigate to="/client" replace />;
+    }
   }
   
   return <>{children}</>;
@@ -43,7 +57,11 @@ const LoginRoute = () => {
   }
   
   if (user && profile) {
-    return <Navigate to="/dashboard" replace />;
+    if (profile.role === 'admin') {
+      return <Navigate to="/dashboard" replace />;
+    } else if (profile.role === 'client') {
+      return <Navigate to="/client" replace />;
+    }
   }
   
   return <AdminLogin />;
@@ -77,9 +95,27 @@ const App = () => {
                 <Route path="products" element={<Products />} />
               </Route>
 
+              {/* Client login route */}
+              <Route path="/client/login" element={<ClientLogin />} />
               
-              {/* Redirect all other routes to login */}
-              <Route path="*" element={<Navigate to="/dashboard/login" replace />} />
+              {/* Client routes - protected */}
+              <Route path="/client" element={
+                <ProtectedRoute requiredRole="client">
+                  <ClientLayout />
+                </ProtectedRoute>
+              }>
+                <Route index element={<ClientDashboard />} />
+                <Route path="products" element={<ClientProducts />} />
+                <Route path="inventory" element={<ClientInventory />} />
+                <Route path="orders" element={<ClientOrders />} />
+                <Route path="profile" element={<ClientProfile />} />
+              </Route>
+              
+              {/* Redirect root to appropriate dashboard */}
+              <Route path="/" element={<Navigate to="/client/login" replace />} />
+              
+              {/* Redirect all other routes to client login */}
+              <Route path="*" element={<Navigate to="/client/login" replace />} />
             </Routes>
           </BrowserRouter>
           <Toaster />
