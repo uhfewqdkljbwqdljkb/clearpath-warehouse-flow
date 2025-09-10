@@ -7,7 +7,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AdminLogin } from "@/components/AdminLogin";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { ClientLayout } from "@/components/ClientLayout";
 import { Dashboard } from "@/components/Dashboard";
 import { Warehouse } from "@/pages/Warehouse";
 import { Messages } from "@/pages/Messages";
@@ -15,11 +14,6 @@ import { Users } from "@/pages/Users";
 import { Clients } from "@/pages/Clients";
 import { Products } from "@/pages/Products";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { ClientDashboard } from "@/pages/client/ClientDashboard";
-import { ClientProducts } from "@/pages/client/ClientProducts";
-import { ClientInventory } from "@/pages/client/ClientInventory";
-import { ClientOrders } from "@/pages/client/ClientOrders";
-import { ClientProfile } from "@/pages/client/ClientProfile";
 
 const queryClient = new QueryClient();
 
@@ -35,11 +29,7 @@ const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode;
   }
 
   if (requiredRole && profile.role !== requiredRole) {
-    if (profile.role === 'admin') {
-      return <Navigate to="/dashboard" replace />;
-    } else if (profile.role === 'client') {
-      return <Navigate to="/client" replace />;
-    }
+    return <Navigate to="/dashboard" replace />;
   }
   
   return <>{children}</>;
@@ -53,11 +43,7 @@ const LoginRoute = () => {
   }
   
   if (user && profile) {
-    if (profile.role === 'admin') {
-      return <Navigate to="/dashboard" replace />;
-    } else if (profile.role === 'client') {
-      return <Navigate to="/client" replace />;
-    }
+    return <Navigate to="/dashboard" replace />;
   }
   
   return <AdminLogin />;
@@ -91,18 +77,6 @@ const App = () => {
                 <Route path="products" element={<Products />} />
               </Route>
 
-              {/* Client routes - protected */}
-              <Route path="/client" element={
-                <ProtectedRoute requiredRole="client">
-                  <ClientLayout />
-                </ProtectedRoute>
-              }>
-                <Route index element={<ClientDashboard />} />
-                <Route path="products" element={<ClientProducts />} />
-                <Route path="inventory" element={<ClientInventory />} />
-                <Route path="orders" element={<ClientOrders />} />
-                <Route path="profile" element={<ClientProfile />} />
-              </Route>
               
               {/* Redirect all other routes to login */}
               <Route path="*" element={<Navigate to="/dashboard/login" replace />} />
