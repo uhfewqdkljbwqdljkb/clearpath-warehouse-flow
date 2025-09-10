@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -20,20 +20,72 @@ import {
 } from '@/components/ui/dialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Search, Plus, MoreHorizontal, Building2, Users, DollarSign } from 'lucide-react';
-import { mockClients } from '@/data/mockData';
 import { Client } from '@/types';
 import { ClientForm } from '@/components/ClientForm';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/components/ui/use-toast';
 
 export const Clients: React.FC = () => {
-  console.log('Clients component loading...');
-  
-  // Debug data availability
-  console.log('mockClients:', mockClients);
-  console.log('ClientForm component:', ClientForm);
-  const [clients, setClients] = useState<Client[]>(mockClients);
+  const [clients, setClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    fetchClients();
+  }, []);
+
+  const fetchClients = async () => {
+    try {
+      const { data: companies, error } = await supabase
+        .from('companies')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching companies:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load client data",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Map companies data to Client interface
+      const clientsData: Client[] = companies?.map(company => ({
+        id: company.id,
+        client_code: company.client_code || '',
+        company_name: company.name,
+        contact_name: company.contact_person || '',
+        email: company.email || '',
+        phone: company.phone || '',
+        address: company.address || '',
+        billing_address: company.billing_address || '',
+        contract_start_date: company.contract_start_date || '',
+        contract_end_date: company.contract_end_date || '',
+        storage_plan: (company.storage_plan as 'basic' | 'premium' | 'enterprise') || 'basic',
+        max_storage_cubic_feet: company.max_storage_cubic_feet || 0,
+        monthly_fee: parseFloat(company.monthly_fee?.toString() || '0'),
+        is_active: company.is_active ?? true,
+        created_at: company.created_at,
+        updated_at: company.updated_at,
+      })) || [];
+
+      setClients(clientsData);
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load client data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredClients = clients.filter(client =>
     client.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -41,28 +93,114 @@ export const Clients: React.FC = () => {
     client.contact_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleAddClient = (clientData: Omit<Client, 'id' | 'created_at' | 'updated_at'>) => {
-    const newClient: Client = {
-      ...clientData,
-      id: Date.now().toString(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    setClients([...clients, newClient]);
-    setIsDialogOpen(false);
+  const handleAddClient = async (clientData: Omit<Client, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      // Generate client code if not provided
+      let client_code = clientData.client_code;
+      if (!client_code) {
+        const { data: generatedCode, error: codeError } = await supabase
+          .rpc('generate_client_code');
+        
+        if (codeError) {
+          throw codeError;
+        }
+        client_code = generatedCode;
+      }
+
+      const { data, error } = await supabase
+        .from('companies')
+        .insert({
+          client_code,
+          name: clientData.company_name,
+          contact_person: clientData.contact_name,
+          email: clientData.email,
+          phone: clientData.phone,
+          address: clientData.address,
+          billing_address: clientData.billing_address,
+          contract_start_date: clientData.contract_start_date,
+          contract_end_date: clientData.contract_end_date,
+          storage_plan: clientData.storage_plan,
+          max_storage_cubic_feet: clientData.max_storage_cubic_feet,
+          monthly_fee: clientData.monthly_fee,
+          is_active: clientData.is_active,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error adding client:', error);
+        toast({
+          title: "Error",
+          description: "Failed to add client",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      await fetchClients();
+      setIsDialogOpen(false);
+      toast({
+        title: "Success",
+        description: "Client added successfully",
+      });
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add client",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleEditClient = (clientData: Omit<Client, 'id' | 'created_at' | 'updated_at'>) => {
-    if (editingClient) {
-      const updatedClient: Client = {
-        ...clientData,
-        id: editingClient.id,
-        created_at: editingClient.created_at,
-        updated_at: new Date().toISOString(),
-      };
-      setClients(clients.map(c => c.id === editingClient.id ? updatedClient : c));
+  const handleEditClient = async (clientData: Omit<Client, 'id' | 'created_at' | 'updated_at'>) => {
+    if (!editingClient) return;
+
+    try {
+      const { error } = await supabase
+        .from('companies')
+        .update({
+          client_code: clientData.client_code,
+          name: clientData.company_name,
+          contact_person: clientData.contact_name,
+          email: clientData.email,
+          phone: clientData.phone,
+          address: clientData.address,
+          billing_address: clientData.billing_address,
+          contract_start_date: clientData.contract_start_date,
+          contract_end_date: clientData.contract_end_date,
+          storage_plan: clientData.storage_plan,
+          max_storage_cubic_feet: clientData.max_storage_cubic_feet,
+          monthly_fee: clientData.monthly_fee,
+          is_active: clientData.is_active,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', editingClient.id);
+
+      if (error) {
+        console.error('Error updating client:', error);
+        toast({
+          title: "Error",
+          description: "Failed to update client",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      await fetchClients();
       setEditingClient(null);
       setIsDialogOpen(false);
+      toast({
+        title: "Success",
+        description: "Client updated successfully",
+      });
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update client",
+        variant: "destructive",
+      });
     }
   };
 
@@ -89,8 +227,6 @@ export const Clients: React.FC = () => {
     }
   };
 
-  console.log('Rendering Clients component with', clients.length, 'clients');
-  
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -187,62 +323,74 @@ export const Clients: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Client Code</TableHead>
-                <TableHead>Company</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Plan</TableHead>
-                <TableHead>Storage</TableHead>
-                <TableHead>Monthly Fee</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredClients.map((client) => (
-                <TableRow key={client.id} className="animate-fade-in">
-                  <TableCell className="font-medium">{client.client_code}</TableCell>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{client.company_name}</div>
-                      <div className="text-sm text-muted-foreground">{client.email}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{client.contact_name}</div>
-                      <div className="text-sm text-muted-foreground">{client.phone}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getStoragePlanColor(client.storage_plan)}>
-                      {client.storage_plan}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {client.max_storage_cubic_feet.toLocaleString()} ft³
-                  </TableCell>
-                  <TableCell>${client.monthly_fee.toLocaleString()}</TableCell>
-                  <TableCell>
-                    <Badge variant={client.is_active ? "default" : "secondary"}>
-                      {client.is_active ? "Active" : "Inactive"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => openEditDialog(client)}
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-muted-foreground">Loading clients...</div>
+            </div>
+          ) : filteredClients.length === 0 ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-muted-foreground">
+                {searchTerm ? 'No clients found matching your search.' : 'No clients found. Add your first client to get started.'}
+              </div>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Client Code</TableHead>
+                  <TableHead>Company</TableHead>
+                  <TableHead>Contact</TableHead>
+                  <TableHead>Plan</TableHead>
+                  <TableHead>Storage</TableHead>
+                  <TableHead>Monthly Fee</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredClients.map((client) => (
+                  <TableRow key={client.id} className="animate-fade-in">
+                    <TableCell className="font-medium">{client.client_code}</TableCell>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{client.company_name}</div>
+                        <div className="text-sm text-muted-foreground">{client.email}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{client.contact_name}</div>
+                        <div className="text-sm text-muted-foreground">{client.phone}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={getStoragePlanColor(client.storage_plan)}>
+                        {client.storage_plan}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {client.max_storage_cubic_feet.toLocaleString()} ft³
+                    </TableCell>
+                    <TableCell>${client.monthly_fee.toLocaleString()}</TableCell>
+                    <TableCell>
+                      <Badge variant={client.is_active ? "default" : "secondary"}>
+                        {client.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openEditDialog(client)}
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>
