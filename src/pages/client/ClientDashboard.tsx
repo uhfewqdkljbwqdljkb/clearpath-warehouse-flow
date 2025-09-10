@@ -29,6 +29,7 @@ export const ClientDashboard: React.FC = () => {
     monthlyFee: 0
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [debugInfo, setDebugInfo] = useState<any>(null);
 
   useEffect(() => {
     if (profile?.company_id) {
@@ -37,7 +38,14 @@ export const ClientDashboard: React.FC = () => {
   }, [profile?.company_id]);
 
   const fetchDashboardStats = async () => {
-    if (!profile?.company_id) return;
+    if (!profile?.company_id) {
+      setDebugInfo({ 
+        error: 'No company_id found',
+        profile: profile,
+        company: company 
+      });
+      return;
+    }
 
     try {
       // Fetch products count
@@ -98,6 +106,11 @@ export const ClientDashboard: React.FC = () => {
       });
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
+      setDebugInfo({ 
+        error: error,
+        profile: profile,
+        company: company 
+      });
     } finally {
       setIsLoading(false);
     }
@@ -105,6 +118,33 @@ export const ClientDashboard: React.FC = () => {
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
+  }
+
+  // Show debug info if there's an issue
+  if (debugInfo?.error) {
+    return (
+      <div className="space-y-6">
+        <Card className="border-yellow-200 bg-yellow-50">
+          <CardHeader>
+            <CardTitle className="text-yellow-800">Data Loading Issue</CardTitle>
+            <CardDescription>
+              {!profile?.company_id 
+                ? 'Your account is not linked to a company. Please contact support.'
+                : 'There was an error loading your dashboard data.'
+              }
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-sm text-yellow-700">
+              <p><strong>Profile ID:</strong> {profile?.id || 'None'}</p>
+              <p><strong>Company ID:</strong> {profile?.company_id || 'None'}</p>
+              <p><strong>Company Name:</strong> {company?.name || 'None'}</p>
+              <p><strong>User Email:</strong> {profile?.email || 'None'}</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
