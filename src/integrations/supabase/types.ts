@@ -181,32 +181,56 @@ export type Database = {
       companies: {
         Row: {
           address: string | null
+          billing_address: string | null
+          client_code: string | null
           contact_person: string | null
+          contract_end_date: string | null
+          contract_start_date: string | null
           created_at: string
           email: string | null
           id: string
+          is_active: boolean | null
+          max_storage_cubic_feet: number | null
+          monthly_fee: number | null
           name: string
           phone: string | null
+          storage_plan: string | null
           updated_at: string
         }
         Insert: {
           address?: string | null
+          billing_address?: string | null
+          client_code?: string | null
           contact_person?: string | null
+          contract_end_date?: string | null
+          contract_start_date?: string | null
           created_at?: string
           email?: string | null
           id?: string
+          is_active?: boolean | null
+          max_storage_cubic_feet?: number | null
+          monthly_fee?: number | null
           name: string
           phone?: string | null
+          storage_plan?: string | null
           updated_at?: string
         }
         Update: {
           address?: string | null
+          billing_address?: string | null
+          client_code?: string | null
           contact_person?: string | null
+          contract_end_date?: string | null
+          contract_start_date?: string | null
           created_at?: string
           email?: string | null
           id?: string
+          is_active?: boolean | null
+          max_storage_cubic_feet?: number | null
+          monthly_fee?: number | null
           name?: string
           phone?: string | null
+          storage_plan?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -320,7 +344,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      generate_client_code: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
