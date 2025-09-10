@@ -14,6 +14,7 @@ import { Messages } from "@/pages/Messages";
 import { Users } from "@/pages/Users";
 import { Clients } from "@/pages/Clients";
 import { Products } from "@/pages/Products";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ClientDashboard } from "@/pages/client/ClientDashboard";
 import { ClientProducts } from "@/pages/client/ClientProducts";
 import { ClientInventory } from "@/pages/client/ClientInventory";
@@ -82,7 +83,11 @@ const App = () => {
                 <Route path="warehouse" element={<Warehouse />} />
                 <Route path="messages" element={<Messages />} />
                 <Route path="users" element={<Users />} />
-                <Route path="clients" element={<Clients />} />
+                <Route path="clients" element={
+                  <ErrorBoundary componentName="Clients">
+                    <Clients />
+                  </ErrorBoundary>
+                } />
                 <Route path="products" element={<Products />} />
               </Route>
 

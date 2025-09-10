@@ -25,6 +25,11 @@ import { Client } from '@/types';
 import { ClientForm } from '@/components/ClientForm';
 
 export const Clients: React.FC = () => {
+  console.log('Clients component loading...');
+  
+  // Debug data availability
+  console.log('mockClients:', mockClients);
+  console.log('ClientForm component:', ClientForm);
   const [clients, setClients] = useState<Client[]>(mockClients);
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -84,6 +89,8 @@ export const Clients: React.FC = () => {
     }
   };
 
+  console.log('Rendering Clients component with', clients.length, 'clients');
+  
   return (
     <div className="space-y-6">
       {/* Header */}
