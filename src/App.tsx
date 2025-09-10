@@ -67,6 +67,25 @@ const LoginRoute = () => {
   return <AdminLogin />;
 };
 
+const RootRedirect = () => {
+  const { user, profile, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+  
+  if (user && profile) {
+    if (profile.role === 'admin') {
+      return <Navigate to="/dashboard" replace />;
+    } else if (profile.role === 'client') {
+      return <Navigate to="/client" replace />;
+    }
+  }
+  
+  // Default to admin login for unauthenticated users
+  return <Navigate to="/dashboard/login" replace />;
+};
+
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
@@ -112,10 +131,10 @@ const App = () => {
               </Route>
               
               {/* Redirect root to appropriate dashboard */}
-              <Route path="/" element={<Navigate to="/client/login" replace />} />
+              <Route path="/" element={<RootRedirect />} />
               
-              {/* Redirect all other routes to client login */}
-              <Route path="*" element={<Navigate to="/client/login" replace />} />
+              {/* Redirect all other routes to appropriate login */}
+              <Route path="*" element={<RootRedirect />} />
             </Routes>
           </BrowserRouter>
           <Toaster />
