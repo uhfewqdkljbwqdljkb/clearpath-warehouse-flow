@@ -7,6 +7,8 @@ import {
   Package, 
   Warehouse, 
   ClipboardList,
+  BarChart3,
+  MessageSquare,
   Building2,
   ChevronLeft,
   ChevronRight
@@ -40,6 +42,16 @@ export const ClientSidebar: React.FC<ClientSidebarProps> = ({ isCollapsed, onTog
       name: 'Orders',
       path: '/client/orders',
       icon: ClipboardList
+    },
+    {
+      name: 'Analytics',
+      path: '/client/analytics',
+      icon: BarChart3
+    },
+    {
+      name: 'Messages',
+      path: '/client/messages',
+      icon: MessageSquare
     },
     {
       name: 'Profile',
