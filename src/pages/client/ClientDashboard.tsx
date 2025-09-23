@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIntegration } from '@/contexts/IntegrationContext';
 import { supabase } from '@/integrations/supabase/client';
 import { DashboardMetrics } from '@/components/client/DashboardMetrics';
 import { RecentActivity } from '@/components/client/RecentActivity';
+import { EnhancedActivityFeed } from '@/components/EnhancedActivityFeed';
 import { QuickActions } from '@/components/client/QuickActions';
 import { StorageAllocationCard } from '@/components/client/StorageAllocationCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useInventorySync, useOrderSync } from '@/hooks/useRealTimeSync';
+import { useToast } from '@/hooks/use-toast';
 
 interface DashboardStats {
   totalProducts: number;
@@ -19,6 +23,8 @@ interface DashboardStats {
 
 export const ClientDashboard: React.FC = () => {
   const { profile, company } = useAuth();
+  const { logActivity } = useIntegration();
+  const { toast } = useToast();
   const [stats, setStats] = useState<DashboardStats>({
     totalProducts: 0,
     totalInventory: 0,
@@ -31,9 +37,22 @@ export const ClientDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [debugInfo, setDebugInfo] = useState<any>(null);
 
+  // Real-time sync for inventory and orders
+  useInventorySync(() => {
+    fetchDashboardStats();
+  });
+
+  useOrderSync(() => {
+    fetchDashboardStats();
+  });
+
   useEffect(() => {
     if (profile?.company_id) {
       fetchDashboardStats();
+      // Log dashboard access
+      logActivity('dashboard_access', 'User accessed client dashboard', {
+        timestamp: new Date().toISOString()
+      });
     }
   }, [profile?.company_id]);
 
@@ -181,7 +200,7 @@ export const ClientDashboard: React.FC = () => {
         />
 
         {/* Recent Activity */}
-        <RecentActivity />
+        <EnhancedActivityFeed limit={8} showAllUsers={false} />
       </div>
 
       {/* Quick Actions */}

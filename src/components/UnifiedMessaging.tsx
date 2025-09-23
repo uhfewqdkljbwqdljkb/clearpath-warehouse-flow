@@ -23,6 +23,7 @@ import {
   Building2
 } from 'lucide-react';
 import { Message, EnhancedProfile } from '@/types/integration';
+import { useMessageSync } from '@/hooks/useRealTimeSync';
 
 export const UnifiedMessaging: React.FC = () => {
   const { profile } = useAuth();
@@ -44,6 +45,25 @@ export const UnifiedMessaging: React.FC = () => {
     content: '',
     message_type: 'general' as const,
     priority: 'normal' as const
+  });
+
+  // Real-time message sync
+  useMessageSync((payload) => {
+    console.log('Real-time message update:', payload);
+    if (payload.eventType === 'INSERT') {
+      setMessages(prev => [payload.new as Message, ...prev]);
+      // Show toast notification for new messages
+      if (payload.new.recipient_id === profile?.user_id) {
+        toast({
+          title: "New Message",
+          description: `${payload.new.subject} from ${payload.new.sender?.full_name || 'someone'}`,
+        });
+      }
+    } else if (payload.eventType === 'UPDATE') {
+      setMessages(prev => prev.map(msg => 
+        msg.id === payload.new.id ? { ...msg, ...payload.new } : msg
+      ));
+    }
   });
 
   useEffect(() => {

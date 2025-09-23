@@ -155,7 +155,8 @@ export const IntegrationProvider: React.FC<IntegrationProviderProps> = ({ childr
     clientCompany,
     sessionId,
     startViewingAsClient,
-    stopViewingAsClient
+    stopViewingAsClient,
+    logActivity
   };
 
   return (

@@ -10,6 +10,8 @@ import { CapacityOverview } from './CapacityOverview';
 import { UtilizationChart } from './UtilizationChart';
 import { AlertsPanel } from './AlertsPanel';
 import { ActivityFeed } from './ActivityFeed';
+import { AdminDashboardEnhancements } from './AdminDashboardEnhancements';
+import { SystemStatusSummary } from './SystemStatusSummary';
 import { ClientPerformance } from './ClientPerformance';
 import { mockClients, mockClientAllocations, mockProducts, warehouseZones, mockCapacityMetrics, mockCapacityAlerts } from '@/data/mockData';
 
@@ -30,6 +32,12 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* System Status Summary */}
+      <SystemStatusSummary />
+      
+      {/* Admin Dashboard Enhancements */}
+      <AdminDashboardEnhancements />
+
       {/* Key Metrics Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIntegration } from '@/contexts/IntegrationContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Search, Package, Warehouse, DollarSign } from 'lucide-react';
+import { useInventorySync } from '@/hooks/useRealTimeSync';
 
 interface InventoryItem {
   id: string;
@@ -25,13 +27,23 @@ interface InventoryItem {
 
 export const ClientInventory: React.FC = () => {
   const { profile } = useAuth();
+  const { logActivity } = useIntegration();
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Real-time inventory sync
+  useInventorySync(() => {
+    fetchInventory();
+  });
+
   useEffect(() => {
     if (profile?.company_id) {
       fetchInventory();
+      // Log inventory access
+      logActivity('inventory_access', 'User accessed inventory page', {
+        timestamp: new Date().toISOString()
+      });
     }
   }, [profile?.company_id]);
 

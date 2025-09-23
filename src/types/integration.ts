@@ -102,4 +102,5 @@ export interface ViewAsClientContext {
   sessionId: string | null;
   startViewingAsClient: (companyId: string) => Promise<void>;
   stopViewingAsClient: () => Promise<void>;
+  logActivity: (activityType: string, description: string, metadata?: Record<string, any>) => Promise<void>;
 }

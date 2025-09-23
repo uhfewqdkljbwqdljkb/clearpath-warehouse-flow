@@ -5,11 +5,13 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { IntegrationProvider } from "@/contexts/IntegrationContext";
 import { AdminLogin } from "@/components/AdminLogin";
 import { ClientLogin } from "@/components/ClientLogin";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { ClientLayout } from "@/components/ClientLayout";
 import { Dashboard } from "@/components/Dashboard";
+import { AdminDashboardEnhancements } from "@/components/AdminDashboardEnhancements";
 import { Warehouse } from "@/pages/Warehouse";
 import { Messages } from "@/pages/Messages";
 import { Users } from "@/pages/Users";
@@ -23,6 +25,7 @@ import { ClientOrders } from "@/pages/client/ClientOrders";
 import { ClientAnalytics } from "@/pages/client/ClientAnalytics";
 import { ClientMessages } from "@/pages/client/ClientMessages";
 import { ClientProfile } from "@/pages/client/ClientProfile";
+import { RealTimeNotifications } from "@/components/RealTimeNotifications";
 
 const queryClient = new QueryClient();
 
@@ -92,7 +95,9 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <TooltipProvider>
+        <IntegrationProvider>
+          <RealTimeNotifications />
+          <TooltipProvider>
           <BrowserRouter>
             <Routes>
               {/* Login route - unprotected */}
@@ -144,6 +149,7 @@ const App = () => {
           <Toaster />
           <Sonner />
         </TooltipProvider>
+        </IntegrationProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
