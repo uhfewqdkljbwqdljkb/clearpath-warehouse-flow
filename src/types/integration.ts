@@ -60,7 +60,7 @@ export interface ClientActivityLog {
   activity_type: string;
   activity_description?: string;
   metadata: Record<string, any> | any; // Allow JSON compatibility
-  ip_address?: string | null;
+  ip_address?: string | null | unknown; // Allow database unknown type
   user_agent?: string;
   created_at: string;
 }
