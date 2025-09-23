@@ -14,6 +14,102 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_sessions: {
+        Row: {
+          admin_user_id: string | null
+          created_at: string | null
+          id: string
+          notes: string | null
+          session_end: string | null
+          session_start: string | null
+          viewed_client_id: string | null
+        }
+        Insert: {
+          admin_user_id?: string | null
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          session_end?: string | null
+          session_start?: string | null
+          viewed_client_id?: string | null
+        }
+        Update: {
+          admin_user_id?: string | null
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          session_end?: string | null
+          session_start?: string | null
+          viewed_client_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_sessions_admin_user_id_fkey"
+            columns: ["admin_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "admin_sessions_viewed_client_id_fkey"
+            columns: ["viewed_client_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_activity_logs: {
+        Row: {
+          activity_description: string | null
+          activity_type: string
+          company_id: string | null
+          created_at: string | null
+          id: string
+          ip_address: unknown | null
+          metadata: Json | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          activity_description?: string | null
+          activity_type: string
+          company_id?: string | null
+          created_at?: string | null
+          id?: string
+          ip_address?: unknown | null
+          metadata?: Json | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          activity_description?: string | null
+          activity_type?: string
+          company_id?: string | null
+          created_at?: string | null
+          id?: string
+          ip_address?: unknown | null
+          metadata?: Json | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_activity_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_activity_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       client_order_items: {
         Row: {
           client_product_id: string
@@ -298,6 +394,79 @@ export type Database = {
           },
         ]
       }
+      messages: {
+        Row: {
+          attachment_urls: string[] | null
+          company_id: string | null
+          content: string
+          created_at: string | null
+          id: string
+          is_system_message: boolean | null
+          message_type: string | null
+          priority: string | null
+          recipient_id: string | null
+          sender_id: string | null
+          status: string | null
+          subject: string
+          thread_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          attachment_urls?: string[] | null
+          company_id?: string | null
+          content: string
+          created_at?: string | null
+          id?: string
+          is_system_message?: boolean | null
+          message_type?: string | null
+          priority?: string | null
+          recipient_id?: string | null
+          sender_id?: string | null
+          status?: string | null
+          subject: string
+          thread_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          attachment_urls?: string[] | null
+          company_id?: string | null
+          content?: string
+          created_at?: string | null
+          id?: string
+          is_system_message?: boolean | null
+          message_type?: string | null
+          priority?: string | null
+          recipient_id?: string | null
+          sender_id?: string | null
+          status?: string | null
+          subject?: string
+          thread_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           company_id: string | null
@@ -339,6 +508,47 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          permissions: Json | null
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          permissions?: Json | null
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          permissions?: Json | null
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -350,7 +560,12 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      user_role:
+        | "super_admin"
+        | "warehouse_manager"
+        | "logistics_coordinator"
+        | "client_admin"
+        | "client_user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -477,6 +692,14 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      user_role: [
+        "super_admin",
+        "warehouse_manager",
+        "logistics_coordinator",
+        "client_admin",
+        "client_user",
+      ],
+    },
   },
 } as const
