@@ -10,25 +10,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Search, Plus, MoreHorizontal, Building2, Users, DollarSign } from 'lucide-react';
 import { Client } from '@/types';
-import { ClientForm } from '@/components/ClientForm';
+import { MultiStepClientForm } from '@/components/MultiStepClientForm';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 export const Clients: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -138,7 +130,7 @@ export const Clients: React.FC = () => {
       }
 
       await fetchClients();
-      setIsDialogOpen(false);
+      setShowAddForm(false);
       toast({
         title: "Success",
         description: "Client added successfully",
@@ -189,7 +181,7 @@ export const Clients: React.FC = () => {
 
       await fetchClients();
       setEditingClient(null);
-      setIsDialogOpen(false);
+      setShowAddForm(false);
       toast({
         title: "Success",
         description: "Client updated successfully",
@@ -204,13 +196,13 @@ export const Clients: React.FC = () => {
     }
   };
 
-  const openEditDialog = (client: Client) => {
+  const openEditForm = (client: Client) => {
     setEditingClient(client);
-    setIsDialogOpen(true);
+    setShowAddForm(true);
   };
 
-  const closeDialog = () => {
-    setIsDialogOpen(false);
+  const closeForm = () => {
+    setShowAddForm(false);
     setEditingClient(null);
   };
 
@@ -227,6 +219,17 @@ export const Clients: React.FC = () => {
     }
   };
 
+  // If showing add/edit form, render the multi-step form
+  if (showAddForm) {
+    return (
+      <MultiStepClientForm
+        client={editingClient}
+        onSubmit={editingClient ? handleEditClient : handleAddClient}
+        onCancel={closeForm}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -237,32 +240,10 @@ export const Clients: React.FC = () => {
             Manage warehouse clients and their storage contracts
           </p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => setEditingClient(null)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Client
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>
-                {editingClient ? 'Edit Client' : 'Add New Client'}
-              </DialogTitle>
-              <DialogDescription>
-                {editingClient 
-                  ? 'Update client information and storage contract details.'
-                  : 'Enter client information and storage contract details.'
-                }
-              </DialogDescription>
-            </DialogHeader>
-            <ClientForm
-              client={editingClient}
-              onSubmit={editingClient ? handleEditClient : handleAddClient}
-              onCancel={closeDialog}
-            />
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => { setEditingClient(null); setShowAddForm(true); }}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Client
+        </Button>
       </div>
 
       {/* Summary Cards */}
@@ -381,7 +362,7 @@ export const Clients: React.FC = () => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => openEditDialog(client)}
+                        onClick={() => openEditForm(client)}
                       >
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
