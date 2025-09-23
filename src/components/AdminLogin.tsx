@@ -182,7 +182,7 @@ export const AdminLogin: React.FC = () => {
 
           <div className="pt-4 border-t border-gray-200">
             <Link 
-              to="/portal/login" 
+              to="/client/login" 
               className="text-sm text-gray-600 hover:text-gray-800"
             >
               Are you a client? Access Client Portal →
