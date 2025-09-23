@@ -118,6 +118,7 @@ const App = () => {
                     <Clients />
                   </ErrorBoundary>
                 } />
+                <Route path="clients/:clientId/products" element={<Products />} />
                 <Route path="products" element={<Products />} />
               </Route>
 

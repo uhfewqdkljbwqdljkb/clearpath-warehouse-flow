@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -18,71 +18,299 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Search, Plus, MoreHorizontal, Package, Barcode, AlertTriangle, ArrowLeft, Building2, Users } from 'lucide-react';
-import { mockClientProducts, mockClients, getProductsByClient } from '@/data/mockData';
-import { ClientProduct, Client } from '@/types';
+import { Client, ClientProduct } from '@/types';
 import { ProductForm } from '@/components/ProductForm';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { useParams, useNavigate } from 'react-router-dom';
 
 export const Products: React.FC = () => {
-  const [products, setProducts] = useState<ClientProduct[]>(mockClientProducts);
+  const [products, setProducts] = useState<any[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ClientProduct | null>(null);
   const [clientSearchTerm, setClientSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+  const { clientId } = useParams();
+  const navigate = useNavigate();
 
-  const filteredClients = mockClients.filter(client =>
-    client.is_active && 
+  useEffect(() => {
+    fetchClients();
+    if (clientId) {
+      // If a specific client ID is provided in the URL, load that client's products
+      fetchClientById(clientId);
+    }
+  }, [clientId]);
+
+  useEffect(() => {
+    if (selectedClient) {
+      fetchProducts(selectedClient.id);
+    }
+  }, [selectedClient]);
+
+  const fetchClients = async () => {
+    try {
+      const { data: companies, error } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+
+      if (error) {
+        console.error('Error fetching companies:', error);
+        return;
+      }
+
+      const clientsData: Client[] = companies?.map(company => ({
+        id: company.id,
+        client_code: company.client_code || '',
+        company_name: company.name,
+        contact_name: company.contact_person || '',
+        email: company.email || '',
+        phone: company.phone || '',
+        address: company.address || '',
+        billing_address: company.billing_address || '',
+        contract_start_date: company.contract_start_date || '',
+        contract_end_date: company.contract_end_date || '',
+        storage_plan: (company.storage_plan as 'basic' | 'premium' | 'enterprise') || 'basic',
+        max_storage_cubic_feet: company.max_storage_cubic_feet || 0,
+        monthly_fee: parseFloat(company.monthly_fee?.toString() || '0'),
+        is_active: company.is_active ?? true,
+        created_at: company.created_at,
+        updated_at: company.updated_at,
+      })) || [];
+
+      setClients(clientsData);
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchClientById = async (id: string) => {
+    try {
+      const { data: company, error } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching company:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load client data",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const clientData: Client = {
+        id: company.id,
+        client_code: company.client_code || '',
+        company_name: company.name,
+        contact_name: company.contact_person || '',
+        email: company.email || '',
+        phone: company.phone || '',
+        address: company.address || '',
+        billing_address: company.billing_address || '',
+        contract_start_date: company.contract_start_date || '',
+        contract_end_date: company.contract_end_date || '',
+        storage_plan: (company.storage_plan as 'basic' | 'premium' | 'enterprise') || 'basic',
+        max_storage_cubic_feet: company.max_storage_cubic_feet || 0,
+        monthly_fee: parseFloat(company.monthly_fee?.toString() || '0'),
+        is_active: company.is_active ?? true,
+        created_at: company.created_at,
+        updated_at: company.updated_at,
+      };
+
+      setSelectedClient(clientData);
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+
+  const fetchProducts = async (companyId: string) => {
+    try {
+      const { data: productsData, error } = await supabase
+        .from('client_products')
+        .select(`
+          *,
+          inventory_items(
+            quantity,
+            location_zone,
+            location_row,
+            location_bin
+          )
+        `)
+        .eq('company_id', companyId)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching products:', error);
+        return;
+      }
+
+      const formattedProducts: any[] = productsData?.map(product => ({
+        id: product.id,
+        company_id: product.company_id,
+        sku: product.sku,
+        name: product.name,
+        description: product.description,
+        category: product.category,
+        dimensions_length: product.dimensions_length,
+        dimensions_width: product.dimensions_width,
+        dimensions_height: product.dimensions_height,
+        weight: product.weight,
+        unit_value: product.unit_value,
+        storage_requirements: product.storage_requirements,
+        is_active: product.is_active,
+        created_at: product.created_at,
+        updated_at: product.updated_at,
+        inventory_quantity: product.inventory_items?.reduce((sum, item) => sum + item.quantity, 0) || 0,
+        location_info: product.inventory_items?.[0] 
+          ? `${product.inventory_items[0].location_zone || 'N/A'}-${product.inventory_items[0].location_row || 'N/A'}-${product.inventory_items[0].location_bin || 'N/A'}`
+          : 'No location',
+      })) || [];
+
+      setProducts(formattedProducts);
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+
+  const filteredClients = clients.filter(client =>
     client.company_name.toLowerCase().includes(clientSearchTerm.toLowerCase())
   );
 
   const filteredProducts = selectedClient 
     ? products.filter(product => {
         const matchesSearch = 
-          product.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          product.internal_barcode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          product.category.toLowerCase().includes(searchTerm.toLowerCase());
+          (product.category || '').toLowerCase().includes(searchTerm.toLowerCase());
         
-        return matchesSearch && product.client_id === selectedClient.id;
+        return matchesSearch;
       })
     : [];
 
-  const handleAddProduct = (productData: Omit<ClientProduct, 'id' | 'created_at' | 'updated_at'>) => {
-    const newProduct: ClientProduct = {
-      ...productData,
-      id: Date.now().toString(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    setProducts([...products, newProduct]);
-    setIsDialogOpen(false);
-  };
+  const handleAddProduct = async (productData: any) => {
+    if (!selectedClient) return;
 
-  const handleEditProduct = (productData: Omit<ClientProduct, 'id' | 'created_at' | 'updated_at'>) => {
-    if (editingProduct) {
-      const updatedProduct: ClientProduct = {
-        ...productData,
-        id: editingProduct.id,
-        created_at: editingProduct.created_at,
-        updated_at: new Date().toISOString(),
-      };
-      setProducts(products.map(p => p.id === editingProduct.id ? updatedProduct : p));
-      setEditingProduct(null);
+    try {
+      const { error } = await supabase
+        .from('client_products')
+        .insert({
+          company_id: selectedClient.id,
+          sku: productData.sku,
+          name: productData.name,
+          description: productData.description,
+          category: productData.category,
+          dimensions_length: productData.dimensions_length,
+          dimensions_width: productData.dimensions_width,
+          dimensions_height: productData.dimensions_height,
+          weight: productData.weight,
+          unit_value: productData.unit_value,
+          storage_requirements: productData.storage_requirements,
+        });
+
+      if (error) {
+        console.error('Error adding product:', error);
+        toast({
+          title: "Error",
+          description: "Failed to add product",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      await fetchProducts(selectedClient.id);
       setIsDialogOpen(false);
+      toast({
+        title: "Success",
+        description: "Product added successfully",
+      });
+    } catch (error) {
+      console.error('Error:', error);
     }
   };
 
-  const openEditDialog = (product: ClientProduct) => {
-    setEditingProduct(product);
+  const handleEditProduct = async (productData: any) => {
+    if (!editingProduct) return;
+
+    try {
+      const { error } = await supabase
+        .from('client_products')
+        .update({
+          sku: productData.sku,
+          name: productData.name,
+          description: productData.description,
+          category: productData.category,
+          dimensions_length: productData.dimensions_length,
+          dimensions_width: productData.dimensions_width,
+          dimensions_height: productData.dimensions_height,
+          weight: productData.weight,
+          unit_value: productData.unit_value,
+          storage_requirements: productData.storage_requirements,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', editingProduct.id);
+
+      if (error) {
+        console.error('Error updating product:', error);
+        toast({
+          title: "Error",
+          description: "Failed to update product",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (selectedClient) {
+        await fetchProducts(selectedClient.id);
+      }
+      setEditingProduct(null);
+      setIsDialogOpen(false);
+      toast({
+        title: "Success",
+        description: "Product updated successfully",
+      });
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+
+  const openEditDialog = (product: any) => {
+    // Convert our product data to match ClientProduct interface
+    const editableProduct: ClientProduct = {
+      id: product.id,
+      client_id: product.company_id,
+      sku: product.sku,
+      product_name: product.name,
+      description: product.description || '',
+      category: product.category || '',
+      dimensions_length: product.dimensions_length || 0,
+      dimensions_width: product.dimensions_width || 0,
+      dimensions_height: product.dimensions_height || 0,
+      weight_lbs: product.weight || 0,
+      cubic_feet: 0, // Calculate if needed
+      storage_requirements: (product.storage_requirements as 'ambient' | 'refrigerated' | 'fragile' | 'hazardous') || 'ambient',
+      product_barcode: '',
+      internal_barcode: '',
+      reorder_level: 0,
+      cost_per_unit: product.unit_value || 0,
+      is_active: product.is_active,
+      created_at: product.created_at,
+      updated_at: product.updated_at,
+    };
+    setEditingProduct(editableProduct);
     setIsDialogOpen(true);
   };
 
@@ -97,8 +325,13 @@ export const Products: React.FC = () => {
   };
 
   const goBackToClients = () => {
-    setSelectedClient(null);
-    setSearchTerm('');
+    if (clientId) {
+      // If we came from a specific client route, go back to clients page
+      navigate('/dashboard/clients');
+    } else {
+      setSelectedClient(null);
+      setSearchTerm('');
+    }
   };
 
   const getStorageRequirementColor = (requirement: string) => {
@@ -113,8 +346,7 @@ export const Products: React.FC = () => {
 
 
   const totalProducts = products.filter(p => p.is_active).length;
-  const totalClients = new Set(products.map(p => p.client_id)).size;
-  const lowStockProducts = products.filter(p => p.reorder_level > 0).length;
+  const totalClients = clients.length;
 
   // If no client is selected, show client selection view
   if (!selectedClient) {
@@ -184,12 +416,13 @@ export const Products: React.FC = () => {
         </div>
 
         {/* Clients Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredClients.map((client) => {
-            const clientProducts = products.filter(p => p.client_id === client.id);
-            const activeProducts = clientProducts.filter(p => p.is_active);
-            
-            return (
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="text-muted-foreground">Loading clients...</div>
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {filteredClients.map((client) => (
               <Card key={client.id} className="cursor-pointer hover:shadow-md transition-shadow">
                 <CardHeader 
                   className="pb-2"
@@ -206,12 +439,12 @@ export const Products: React.FC = () => {
                 <CardContent onClick={() => selectClient(client)}>
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span>Products:</span>
-                      <span className="font-medium">{activeProducts.length}</span>
+                      <span>Client Code:</span>
+                      <span className="font-medium">{client.client_code}</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span>Total SKUs:</span>
-                      <span className="font-medium">{clientProducts.length}</span>
+                      <span>Storage:</span>
+                      <span className="font-medium">{client.max_storage_cubic_feet.toLocaleString()} ft³</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span>Status:</span>
@@ -222,9 +455,9 @@ export const Products: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -232,20 +465,20 @@ export const Products: React.FC = () => {
   // Show products for selected client
   return (
     <div className="space-y-6">
-      {/* Header with back button */}
-      <div className="flex justify-between items-center">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" onClick={goBackToClients}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Clients
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">{selectedClient.company_name} Products</h1>
-            <p className="text-muted-foreground">
-              Manage product inventory and barcodes for {selectedClient.company_name}
-            </p>
+        {/* Header with back button */}
+        <div className="flex justify-between items-center">
+          <div className="flex items-center space-x-4">
+            <Button variant="ghost" onClick={goBackToClients}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Clients
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">{selectedClient.company_name} Products</h1>
+              <p className="text-muted-foreground">
+                Manage product catalog for {selectedClient.company_name} ({selectedClient.client_code})
+              </p>
+            </div>
           </div>
-        </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={() => setEditingProduct(null)} className="bg-green-600 hover:bg-green-700 text-white">
@@ -302,15 +535,15 @@ export const Products: React.FC = () => {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Reorder Alerts</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Inventory</CardTitle>
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {filteredProducts.filter(p => p.reorder_level > 0).length}
+              {filteredProducts.reduce((sum, p) => sum + (p.inventory_quantity || 0), 0).toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
-              products with reorder levels
+              units in stock
             </p>
           </CardContent>
         </Card>
@@ -346,8 +579,9 @@ export const Products: React.FC = () => {
                 <TableHead>Category</TableHead>
                 <TableHead>Storage</TableHead>
                 <TableHead>Dimensions</TableHead>
-                <TableHead>Barcode</TableHead>
-                <TableHead>Cost</TableHead>
+                <TableHead>Quantity</TableHead>
+                <TableHead>Location</TableHead>
+                <TableHead>Unit Value</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -358,35 +592,35 @@ export const Products: React.FC = () => {
                   <TableCell className="font-medium">{product.sku}</TableCell>
                   <TableCell>
                     <div>
-                      <div className="font-medium">{product.product_name}</div>
+                      <div className="font-medium">{product.name}</div>
                       <div className="text-sm text-muted-foreground">
-                        {product.description.substring(0, 50)}...
+                        {product.description && product.description.substring(0, 50)}...
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>{product.category}</TableCell>
+                  <TableCell>{product.category || 'N/A'}</TableCell>
                   <TableCell>
-                    <Badge className={getStorageRequirementColor(product.storage_requirements)}>
-                      {product.storage_requirements}
+                    <Badge className={getStorageRequirementColor(product.storage_requirements || 'ambient')}>
+                      {product.storage_requirements || 'ambient'}
                     </Badge>
                   </TableCell>
                   <TableCell>
                     <div className="text-sm">
-                      {product.dimensions_length}" × {product.dimensions_width}" × {product.dimensions_height}"
-                      <div className="text-muted-foreground">
-                        {product.cubic_feet} ft³, {product.weight_lbs} lbs
-                      </div>
+                      {product.dimensions_length ? `${product.dimensions_length}" × ${product.dimensions_width}" × ${product.dimensions_height}"` : 'N/A'}
+                      {product.weight && (
+                        <div className="text-muted-foreground">
+                          {product.weight} lbs
+                        </div>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm">
-                      <div className="font-mono">{product.internal_barcode}</div>
-                      <div className="text-muted-foreground font-mono">
-                        {product.product_barcode}
-                      </div>
-                    </div>
+                    <span className="font-medium">{product.inventory_quantity || 0}</span>
                   </TableCell>
-                  <TableCell>${product.cost_per_unit}</TableCell>
+                  <TableCell>
+                    <span className="text-sm font-mono">{product.location_info}</span>
+                  </TableCell>
+                  <TableCell>${product.unit_value || 0}</TableCell>
                   <TableCell>
                     <Badge variant={product.is_active ? "default" : "secondary"}>
                       {product.is_active ? "Active" : "Inactive"}

@@ -11,11 +11,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Search, Plus, MoreHorizontal, Building2, Users, DollarSign } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Building2, Users, DollarSign, Package, Eye } from 'lucide-react';
 import { Client } from '@/types';
 import { MultiStepClientForm } from '@/components/MultiStepClientForm';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 export const Clients: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
@@ -23,10 +24,13 @@ export const Clients: React.FC = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
+  const [clientMetrics, setClientMetrics] = useState<Record<string, { productCount: number; inventoryValue: number }>>({});
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchClients();
+    fetchClientMetrics();
   }, []);
 
   const fetchClients = async () => {
@@ -76,6 +80,45 @@ export const Clients: React.FC = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchClientMetrics = async () => {
+    try {
+      // Get product counts and inventory values for each client
+      const { data: productData, error: productError } = await supabase
+        .from('client_products')
+        .select(`
+          company_id,
+          unit_value,
+          inventory_items(quantity)
+        `)
+        .eq('is_active', true);
+
+      if (productError) {
+        console.error('Error fetching product metrics:', productError);
+        return;
+      }
+
+      const metrics: Record<string, { productCount: number; inventoryValue: number }> = {};
+      
+      productData?.forEach(product => {
+        const companyId = product.company_id;
+        if (!metrics[companyId]) {
+          metrics[companyId] = { productCount: 0, inventoryValue: 0 };
+        }
+        
+        metrics[companyId].productCount += 1;
+        
+        // Calculate inventory value: unit_value * total_quantity
+        const totalQuantity = product.inventory_items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+        const unitValue = product.unit_value || 0;
+        metrics[companyId].inventoryValue += unitValue * totalQuantity;
+      });
+
+      setClientMetrics(metrics);
+    } catch (error) {
+      console.error('Error fetching client metrics:', error);
     }
   };
 
@@ -130,6 +173,7 @@ export const Clients: React.FC = () => {
       }
 
       await fetchClients();
+      await fetchClientMetrics();
       setShowAddForm(false);
       toast({
         title: "Success",
@@ -180,6 +224,7 @@ export const Clients: React.FC = () => {
       }
 
       await fetchClients();
+      await fetchClientMetrics();
       setEditingClient(null);
       setShowAddForm(false);
       toast({
@@ -204,6 +249,10 @@ export const Clients: React.FC = () => {
   const closeForm = () => {
     setShowAddForm(false);
     setEditingClient(null);
+  };
+
+  const handleViewProducts = (client: Client) => {
+    navigate(`/dashboard/clients/${client.id}/products`);
   };
 
   const activeClients = clients.filter(c => c.is_active);
@@ -323,13 +372,17 @@ export const Clients: React.FC = () => {
                   <TableHead>Contact</TableHead>
                   <TableHead>Plan</TableHead>
                   <TableHead>Storage</TableHead>
+                  <TableHead>Products</TableHead>
+                  <TableHead>Inventory Value</TableHead>
                   <TableHead>Monthly Fee</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredClients.map((client) => (
+                {filteredClients.map((client) => {
+                  const metrics = clientMetrics[client.id] || { productCount: 0, inventoryValue: 0 };
+                  return (
                   <TableRow key={client.id} className="animate-fade-in">
                     <TableCell className="font-medium">{client.client_code}</TableCell>
                     <TableCell>
@@ -352,6 +405,15 @@ export const Clients: React.FC = () => {
                     <TableCell>
                       {client.max_storage_cubic_feet.toLocaleString()} ft³
                     </TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        <Package className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">{metrics.productCount}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-medium">${metrics.inventoryValue.toLocaleString()}</span>
+                    </TableCell>
                     <TableCell>${client.monthly_fee.toLocaleString()}</TableCell>
                     <TableCell>
                       <Badge variant={client.is_active ? "default" : "secondary"}>
@@ -359,16 +421,28 @@ export const Clients: React.FC = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openEditForm(client)}
-                      >
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center space-x-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleViewProducts(client)}
+                          title="View Products"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEditForm(client)}
+                          title="Edit Client"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           )}
