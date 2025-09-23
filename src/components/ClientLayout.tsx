@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { ClientSidebar } from './ClientSidebar';
 import { ClientHeader } from './ClientHeader';
+import { AdminClientPortalBridge } from './AdminClientPortalBridge';
 
 export const ClientLayout: React.FC = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -17,6 +18,7 @@ export const ClientLayout: React.FC = () => {
         <ClientHeader />
         
         <main className="flex-1 overflow-auto p-6 bg-muted/50">
+          <AdminClientPortalBridge />
           <Outlet />
         </main>
       </div>

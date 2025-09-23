@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { AdminClientPortalBridge } from './AdminClientPortalBridge';
 import { Button } from '@/components/ui/button';
 import { Menu } from 'lucide-react';
 export const DashboardLayout: React.FC = () => {
@@ -19,6 +20,7 @@ export const DashboardLayout: React.FC = () => {
         <main className="flex-1 overflow-auto p-6" style={{
         backgroundColor: '#F0F0F0'
       }}>
+          <AdminClientPortalBridge />
           <Outlet />
         </main>
       </div>
