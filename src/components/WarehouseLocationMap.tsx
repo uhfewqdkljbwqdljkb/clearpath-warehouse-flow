@@ -28,8 +28,11 @@ interface Zone {
   id: string;
   code: string;
   name: string;
+  description: string;
+  zone_type: 'floor' | 'shelf';
   color: string;
-  locations: string[];
+  is_occupied?: boolean;
+  rows?: any[];
 }
 
 interface WarehouseLocationMapProps {

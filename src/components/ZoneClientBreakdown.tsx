@@ -7,17 +7,44 @@ import { MapPin, Users, DollarSign, Package } from 'lucide-react';
 import { warehouseZones, clients } from '@/data/warehouseData';
 
 export const ZoneClientBreakdown: React.FC = () => {
-  const zoneData = warehouseZones.map(zone => {
-    const zoneClients = clients.filter(client => zone.clients.includes(client.name));
-    const totalValue = zoneClients.reduce((sum, client) => sum + client.totalValue, 0);
-    const totalOrders = zoneClients.reduce((sum, client) => sum + client.monthlyOrders, 0);
+  // Filter to only show occupied zones
+  const occupiedZones = warehouseZones.filter(zone => zone.is_occupied || zone.zone_type === 'shelf');
+  
+  const zoneData = occupiedZones.map(zone => {
+    let zoneClients: any[] = [];
+    let totalValue = 0;
+    let totalOrders = 0;
+    let productCategories: string[] = [];
+
+    if (zone.zone_type === 'floor' && zone.client_id) {
+      // For floor zones, find the single assigned client
+      const client = clients.find(c => c.id === zone.client_id);
+      if (client) {
+        zoneClients = [client];
+        totalValue = client.totalValue;
+        totalOrders = client.monthlyOrders;
+        productCategories = client.products;
+      }
+    } else if (zone.zone_type === 'shelf') {
+      // For shelf zone, aggregate clients from occupied rows
+      if (zone.rows) {
+        const occupiedRows = zone.rows.filter(row => row.is_occupied && row.client_id);
+        const clientIds = [...new Set(occupiedRows.map(row => row.client_id))];
+        zoneClients = clients.filter(c => clientIds.includes(c.id));
+        totalValue = zoneClients.reduce((sum, client) => sum + (client.totalValue * 0.3), 0); // Estimate 30% overflow
+        totalOrders = zoneClients.reduce((sum, client) => sum + (client.monthlyOrders * 0.2), 0); // Estimate 20% overflow orders
+        productCategories = [...new Set(zoneClients.flatMap(c => c.products))];
+      }
+    }
     
     return {
       ...zone,
       clientCount: zoneClients.length,
       totalValue,
       totalOrders,
-      avgOrderValue: totalOrders > 0 ? totalValue / totalOrders : 0
+      avgOrderValue: totalOrders > 0 ? totalValue / totalOrders : 0,
+      zoneClients,
+      productCategories
     };
   }).filter(zone => zone.clientCount > 0);
 
@@ -56,8 +83,7 @@ export const ZoneClientBreakdown: React.FC = () => {
       {/* Detailed Zone Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {zoneData.map(zone => {
-          const zoneClients = clients.filter(client => zone.clients.includes(client.name));
-          const valuePercentage = (zone.totalValue / maxValue) * 100;
+          const valuePercentage = maxValue > 0 ? (zone.totalValue / maxValue) * 100 : 0;
 
           return (
             <Card key={zone.id}>
@@ -79,6 +105,11 @@ export const ZoneClientBreakdown: React.FC = () => {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Zone Type Badge */}
+                <Badge variant={zone.zone_type === 'floor' ? 'default' : 'secondary'}>
+                  {zone.zone_type === 'floor' ? 'Dedicated Floor Zone' : 'Shared Shelf Zone'}
+                </Badge>
+
                 {/* Zone Metrics */}
                 <div className="grid grid-cols-3 gap-4">
                   <div className="text-center p-3 bg-gray-50 rounded-lg">
@@ -90,7 +121,7 @@ export const ZoneClientBreakdown: React.FC = () => {
                   </div>
                   <div className="text-center p-3 bg-gray-50 rounded-lg">
                     <div className="text-lg font-bold text-gray-900">
-                      ${(zone.totalValue / 1000).toFixed(0)}K
+                      ${Math.round(zone.totalValue / 1000)}K
                     </div>
                     <div className="text-sm text-gray-600 flex items-center justify-center space-x-1">
                       <DollarSign className="h-3 w-3" />
@@ -122,7 +153,7 @@ export const ZoneClientBreakdown: React.FC = () => {
                     <span>Clients in Zone</span>
                   </h4>
                   <div className="space-y-2">
-                    {zoneClients.map(client => (
+                    {zone.zoneClients.map(client => (
                       <div key={client.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
                         <div>
                           <div className="font-medium text-sm text-gray-900">{client.name}</div>
@@ -130,7 +161,7 @@ export const ZoneClientBreakdown: React.FC = () => {
                         </div>
                         <div className="text-right">
                           <div className="text-sm font-medium text-gray-900">
-                            ${(client.totalValue / 1000).toFixed(0)}K
+                            ${Math.round(client.totalValue / 1000)}K
                           </div>
                           <div className="text-xs text-gray-500">
                             {client.monthlyOrders}/mo
@@ -148,7 +179,7 @@ export const ZoneClientBreakdown: React.FC = () => {
                     <span>Product Categories</span>
                   </h4>
                   <div className="flex flex-wrap gap-1">
-                    {zone.productCategories.map(category => (
+                    {zone.productCategories.slice(0, 4).map(category => (
                       <Badge 
                         key={category}
                         variant="secondary"
@@ -157,6 +188,11 @@ export const ZoneClientBreakdown: React.FC = () => {
                         {category}
                       </Badge>
                     ))}
+                    {zone.productCategories.length > 4 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{zone.productCategories.length - 4} more
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </CardContent>

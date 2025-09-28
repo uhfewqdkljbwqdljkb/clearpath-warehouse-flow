@@ -32,8 +32,8 @@ export const Warehouse: React.FC = () => {
   const [shipModalOpen, setShipModalOpen] = useState(false);
   const [moveModalOpen, setMoveModalOpen] = useState(false);
 
-  const totalOccupied = warehouseZones.reduce((sum, zone) => sum + zone.occupied_locations, 0);
-  const totalLocations = warehouseZones.reduce((sum, zone) => sum + zone.total_locations, 0);
+  const totalOccupied = warehouseZones.filter(zone => zone.is_occupied).length;
+  const totalLocations = warehouseZones.length;
   const totalItems = warehouseLocations.reduce((sum, loc) => sum + (loc.items || 0), 0);
 
   return (
@@ -187,14 +187,27 @@ export const Warehouse: React.FC = () => {
       {/* Fourth Row - Client Performance & Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ClientPerformance />
-        <WarehouseActivityFeed activities={recentWarehouseActivities} />
+        <WarehouseActivityFeed activities={recentWarehouseActivities.map(activity => ({
+          ...activity,
+          type: activity.type as "receiving" | "shipping" | "allocation" | "movement" | "quality" | "maintenance"
+        }))} />
       </div>
 
       {/* Fifth Row - Location Table & Map */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <LocationsTable locations={warehouseLocations} zones={warehouseZones} />
+        <LocationsTable locations={warehouseLocations} zones={warehouseZones.map(zone => ({
+          ...zone,
+          locations: zone.zone_type === 'shelf' && zone.rows 
+            ? zone.rows.map(row => row.location_code)
+            : [`ZONE-${zone.code}`]
+        }))} />
         <div className="lg:col-span-1">
-          <WarehouseLocationMap zones={warehouseZones} locations={warehouseLocations} />
+          <WarehouseLocationMap zones={warehouseZones.map(zone => ({
+            ...zone,
+            locations: zone.zone_type === 'shelf' && zone.rows 
+              ? zone.rows.map(row => row.location_code)
+              : [`ZONE-${zone.code}`]
+          }))} locations={warehouseLocations} />
         </div>
       </div>
 
