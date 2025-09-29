@@ -111,9 +111,16 @@ export const UnifiedMessaging: React.FC = () => {
     try {
       let query = supabase.from('profiles').select('*');
       
-      // If viewing as client, only show users from that company plus admins
       if (isViewingAsClient && clientCompany) {
+        // If viewing as client, only show users from that company plus admins
         query = query.or(`company_id.eq.${clientCompany.id},role.eq.admin`);
+      } else if (profile?.role === 'admin') {
+        // If user is admin (not viewing as client), show all users
+        query = query.neq('user_id', profile.user_id); // Exclude self
+      } else {
+        // For regular users, show only admins and users from their company
+        query = query.or(`role.eq.admin,company_id.eq.${profile?.company_id}`);
+        query = query.neq('user_id', profile?.user_id); // Exclude self
       }
 
       const { data, error } = await query;
@@ -261,15 +268,35 @@ export const UnifiedMessaging: React.FC = () => {
                       <SelectValue placeholder="Select recipient" />
                     </SelectTrigger>
                     <SelectContent>
-                      {users.map(user => (
-                        <SelectItem key={user.user_id} value={user.user_id}>
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4" />
-                            {user.full_name || user.email}
-                            <Badge variant="outline" className="ml-2">{user.role}</Badge>
-                          </div>
-                        </SelectItem>
-                      ))}
+                      {users.filter(user => user.role === 'admin').length > 0 && (
+                        <>
+                          <div className="px-2 py-1 text-xs font-medium text-muted-foreground">Admin Users</div>
+                          {users.filter(user => user.role === 'admin').map(user => (
+                            <SelectItem key={user.user_id} value={user.user_id}>
+                              <div className="flex items-center gap-2">
+                                <User className="h-4 w-4" />
+                                {user.full_name || user.email}
+                                <Badge variant="outline" className="ml-2">Admin</Badge>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </>
+                      )}
+                      
+                      {users.filter(user => user.role === 'client').length > 0 && (
+                        <>
+                          <div className="px-2 py-1 text-xs font-medium text-muted-foreground">Client Users</div>
+                          {users.filter(user => user.role === 'client').map(user => (
+                            <SelectItem key={user.user_id} value={user.user_id}>
+                              <div className="flex items-center gap-2">
+                                <Building2 className="h-4 w-4" />
+                                {user.full_name || user.email}
+                                <Badge variant="outline" className="ml-2">Client</Badge>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
