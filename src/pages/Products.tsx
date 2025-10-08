@@ -194,8 +194,8 @@ export const Products: React.FC = () => {
       })
     : [];
 
-  // Helper function to generate SKU parts
-  const generateSKU = async (clientCode: string, companyId: string, productIndex: number, variantIndex: number) => {
+  // Helper function to generate SKU in format XXX-XXX-XXX
+  const generateSKU = async (clientCode: string, companyId: string) => {
     // Extract client number from client_code (e.g., CLT001 -> 001)
     const clientNum = clientCode.replace(/\D/g, '').padStart(3, '0');
     
@@ -208,87 +208,50 @@ export const Products: React.FC = () => {
     
     let nextProductNum = 1;
     if (existingProducts && existingProducts.length > 0) {
-      // Find the highest product number from existing SKUs
+      // Find the highest product number from existing SKUs with new format
       const productNumbers = existingProducts
         .map(p => {
           const parts = p.sku.split('-');
-          return parts.length >= 2 ? parseInt(parts[1]) : 0;
+          // Check if it's the new format (all numeric parts)
+          if (parts.length === 3 && parts.every(part => /^\d+$/.test(part))) {
+            return parseInt(parts[1]);
+          }
+          return 0;
         })
-        .filter(n => !isNaN(n));
+        .filter(n => !isNaN(n) && n > 0);
       
       if (productNumbers.length > 0) {
         nextProductNum = Math.max(...productNumbers) + 1;
       }
     }
     
-    const productNum = (nextProductNum + productIndex).toString().padStart(3, '0');
-    const variantNum = variantIndex.toString().padStart(3, '0');
+    const productNum = nextProductNum.toString().padStart(3, '0');
+    const variantNum = '000'; // Base product always ends in 000
     
     return `${clientNum}-${productNum}-${variantNum}`;
-  };
-
-  // Helper function to generate all variant combinations
-  const generateVariantCombinations = (variants: any[]) => {
-    if (!variants || variants.length === 0) {
-      return [{ combination: [], sku_suffix: '000' }];
-    }
-
-    // Generate cartesian product of all variant values
-    const cartesian = (arr: any[]): any[] => {
-      return arr.reduce((a, b) => 
-        a.flatMap((x: any) => b.map((y: any) => [...(Array.isArray(x) ? x : [x]), y])), [[]]
-      );
-    };
-
-    const variantValueArrays = variants.map(v => 
-      v.values.map((val: any) => ({
-        attribute: v.attribute,
-        value: val.value,
-        quantity: val.quantity
-      }))
-    );
-
-    const combinations = cartesian(variantValueArrays);
-    
-    return combinations.map((combo, index) => ({
-      combination: Array.isArray(combo) ? combo : [combo],
-      sku_suffix: (index + 1).toString().padStart(3, '0')
-    }));
   };
 
   const handleAddProduct = async (products: any[]) => {
     if (!selectedClient) return;
 
     try {
-      const allProductsToInsert = [];
+      const productsToInsert = [];
       
-      for (let productIndex = 0; productIndex < products.length; productIndex++) {
-        const product = products[productIndex];
-        const variantCombos = generateVariantCombinations(product.variants);
+      for (const product of products) {
+        const sku = await generateSKU(selectedClient.client_code, selectedClient.id);
         
-        for (const combo of variantCombos) {
-          const sku = await generateSKU(
-            selectedClient.client_code,
-            selectedClient.id,
-            productIndex,
-            parseInt(combo.sku_suffix)
-          );
-          
-          allProductsToInsert.push({
-            company_id: selectedClient.id,
-            sku,
-            name: product.name,
-            variants: product.variants || [],
-            quantity: combo.sku_suffix === '000' 
-              ? product.quantity 
-              : combo.combination.reduce((sum: number, v: any) => sum + (v.quantity || 0), 0),
-          });
-        }
+        productsToInsert.push({
+          company_id: selectedClient.id,
+          sku,
+          name: product.name,
+          variants: product.variants || [],
+          quantity: product.quantity || 0,
+        });
       }
 
       const { error } = await supabase
         .from('client_products')
-        .insert(allProductsToInsert);
+        .insert(productsToInsert);
 
       if (error) {
         console.error('Error adding products:', error);
