@@ -219,6 +219,7 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          quantity: number
           sku: string
           updated_at: string
           variants: Json | null
@@ -229,6 +230,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          quantity?: number
           sku: string
           updated_at?: string
           variants?: Json | null
@@ -239,6 +241,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          quantity?: number
           sku?: string
           updated_at?: string
           variants?: Json | null

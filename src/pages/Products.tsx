@@ -164,6 +164,7 @@ export const Products: React.FC = () => {
         sku: product.sku,
         name: product.name,
         variants: product.variants || [],
+        quantity: product.quantity || 0,
         is_active: product.is_active,
         created_at: product.created_at,
         updated_at: product.updated_at,
@@ -203,6 +204,7 @@ export const Products: React.FC = () => {
         sku: `${selectedClient.client_code}-${product.name.substring(0, 3).toUpperCase()}-${Date.now()}`,
         name: product.name,
         variants: product.variants || [],
+        quantity: product.quantity || 0,
       }));
 
       const { error } = await supabase
@@ -241,6 +243,7 @@ export const Products: React.FC = () => {
         .update({
           name: product.name,
           variants: product.variants || [],
+          quantity: product.quantity || 0,
           updated_at: new Date().toISOString(),
         })
         .eq('id', editingProduct.id);
@@ -527,6 +530,7 @@ export const Products: React.FC = () => {
               <TableRow>
                 <TableHead>SKU</TableHead>
                 <TableHead>Product Name</TableHead>
+                <TableHead>Quantity</TableHead>
                 <TableHead>Variants</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
@@ -538,6 +542,9 @@ export const Products: React.FC = () => {
                   <TableCell className="font-medium">{product.sku}</TableCell>
                   <TableCell>
                     <div className="font-medium">{product.name}</div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-semibold">{product.quantity}</div>
                   </TableCell>
                   <TableCell>
                     {product.variants && product.variants.length > 0 ? (
