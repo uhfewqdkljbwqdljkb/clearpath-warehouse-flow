@@ -21,7 +21,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Search, Plus, MoreHorizontal, Package, Barcode, AlertTriangle, ArrowLeft, Building2, Users } from 'lucide-react';
 import { Client, ClientProduct } from '@/types';
-import { ProductFormWithVariants } from '@/components/ProductFormWithVariants';
+import { ClientCreationProductForm } from '@/components/ClientCreationProductForm';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -202,32 +202,27 @@ export const Products: React.FC = () => {
       })
     : [];
 
-  const handleAddProduct = async (productData: any) => {
+  const handleAddProduct = async (products: any[]) => {
     if (!selectedClient) return;
 
     try {
+      // Insert all products from the form
+      const productsToInsert = products.map(product => ({
+        company_id: selectedClient.id,
+        sku: `${selectedClient.client_code}-${product.name.substring(0, 3).toUpperCase()}-${Date.now()}`,
+        name: product.name,
+        variants: product.variants || [],
+      }));
+
       const { error } = await supabase
         .from('client_products')
-        .insert({
-          company_id: selectedClient.id,
-          sku: productData.sku,
-          name: productData.name,
-          description: productData.description,
-          category: productData.category,
-          dimensions_length: productData.dimensions_length,
-          dimensions_width: productData.dimensions_width,
-          dimensions_height: productData.dimensions_height,
-          weight: productData.weight,
-          unit_value: productData.unit_value,
-          storage_requirements: productData.storage_requirements,
-          variants: productData.variants || [], // Save variants to JSONB column
-        });
+        .insert(productsToInsert);
 
       if (error) {
-        console.error('Error adding product:', error);
+        console.error('Error adding products:', error);
         toast({
           title: "Error",
-          description: "Failed to add product",
+          description: "Failed to add products",
           variant: "destructive",
         });
         return;
@@ -237,31 +232,24 @@ export const Products: React.FC = () => {
       setIsDialogOpen(false);
       toast({
         title: "Success",
-        description: "Product added successfully",
+        description: `${products.length} product(s) added successfully`,
       });
     } catch (error) {
       console.error('Error:', error);
     }
   };
 
-  const handleEditProduct = async (productData: any) => {
-    if (!editingProduct) return;
+  const handleEditProduct = async (products: any[]) => {
+    if (!editingProduct || products.length === 0) return;
 
     try {
+      // Update only the first product (since we're editing one at a time)
+      const product = products[0];
       const { error } = await supabase
         .from('client_products')
         .update({
-          sku: productData.sku,
-          name: productData.name,
-          description: productData.description,
-          category: productData.category,
-          dimensions_length: productData.dimensions_length,
-          dimensions_width: productData.dimensions_width,
-          dimensions_height: productData.dimensions_height,
-          weight: productData.weight,
-          unit_value: productData.unit_value,
-          storage_requirements: productData.storage_requirements,
-          variants: productData.variants || [], // Update variants in JSONB column
+          name: product.name,
+          variants: product.variants || [],
           updated_at: new Date().toISOString(),
         })
         .eq('id', editingProduct.id);
@@ -479,8 +467,8 @@ export const Products: React.FC = () => {
                 }
               </DialogDescription>
             </DialogHeader>
-            <ProductFormWithVariants
-              product={editingProduct}
+            <ClientCreationProductForm
+              initialProduct={editingProduct}
               onSubmit={editingProduct ? handleEditProduct : handleAddProduct}
               onCancel={closeDialog}
             />
