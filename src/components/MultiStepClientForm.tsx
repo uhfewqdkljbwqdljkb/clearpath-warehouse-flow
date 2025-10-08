@@ -40,9 +40,13 @@ import { Client } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+const variantAttributeSchema = z.object({
+  attribute: z.string().min(1, 'Attribute is required'),
+  value: z.string().min(1, 'Value is required'),
+});
+
 const productVariantSchema = z.object({
-  attribute: z.string().min(1, 'Variant attribute is required'),
-  value: z.string().min(1, 'Variant value is required'),
+  attributes: z.array(variantAttributeSchema).min(1, 'At least one attribute is required'),
   quantity: z.number().min(1, 'Quantity must be at least 1'),
 });
 
@@ -126,7 +130,7 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [products, setProducts] = useState<Array<{name: string, variants: Array<{attribute: string, value: string, quantity: number}>, quantity?: number}>>([]);
+  const [products, setProducts] = useState<Array<{name: string, variants: Array<{attributes: Array<{attribute: string, value: string}>, quantity: number}>, quantity?: number}>>([]);
   const { toast } = useToast();
   
   const form = useForm<ClientFormData>({
@@ -265,7 +269,32 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
 
   const addVariant = (productIndex: number) => {
     const updated = [...products];
-    updated[productIndex].variants.push({ attribute: '', value: '', quantity: 0 });
+    updated[productIndex].variants.push({ attributes: [{ attribute: '', value: '' }], quantity: 0 });
+    setProducts(updated);
+    form.setValue('initial_products', updated);
+  };
+
+  const addAttributeToVariant = (productIndex: number, variantIndex: number) => {
+    const updated = [...products];
+    updated[productIndex].variants[variantIndex].attributes.push({ attribute: '', value: '' });
+    setProducts(updated);
+    form.setValue('initial_products', updated);
+  };
+
+  const removeAttributeFromVariant = (productIndex: number, variantIndex: number, attributeIndex: number) => {
+    const updated = [...products];
+    updated[productIndex].variants[variantIndex].attributes = 
+      updated[productIndex].variants[variantIndex].attributes.filter((_, i) => i !== attributeIndex);
+    setProducts(updated);
+    form.setValue('initial_products', updated);
+  };
+
+  const updateVariantAttribute = (productIndex: number, variantIndex: number, attributeIndex: number, field: string, value: any) => {
+    const updated = [...products];
+    updated[productIndex].variants[variantIndex].attributes[attributeIndex] = {
+      ...updated[productIndex].variants[variantIndex].attributes[attributeIndex],
+      [field]: value
+    };
     setProducts(updated);
     form.setValue('initial_products', updated);
   };
@@ -797,36 +826,68 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
                         </div>
 
                         {product.variants.map((variant, variantIndex) => (
-                          <div key={variantIndex} className="flex gap-2 items-start pl-4 border-l-2">
-                            <div className="flex-1 space-y-2">
-                              <div className="grid grid-cols-2 gap-2">
-                                <Input
-                                  value={variant.attribute}
-                                  onChange={(e) => updateVariant(productIndex, variantIndex, 'attribute', e.target.value)}
-                                  placeholder="Attribute (e.g., Size, Color)"
-                                />
-                                <Input
-                                  value={variant.value}
-                                  onChange={(e) => updateVariant(productIndex, variantIndex, 'value', e.target.value)}
-                                  placeholder="Value (e.g., Large, Red)"
-                                />
-                              </div>
+                          <div key={variantIndex} className="border rounded-lg p-3 pl-4 border-l-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium">Variant {variantIndex + 1}</span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeVariant(productIndex, variantIndex)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+
+                            <div className="space-y-2">
+                              <label className="text-xs font-medium text-muted-foreground">Attributes</label>
+                              {variant.attributes.map((attr, attrIndex) => (
+                                <div key={attrIndex} className="flex gap-2 items-center">
+                                  <Input
+                                    value={attr.attribute}
+                                    onChange={(e) => updateVariantAttribute(productIndex, variantIndex, attrIndex, 'attribute', e.target.value)}
+                                    placeholder="Attribute (e.g., Size)"
+                                    className="flex-1"
+                                  />
+                                  <Input
+                                    value={attr.value}
+                                    onChange={(e) => updateVariantAttribute(productIndex, variantIndex, attrIndex, 'value', e.target.value)}
+                                    placeholder="Value (e.g., Large)"
+                                    className="flex-1"
+                                  />
+                                  {variant.attributes.length > 1 && (
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => removeAttributeFromVariant(productIndex, variantIndex, attrIndex)}
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                </div>
+                              ))}
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => addAttributeToVariant(productIndex, variantIndex)}
+                                className="w-full"
+                              >
+                                + Add Attribute
+                              </Button>
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-medium text-muted-foreground block mb-1">Quantity</label>
                               <Input
                                 type="number"
                                 min="0"
                                 value={variant.quantity}
                                 onChange={(e) => updateVariant(productIndex, variantIndex, 'quantity', parseInt(e.target.value) || 0)}
-                                placeholder="Quantity"
+                                placeholder="Quantity for this variant"
                               />
                             </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeVariant(productIndex, variantIndex)}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
                           </div>
                         ))}
 
@@ -966,13 +1027,21 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
                         <div key={idx} className="text-sm border-l-2 pl-3">
                           <p className="font-medium">{product.name || 'Unnamed Product'}</p>
                           {product.variants.length > 0 ? (
-                            <div className="mt-1 space-y-1 text-muted-foreground">
+                            <div className="mt-1 space-y-2 text-muted-foreground">
                               {product.variants.map((variant, vIdx) => (
-                                <div key={vIdx} className="pl-3">
-                                  • {variant.attribute}: {variant.value} - {variant.quantity} units
+                                <div key={vIdx} className="pl-3 border-l-2">
+                                  <div className="text-xs">
+                                    {variant.attributes.map((attr, aIdx) => (
+                                      <span key={aIdx}>
+                                        {attr.attribute}: {attr.value}
+                                        {aIdx < variant.attributes.length - 1 && ', '}
+                                      </span>
+                                    ))}
+                                  </div>
+                                  <div className="font-medium">{variant.quantity} units</div>
                                 </div>
                               ))}
-                              <div className="pl-3 font-medium text-foreground mt-2">
+                              <div className="pl-3 font-medium text-foreground mt-2 pt-2 border-t">
                                 Total: {product.variants.reduce((sum, v) => sum + (v.quantity || 0), 0)} units
                               </div>
                             </div>
