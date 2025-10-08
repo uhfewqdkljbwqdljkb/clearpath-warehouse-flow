@@ -267,48 +267,87 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
         </div>
 
         {/* Progress Steps */}
-        <div className="flex items-center justify-between mb-8">
-          {steps.map((step, index) => {
-            const IconComponent = step.icon;
-            const isActive = currentStep === step.id;
-            const isCompleted = currentStep > step.id;
-            
-            return (
-              <div key={step.id} className="flex-1">
-                <div className="flex items-center">
-                  <div className={`
-                    flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors
+        <div className="mb-8">
+          {/* Progress Bar */}
+          <div className="relative">
+            <div className="overflow-hidden h-2 mb-6 text-xs flex rounded-full bg-muted">
+              <div 
+                style={{ width: `${((currentStep - 1) / (steps.length - 1)) * 100}%` }}
+                className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-primary transition-all duration-500 ease-out"
+              />
+            </div>
+          </div>
+
+          {/* Step Indicators */}
+          <div className="grid grid-cols-4 gap-2">
+            {steps.map((step, index) => {
+              const IconComponent = step.icon;
+              const isActive = currentStep === step.id;
+              const isCompleted = currentStep > step.id;
+              
+              return (
+                <button
+                  key={step.id}
+                  type="button"
+                  onClick={() => isCompleted ? setCurrentStep(step.id) : null}
+                  disabled={!isCompleted && !isActive}
+                  className={`
+                    relative p-4 rounded-lg border-2 transition-all duration-300
                     ${isCompleted 
-                      ? 'bg-green-100 border-green-500 text-green-700' 
+                      ? 'bg-green-50 border-green-500 hover:bg-green-100 cursor-pointer' 
                       : isActive 
-                        ? 'bg-primary border-primary text-primary-foreground' 
-                        : 'bg-muted border-muted-foreground/30 text-muted-foreground'
+                        ? 'bg-primary/5 border-primary shadow-md ring-2 ring-primary/20' 
+                        : 'bg-background border-muted-foreground/20 cursor-not-allowed opacity-60'
+                    }
+                  `}
+                >
+                  {/* Step Number Badge */}
+                  <div className={`
+                    absolute -top-3 -left-3 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shadow-sm
+                    ${isCompleted 
+                      ? 'bg-green-500 text-white' 
+                      : isActive 
+                        ? 'bg-primary text-primary-foreground' 
+                        : 'bg-muted text-muted-foreground'
                     }
                   `}>
                     {isCompleted ? (
-                      <CheckCircle className="h-5 w-5" />
+                      <CheckCircle className="h-4 w-4" />
                     ) : (
-                      <IconComponent className="h-5 w-5" />
+                      step.id
                     )}
                   </div>
-                  <div className="ml-3 flex-1">
-                    <p className={`text-sm font-medium ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
+
+                  {/* Icon and Text */}
+                  <div className="flex flex-col items-center text-center mt-2">
+                    <IconComponent className={`
+                      h-6 w-6 mb-2
+                      ${isCompleted 
+                        ? 'text-green-600' 
+                        : isActive 
+                          ? 'text-primary' 
+                          : 'text-muted-foreground'
+                      }
+                    `} />
+                    <p className={`
+                      text-sm font-medium line-clamp-2
+                      ${isCompleted 
+                        ? 'text-green-700' 
+                        : isActive 
+                          ? 'text-foreground' 
+                          : 'text-muted-foreground'
+                      }
+                    `}>
                       {step.title}
                     </p>
-                    <p className="text-xs text-muted-foreground hidden sm:block">
-                      {step.description}
-                    </p>
+                    {isActive && (
+                      <span className="text-xs text-muted-foreground mt-1">Current</span>
+                    )}
                   </div>
-                  {index < steps.length - 1 && (
-                    <div className={`
-                      hidden sm:block w-full h-0.5 mx-4 
-                      ${isCompleted ? 'bg-green-500' : 'bg-muted'}
-                    `} />
-                  )}
-                </div>
-              </div>
-            );
-          })}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
