@@ -15,7 +15,9 @@ import {
   MessageSquare,
   DollarSign,
   Activity,
-  Calendar
+  Calendar,
+  FileText,
+  Download
 } from 'lucide-react';
 import { AdminClientView, ClientPortalStats } from '@/types/integration';
 import { useToast } from '@/hooks/use-toast';
@@ -112,6 +114,49 @@ export const EnhancedClientManagement: React.FC<EnhancedClientManagementProps> =
   const handleViewAsClient = async () => {
     await startViewingAsClient(companyId);
     onClose();
+  };
+
+  const handleDownloadContract = async () => {
+    if (!company.contract_document_url) {
+      toast({
+        variant: "destructive",
+        title: "No Contract",
+        description: "No contract document is available for this client."
+      });
+      return;
+    }
+
+    try {
+      // Generate a signed URL for secure download (valid for 1 hour)
+      const { data, error } = await supabase.storage
+        .from('client-contracts')
+        .createSignedUrl(company.contract_document_url, 3600);
+
+      if (error) throw error;
+
+      if (data?.signedUrl) {
+        // Extract filename from path
+        const filename = company.contract_document_url.split('/').pop() || 'contract.pdf';
+        
+        // Trigger download
+        const link = document.createElement('a');
+        link.href = data.signedUrl;
+        link.download = filename;
+        link.click();
+
+        toast({
+          title: "Download Started",
+          description: "Your contract document is downloading."
+        });
+      }
+    } catch (error) {
+      console.error('Error downloading contract:', error);
+      toast({
+        variant: "destructive",
+        title: "Download Failed",
+        description: "Failed to download contract document."
+      });
+    }
   };
 
   if (loading) {
@@ -353,6 +398,43 @@ export const EnhancedClientManagement: React.FC<EnhancedClientManagementProps> =
                   </p>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Contract Document
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {company.contract_document_url ? (
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-8 w-8 text-primary" />
+                    <div>
+                      <p className="font-medium">
+                        {company.contract_document_url.split('/').pop()}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Contract document
+                      </p>
+                    </div>
+                  </div>
+                  <Button onClick={handleDownloadContract} variant="outline" className="flex items-center gap-2">
+                    <Download className="h-4 w-4" />
+                    Download
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center p-8 border border-dashed rounded-lg">
+                  <div className="text-center">
+                    <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">No contract document uploaded</p>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

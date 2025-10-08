@@ -88,6 +88,7 @@ export interface AdminClientView {
     contract_end_date?: string;
     max_storage_cubic_feet?: number;
     monthly_fee?: number;
+    contract_document_url?: string;
   };
   stats: ClientPortalStats;
   users: EnhancedProfile[];
