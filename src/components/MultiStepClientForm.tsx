@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -29,38 +28,36 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Building2, 
-  MapPin, 
   FileText, 
   CheckCircle,
   X,
-  User,
-  Mail,
-  Phone,
-  Calendar,
-  DollarSign,
   Package,
-  Warehouse
+  Warehouse,
+  Upload,
+  File
 } from 'lucide-react';
 import { Client } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const clientSchema = z.object({
   client_code: z.string().min(1, 'Client code is required'),
   company_name: z.string().min(1, 'Company name is required'),
-  contact_name: z.string().min(1, 'Contact name is required'),
-  email: z.string().email('Invalid email address'),
-  phone: z.string().min(1, 'Phone number is required'),
-  address: z.string().min(1, 'Address is required'),
-  billing_address: z.string().min(1, 'Billing address is required'),
-  contract_start_date: z.string().min(1, 'Contract start date is required'),
-  contract_end_date: z.string().min(1, 'Contract end date is required'),
-  storage_plan: z.enum(['basic', 'premium', 'enterprise']),
-  max_storage_cubic_feet: z.number().min(1, 'Storage capacity must be greater than 0'),
-  monthly_fee: z.number().min(0, 'Monthly fee cannot be negative'),
+  contact_name: z.string().optional(),
+  email: z.string().optional(),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  billing_address: z.string().optional(),
+  contract_start_date: z.string().optional(),
+  contract_end_date: z.string().optional(),
+  storage_plan: z.string().optional(),
+  max_storage_cubic_feet: z.number().optional(),
+  monthly_fee: z.number().optional(),
   is_active: z.boolean(),
   location_type: z.enum(['floor_zone', 'shelf_row']).optional(),
   assigned_floor_zone_id: z.string().optional(),
   assigned_row_id: z.string().optional(),
+  contract_document_url: z.string().optional(),
 });
 
 type ClientFormData = z.infer<typeof clientSchema>;
@@ -80,8 +77,8 @@ const steps = [
   },
   {
     id: 2,
-    title: 'Contract & Storage',
-    description: 'Storage plan and contract terms',
+    title: 'Contract Document',
+    description: 'Upload client contract',
     icon: FileText,
   },
   {
@@ -107,6 +104,10 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
   const [floorZones, setFloorZones] = useState<any[]>([]);
   const [shelfRows, setShelfRows] = useState<any[]>([]);
   const [loadingLocations, setLoadingLocations] = useState(true);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const { toast } = useToast();
   
   const form = useForm<ClientFormData>({
     resolver: zodResolver(clientSchema),
@@ -127,6 +128,7 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
       location_type: (client as any).location_type,
       assigned_floor_zone_id: (client as any).assigned_floor_zone_id,
       assigned_row_id: (client as any).assigned_row_id,
+      contract_document_url: (client as any).contract_document_url,
     } : {
       client_code: '',
       company_name: '',
@@ -144,6 +146,7 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
       location_type: undefined,
       assigned_floor_zone_id: undefined,
       assigned_row_id: undefined,
+      contract_document_url: undefined,
     },
   });
 
@@ -211,13 +214,53 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
       case 1:
         return ['client_code', 'company_name'];
       case 2:
-        return ['contract_start_date', 'contract_end_date', 'storage_plan', 'max_storage_cubic_feet', 'monthly_fee'];
+        return []; // File upload doesn't need form validation
       case 3:
         return ['location_type'];
       case 4:
         return ['is_active'];
       default:
         return [];
+    }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${form.getValues('client_code')}-${Date.now()}.${fileExt}`;
+      const filePath = `contracts/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('client-contracts')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('client-contracts')
+        .getPublicUrl(filePath);
+
+      setUploadedFile(file);
+      setUploadedFileUrl(filePath);
+      form.setValue('contract_document_url', filePath);
+
+      toast({
+        title: "Success",
+        description: "Contract document uploaded successfully",
+      });
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      toast({
+        title: "Error",
+        description: "Failed to upload contract document",
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -398,137 +441,65 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
             </Card>
           )}
 
-          {/* Step 2: Contract & Storage */}
+          {/* Step 2: Contract Document */}
           {currentStep === 2 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <FileText className="h-5 w-5" />
-                  Contract & Storage Details
+                  Contract Document
                 </CardTitle>
                 <CardDescription>
-                  Set up the storage plan and contract terms
+                  Upload the client contract document for record keeping
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormField
-                    control={form.control}
-                    name="contract_start_date"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4" />
-                          Contract Start Date
-                        </FormLabel>
-                        <FormControl>
-                          <Input {...field} type="date" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                <div className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary transition-colors">
+                  <input
+                    type="file"
+                    id="contract-upload"
+                    className="hidden"
+                    accept=".pdf,.doc,.docx"
+                    onChange={handleFileUpload}
+                    disabled={uploading}
                   />
-
-                  <FormField
-                    control={form.control}
-                    name="contract_end_date"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4" />
-                          Contract End Date
-                        </FormLabel>
-                        <FormControl>
-                          <Input {...field} type="date" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+                  <label
+                    htmlFor="contract-upload"
+                    className="cursor-pointer flex flex-col items-center gap-4"
+                  >
+                    {uploadedFile ? (
+                      <>
+                        <File className="h-16 w-16 text-green-600" />
+                        <div>
+                          <p className="text-lg font-medium text-green-700">{uploadedFile.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                        <Button type="button" variant="outline" size="sm">
+                          Change File
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-16 w-16 text-muted-foreground" />
+                        <div>
+                          <p className="text-lg font-medium">
+                            {uploading ? 'Uploading...' : 'Click to upload contract'}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            PDF, DOC, or DOCX (max 20MB)
+                          </p>
+                        </div>
+                      </>
                     )}
-                  />
+                  </label>
                 </div>
 
-                <FormField
-                  control={form.control}
-                  name="storage_plan"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Storage Plan</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a storage plan" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="basic">
-                            <div className="flex items-center gap-2">
-                              <Badge className="bg-blue-100 text-blue-800">Basic</Badge>
-                              <span>Standard features</span>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="premium">
-                            <div className="flex items-center gap-2">
-                              <Badge className="bg-purple-100 text-purple-800">Premium</Badge>
-                              <span>Enhanced features + API</span>
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="enterprise">
-                            <div className="flex items-center gap-2">
-                              <Badge className="bg-green-100 text-green-800">Enterprise</Badge>
-                              <span>All features + dedicated support</span>
-                            </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormField
-                    control={form.control}
-                    name="max_storage_cubic_feet"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <Package className="h-4 w-4" />
-                          Maximum Storage (ft³)
-                        </FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            type="number" 
-                            onChange={(e) => field.onChange(Number(e.target.value))}
-                            placeholder="1000" 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="monthly_fee"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <DollarSign className="h-4 w-4" />
-                          Monthly Fee ($)
-                        </FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            type="number" 
-                            onChange={(e) => field.onChange(Number(e.target.value))}
-                            placeholder="1200" 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    💡 Upload a copy of your internal contract with this client. This document will be stored securely and can be accessed later for reference.
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -717,35 +688,27 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
                   </div>
                 </div>
 
-                {/* Contract Summary */}
-                <div className="border rounded-lg p-4">
-                  <h3 className="font-semibold mb-3 flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    Contract & Storage
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Contract Period:</span>
-                      <span className="ml-2 font-medium">
-                        {formData.contract_start_date} to {formData.contract_end_date}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Storage Plan:</span>
-                      <Badge className={`ml-2 ${getStoragePlanDetails(formData.storage_plan).color}`}>
-                        {formData.storage_plan}
+                {/* Contract Document Summary */}
+                {uploadedFile && (
+                  <div className="border rounded-lg p-4">
+                    <h3 className="font-semibold mb-3 flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Contract Document
+                    </h3>
+                    <div className="flex items-center gap-3 text-sm">
+                      <File className="h-8 w-8 text-green-600" />
+                      <div>
+                        <p className="font-medium">{uploadedFile.name}</p>
+                        <p className="text-muted-foreground">
+                          {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="ml-auto text-green-600 border-green-600">
+                        Uploaded
                       </Badge>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground">Max Storage:</span>
-                      <span className="ml-2 font-medium">{formData.max_storage_cubic_feet?.toLocaleString()} ft³</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Monthly Fee:</span>
-                      <span className="ml-2 font-medium">${formData.monthly_fee?.toLocaleString()}</span>
-                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Warehouse Location Summary */}
                 {formData.location_type && (

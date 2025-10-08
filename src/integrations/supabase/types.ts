@@ -282,6 +282,7 @@ export type Database = {
           billing_address: string | null
           client_code: string | null
           contact_person: string | null
+          contract_document_url: string | null
           contract_end_date: string | null
           contract_start_date: string | null
           created_at: string
@@ -303,6 +304,7 @@ export type Database = {
           billing_address?: string | null
           client_code?: string | null
           contact_person?: string | null
+          contract_document_url?: string | null
           contract_end_date?: string | null
           contract_start_date?: string | null
           created_at?: string
@@ -324,6 +326,7 @@ export type Database = {
           billing_address?: string | null
           client_code?: string | null
           contact_person?: string | null
+          contract_document_url?: string | null
           contract_end_date?: string | null
           contract_start_date?: string | null
           created_at?: string

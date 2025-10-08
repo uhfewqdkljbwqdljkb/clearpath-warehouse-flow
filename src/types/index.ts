@@ -68,6 +68,7 @@ export interface Client {
   location_type?: 'floor_zone' | 'shelf_row';
   assigned_floor_zone_id?: string;
   assigned_row_id?: string;
+  contract_document_url?: string;
   created_at: string;
   updated_at: string;
 }

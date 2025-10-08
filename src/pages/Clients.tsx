@@ -168,6 +168,7 @@ export const Clients: React.FC = () => {
           location_type: clientData.location_type,
           assigned_floor_zone_id: clientData.assigned_floor_zone_id,
           assigned_row_id: clientData.assigned_row_id,
+          contract_document_url: clientData.contract_document_url,
         })
         .select()
         .single();
