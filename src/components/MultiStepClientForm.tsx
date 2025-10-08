@@ -215,7 +215,7 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
   const getFieldsForStep = (step: number): (keyof ClientFormData)[] => {
     switch (step) {
       case 1:
-        return ['client_code', 'company_name', 'contact_name', 'email', 'phone'];
+        return ['client_code', 'company_name'];
       case 2:
         return ['address', 'billing_address'];
       case 3:
