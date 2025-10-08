@@ -135,7 +135,12 @@ export const Clients: React.FC = () => {
     client.contact_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleAddClient = async (clientData: Omit<Client, 'id' | 'created_at' | 'updated_at'>) => {
+  // Helper to convert empty strings to null for dates
+  const toDateOrNull = (dateStr: string | undefined) => {
+    return dateStr && dateStr.trim() !== '' ? dateStr : null;
+  };
+
+  const handleAddClient = async (clientData: Omit<Client, 'id' | 'created_at' | 'updated_at'> & { initial_products?: Array<{name: string, variants?: any[], quantity?: number}> }) => {
     try {
       // Generate client code if not provided
       let client_code = clientData.client_code;
@@ -159,15 +164,15 @@ export const Clients: React.FC = () => {
           phone: clientData.phone,
           address: clientData.address,
           billing_address: clientData.billing_address,
-          contract_start_date: clientData.contract_start_date,
-          contract_end_date: clientData.contract_end_date,
+          contract_start_date: toDateOrNull(clientData.contract_start_date),
+          contract_end_date: toDateOrNull(clientData.contract_end_date),
           storage_plan: clientData.storage_plan,
           max_storage_cubic_feet: clientData.max_storage_cubic_feet,
           monthly_fee: clientData.monthly_fee,
           is_active: clientData.is_active,
           location_type: clientData.location_type,
-          assigned_floor_zone_id: clientData.assigned_floor_zone_id,
-          assigned_row_id: clientData.assigned_row_id,
+          assigned_floor_zone_id: clientData.assigned_floor_zone_id || null,
+          assigned_row_id: clientData.assigned_row_id || null,
           contract_document_url: clientData.contract_document_url,
         })
         .select()
@@ -177,7 +182,7 @@ export const Clients: React.FC = () => {
         console.error('Error adding client:', error);
         toast({
           title: "Error",
-          description: "Failed to add client",
+          description: error.message || "Failed to add client",
           variant: "destructive",
         });
         return;
@@ -194,6 +199,30 @@ export const Clients: React.FC = () => {
           .eq('id', clientData.assigned_row_id);
       }
 
+      // Save initial products if provided
+      if (clientData.initial_products && clientData.initial_products.length > 0) {
+        const productsToInsert = clientData.initial_products.map(product => ({
+          company_id: data.id,
+          sku: `${client_code}-${product.name.substring(0, 10).toUpperCase().replace(/\s/g, '')}`,
+          name: product.name,
+          variants: product.variants || [],
+          is_active: true,
+        }));
+
+        const { error: productsError } = await supabase
+          .from('client_products')
+          .insert(productsToInsert);
+
+        if (productsError) {
+          console.error('Error adding initial products:', productsError);
+          toast({
+            title: "Warning",
+            description: "Client added but some products could not be saved",
+            variant: "destructive",
+          });
+        }
+      }
+
       await fetchClients();
       await fetchClientMetrics();
       setShowAddForm(false);
@@ -201,11 +230,11 @@ export const Clients: React.FC = () => {
         title: "Success",
         description: "Client added successfully",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error:', error);
       toast({
         title: "Error",
-        description: "Failed to add client",
+        description: error?.message || "Failed to add client",
         variant: "destructive",
       });
     }
@@ -232,15 +261,15 @@ export const Clients: React.FC = () => {
           phone: clientData.phone,
           address: clientData.address,
           billing_address: clientData.billing_address,
-          contract_start_date: clientData.contract_start_date,
-          contract_end_date: clientData.contract_end_date,
+          contract_start_date: toDateOrNull(clientData.contract_start_date),
+          contract_end_date: toDateOrNull(clientData.contract_end_date),
           storage_plan: clientData.storage_plan,
           max_storage_cubic_feet: clientData.max_storage_cubic_feet,
           monthly_fee: clientData.monthly_fee,
           is_active: clientData.is_active,
           location_type: clientData.location_type,
-          assigned_floor_zone_id: clientData.assigned_floor_zone_id,
-          assigned_row_id: clientData.assigned_row_id,
+          assigned_floor_zone_id: clientData.assigned_floor_zone_id || null,
+          assigned_row_id: clientData.assigned_row_id || null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', editingClient.id);
@@ -249,7 +278,7 @@ export const Clients: React.FC = () => {
         console.error('Error updating client:', error);
         toast({
           title: "Error",
-          description: "Failed to update client",
+          description: error.message || "Failed to update client",
           variant: "destructive",
         });
         return;
@@ -290,11 +319,11 @@ export const Clients: React.FC = () => {
         title: "Success",
         description: "Client updated successfully",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error:', error);
       toast({
         title: "Error",
-        description: "Failed to update client",
+        description: error?.message || "Failed to update client",
         variant: "destructive",
       });
     }
