@@ -268,6 +268,7 @@ export const Clients: React.FC = () => {
           location_type: clientData.location_type,
           assigned_floor_zone_id: clientData.assigned_floor_zone_id || null,
           assigned_row_id: clientData.assigned_row_id || null,
+          contract_document_url: clientData.contract_document_url || null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', editingClient.id);
