@@ -118,7 +118,7 @@ export const Clients: React.FC = () => {
         metrics[companyId].productCount += 1;
         
         // Calculate inventory value: unit_value * total_quantity
-        const totalQuantity = product.inventory_items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+        const totalQuantity = (product.inventory_items as any)?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0;
         const unitValue = product.unit_value || 0;
         metrics[companyId].inventoryValue += unitValue * totalQuantity;
       });
