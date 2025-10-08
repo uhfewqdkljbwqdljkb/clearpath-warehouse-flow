@@ -363,7 +363,7 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
                   Company Information
                 </CardTitle>
                 <CardDescription>
-                  Enter the basic company and primary contact details
+                  Enter the client code and company name
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -396,57 +396,6 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
                         </FormLabel>
                         <FormControl>
                           <Input {...field} placeholder="ACME Corporation" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="contact_name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <User className="h-4 w-4" />
-                          Contact Name
-                        </FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="John Doe" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-2">
-                          <Mail className="h-4 w-4" />
-                          Email Address
-                        </FormLabel>
-                        <FormControl>
-                          <Input {...field} type="email" placeholder="contact@company.com" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="phone"
-                    render={({ field }) => (
-                      <FormItem className="md:col-span-2">
-                        <FormLabel className="flex items-center gap-2">
-                          <Phone className="h-4 w-4" />
-                          Phone Number
-                        </FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="+1-555-0123" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
