@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { MapPin, Users, DollarSign, Package } from 'lucide-react';
+import { Users, Package, Box } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ZoneClientBreakdownProps {
   zones: any[];
@@ -10,24 +11,71 @@ interface ZoneClientBreakdownProps {
 }
 
 export const ZoneClientBreakdown: React.FC<ZoneClientBreakdownProps> = ({ zones, companies }) => {
+  const [clientMetrics, setClientMetrics] = useState<Record<string, { productCount: number; totalQuantity: number }>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchClientMetrics();
+  }, [companies]);
+
+  const fetchClientMetrics = async () => {
+    try {
+      const { data: productData, error } = await supabase
+        .from('client_products')
+        .select(`
+          company_id,
+          id,
+          inventory_items(quantity)
+        `)
+        .eq('is_active', true);
+
+      if (error) {
+        console.error('Error fetching product metrics:', error);
+        return;
+      }
+
+      const metrics: Record<string, { productCount: number; totalQuantity: number }> = {};
+      
+      productData?.forEach(product => {
+        const companyId = product.company_id;
+        if (!metrics[companyId]) {
+          metrics[companyId] = { productCount: 0, totalQuantity: 0 };
+        }
+        
+        metrics[companyId].productCount += 1;
+        
+        const totalQuantity = (product.inventory_items as any)?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0;
+        metrics[companyId].totalQuantity += totalQuantity;
+      });
+
+      setClientMetrics(metrics);
+    } catch (error) {
+      console.error('Error fetching client metrics:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Filter to only show occupied zones
   const occupiedZones = zones.filter(zone => zone.is_occupied || zone.zone_type === 'shelf');
   const zoneData = occupiedZones.map(zone => {
     let zoneClients: any[] = [];
-    let totalValue = 0;
+    let totalProducts = 0;
+    let totalQuantity = 0;
     
     if (zone.zone_type === 'floor') {
       // For floor zones, find the single assigned company
       const company = companies.find(c => c.assigned_floor_zone_id === zone.id);
       if (company) {
+        const metrics = clientMetrics[company.id] || { productCount: 0, totalQuantity: 0 };
         zoneClients = [{
           id: company.id,
           name: company.name,
-          totalValue: (company.monthly_fee || 0) * 12, // Annualized
-          monthlyOrders: 0, // Will be calculated from orders in future
-          products: [] // Will be populated from client_products
+          productCount: metrics.productCount,
+          totalQuantity: metrics.totalQuantity
         }];
-        totalValue = (company.monthly_fee || 0) * 12;
+        totalProducts = metrics.productCount;
+        totalQuantity = metrics.totalQuantity;
       }
     } else if (zone.zone_type === 'shelf') {
       // For shelf zone, aggregate companies from occupied rows
@@ -36,27 +84,30 @@ export const ZoneClientBreakdown: React.FC<ZoneClientBreakdownProps> = ({ zones,
         const companyIds = [...new Set(occupiedRows.map((row: any) => row.assigned_company_id))];
         zoneClients = companies
           .filter(c => companyIds.includes(c.id))
-          .map(company => ({
-            id: company.id,
-            name: company.name,
-            totalValue: (company.monthly_fee || 0) * 12,
-            monthlyOrders: 0,
-            products: []
-          }));
-        totalValue = zoneClients.reduce((sum, client) => sum + client.totalValue, 0);
+          .map(company => {
+            const metrics = clientMetrics[company.id] || { productCount: 0, totalQuantity: 0 };
+            return {
+              id: company.id,
+              name: company.name,
+              productCount: metrics.productCount,
+              totalQuantity: metrics.totalQuantity
+            };
+          });
+        totalProducts = zoneClients.reduce((sum, client) => sum + client.productCount, 0);
+        totalQuantity = zoneClients.reduce((sum, client) => sum + client.totalQuantity, 0);
       }
     }
     
     return {
       ...zone,
       clientCount: zoneClients.length,
-      totalValue,
-      totalItems: zone.total_items || 0,
-      zoneClients,
-      productCategories: [] // Will be populated from client_products in future
+      totalProducts,
+      totalQuantity,
+      zoneClients
     };
   }).filter(zone => zone.clientCount > 0);
-  const maxValue = Math.max(...zoneData.map(z => z.totalValue));
+  
+  const maxProducts = Math.max(...zoneData.map(z => z.totalProducts), 1);
   return <div className="space-y-6">
       {/* Zone Overview Chart */}
       
@@ -64,7 +115,7 @@ export const ZoneClientBreakdown: React.FC<ZoneClientBreakdownProps> = ({ zones,
       {/* Detailed Zone Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {zoneData.map(zone => {
-        const valuePercentage = maxValue > 0 ? zone.totalValue / maxValue * 100 : 0;
+        const productPercentage = maxProducts > 0 ? zone.totalProducts / maxProducts * 100 : 0;
         return <Card key={zone.id}>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -98,30 +149,28 @@ export const ZoneClientBreakdown: React.FC<ZoneClientBreakdownProps> = ({ zones,
                     </div>
                   </div>
                   <div className="text-center p-3 bg-gray-50 rounded-lg">
-                    <div className="text-lg font-bold text-gray-900">
-                      ${Math.round(zone.totalValue / 1000)}K
-                    </div>
+                    <div className="text-lg font-bold text-gray-900">{zone.totalProducts}</div>
                     <div className="text-sm text-gray-600 flex items-center justify-center space-x-1">
-                      <DollarSign className="h-3 w-3" />
-                      <span>Revenue</span>
+                      <Package className="h-3 w-3" />
+                      <span>Products</span>
                     </div>
                   </div>
                   <div className="text-center p-3 bg-gray-50 rounded-lg">
-                    <div className="text-lg font-bold text-gray-900">{zone.totalItems}</div>
+                    <div className="text-lg font-bold text-gray-900">{zone.totalQuantity.toLocaleString()}</div>
                     <div className="text-sm text-gray-600 flex items-center justify-center space-x-1">
-                      <Package className="h-3 w-3" />
-                      <span>Items</span>
+                      <Box className="h-3 w-3" />
+                      <span>Total Qty</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Revenue Progress */}
+                {/* Product Share Progress */}
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Revenue Share</span>
-                    <span className="font-medium">{valuePercentage.toFixed(1)}%</span>
+                    <span className="text-gray-600">Product Share</span>
+                    <span className="font-medium">{productPercentage.toFixed(1)}%</span>
                   </div>
-                  <Progress value={valuePercentage} />
+                  <Progress value={productPercentage} />
                 </div>
 
                 {/* Client List */}
@@ -136,12 +185,22 @@ export const ZoneClientBreakdown: React.FC<ZoneClientBreakdownProps> = ({ zones,
                           <div className="font-medium text-sm text-gray-900">{client.name}</div>
                           <div className="text-xs text-gray-500">Active client</div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-sm font-medium text-gray-900">
-                            ${Math.round(client.totalValue / 1000)}K
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <div className="text-sm font-medium text-gray-900">
+                              {client.productCount}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              Products
+                            </div>
                           </div>
-                          <div className="text-xs text-gray-500">
-                            Annual value
+                          <div className="text-right">
+                            <div className="text-sm font-medium text-gray-900">
+                              {client.totalQuantity.toLocaleString()}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              Total Qty
+                            </div>
                           </div>
                         </div>
                       </div>)}
