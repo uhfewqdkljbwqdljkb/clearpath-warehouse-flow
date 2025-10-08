@@ -277,6 +277,8 @@ export type Database = {
       companies: {
         Row: {
           address: string | null
+          assigned_floor_zone_id: string | null
+          assigned_row_id: string | null
           billing_address: string | null
           client_code: string | null
           contact_person: string | null
@@ -286,6 +288,7 @@ export type Database = {
           email: string | null
           id: string
           is_active: boolean | null
+          location_type: string | null
           max_storage_cubic_feet: number | null
           monthly_fee: number | null
           name: string
@@ -295,6 +298,8 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          assigned_floor_zone_id?: string | null
+          assigned_row_id?: string | null
           billing_address?: string | null
           client_code?: string | null
           contact_person?: string | null
@@ -304,6 +309,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean | null
+          location_type?: string | null
           max_storage_cubic_feet?: number | null
           monthly_fee?: number | null
           name: string
@@ -313,6 +319,8 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          assigned_floor_zone_id?: string | null
+          assigned_row_id?: string | null
           billing_address?: string | null
           client_code?: string | null
           contact_person?: string | null
@@ -322,6 +330,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_active?: boolean | null
+          location_type?: string | null
           max_storage_cubic_feet?: number | null
           monthly_fee?: number | null
           name?: string
@@ -329,7 +338,22 @@ export type Database = {
           storage_plan?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "companies_assigned_floor_zone_id_fkey"
+            columns: ["assigned_floor_zone_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_zones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "companies_assigned_row_id_fkey"
+            columns: ["assigned_row_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_rows"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       inventory_items: {
         Row: {
@@ -548,6 +572,99 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      warehouse_rows: {
+        Row: {
+          assigned_company_id: string | null
+          capacity_cubic_feet: number | null
+          code: string
+          created_at: string | null
+          id: string
+          is_occupied: boolean | null
+          row_number: number
+          updated_at: string | null
+          zone_id: string | null
+        }
+        Insert: {
+          assigned_company_id?: string | null
+          capacity_cubic_feet?: number | null
+          code: string
+          created_at?: string | null
+          id?: string
+          is_occupied?: boolean | null
+          row_number: number
+          updated_at?: string | null
+          zone_id?: string | null
+        }
+        Update: {
+          assigned_company_id?: string | null
+          capacity_cubic_feet?: number | null
+          code?: string
+          created_at?: string | null
+          id?: string
+          is_occupied?: boolean | null
+          row_number?: number
+          updated_at?: string | null
+          zone_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "warehouse_rows_assigned_company_id_fkey"
+            columns: ["assigned_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warehouse_rows_zone_id_fkey"
+            columns: ["zone_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_zones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      warehouse_zones: {
+        Row: {
+          code: string
+          color: string | null
+          created_at: string | null
+          dimensions_length: number | null
+          dimensions_width: number | null
+          id: string
+          is_active: boolean | null
+          name: string
+          total_capacity_cubic_feet: number | null
+          updated_at: string | null
+          zone_type: string
+        }
+        Insert: {
+          code: string
+          color?: string | null
+          created_at?: string | null
+          dimensions_length?: number | null
+          dimensions_width?: number | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          total_capacity_cubic_feet?: number | null
+          updated_at?: string | null
+          zone_type: string
+        }
+        Update: {
+          code?: string
+          color?: string | null
+          created_at?: string | null
+          dimensions_length?: number | null
+          dimensions_width?: number | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          total_capacity_cubic_feet?: number | null
+          updated_at?: string | null
+          zone_type?: string
+        }
+        Relationships: []
       }
     }
     Views: {

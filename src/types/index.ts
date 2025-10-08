@@ -65,6 +65,9 @@ export interface Client {
   max_storage_cubic_feet: number;
   monthly_fee: number;
   is_active: boolean;
+  location_type?: 'floor_zone' | 'shelf_row';
+  assigned_floor_zone_id?: string;
+  assigned_row_id?: string;
   created_at: string;
   updated_at: string;
 }

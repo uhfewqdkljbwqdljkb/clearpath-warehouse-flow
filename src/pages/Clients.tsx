@@ -37,7 +37,11 @@ export const Clients: React.FC = () => {
     try {
       const { data: companies, error } = await supabase
         .from('companies')
-        .select('*')
+        .select(`
+          *,
+          warehouse_zones:assigned_floor_zone_id(code, name, color),
+          warehouse_rows:assigned_row_id(code)
+        `)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -66,6 +70,9 @@ export const Clients: React.FC = () => {
         max_storage_cubic_feet: company.max_storage_cubic_feet || 0,
         monthly_fee: parseFloat(company.monthly_fee?.toString() || '0'),
         is_active: company.is_active ?? true,
+        location_type: company.location_type as 'floor_zone' | 'shelf_row' | undefined,
+        assigned_floor_zone_id: company.assigned_floor_zone_id,
+        assigned_row_id: company.assigned_row_id,
         created_at: company.created_at,
         updated_at: company.updated_at,
       })) || [];
@@ -158,6 +165,9 @@ export const Clients: React.FC = () => {
           max_storage_cubic_feet: clientData.max_storage_cubic_feet,
           monthly_fee: clientData.monthly_fee,
           is_active: clientData.is_active,
+          location_type: clientData.location_type,
+          assigned_floor_zone_id: clientData.assigned_floor_zone_id,
+          assigned_row_id: clientData.assigned_row_id,
         })
         .select()
         .single();
@@ -170,6 +180,17 @@ export const Clients: React.FC = () => {
           variant: "destructive",
         });
         return;
+      }
+
+      // Update row occupancy if shelf row was assigned
+      if (clientData.location_type === 'shelf_row' && clientData.assigned_row_id) {
+        await supabase
+          .from('warehouse_rows')
+          .update({ 
+            is_occupied: true,
+            assigned_company_id: data.id 
+          })
+          .eq('id', clientData.assigned_row_id);
       }
 
       await fetchClients();
@@ -193,6 +214,13 @@ export const Clients: React.FC = () => {
     if (!editingClient) return;
 
     try {
+      // Get old assignment to update occupancy if changing
+      const { data: oldData } = await supabase
+        .from('companies')
+        .select('assigned_row_id, location_type')
+        .eq('id', editingClient.id)
+        .single();
+
       const { error } = await supabase
         .from('companies')
         .update({
@@ -209,6 +237,9 @@ export const Clients: React.FC = () => {
           max_storage_cubic_feet: clientData.max_storage_cubic_feet,
           monthly_fee: clientData.monthly_fee,
           is_active: clientData.is_active,
+          location_type: clientData.location_type,
+          assigned_floor_zone_id: clientData.assigned_floor_zone_id,
+          assigned_row_id: clientData.assigned_row_id,
           updated_at: new Date().toISOString(),
         })
         .eq('id', editingClient.id);
@@ -221,6 +252,33 @@ export const Clients: React.FC = () => {
           variant: "destructive",
         });
         return;
+      }
+
+      // Handle row occupancy changes
+      if (oldData) {
+        // If old assignment was a shelf row, mark it as available
+        if (oldData.location_type === 'shelf_row' && oldData.assigned_row_id && 
+            oldData.assigned_row_id !== clientData.assigned_row_id) {
+          await supabase
+            .from('warehouse_rows')
+            .update({ 
+              is_occupied: false,
+              assigned_company_id: null 
+            })
+            .eq('id', oldData.assigned_row_id);
+        }
+
+        // If new assignment is a shelf row, mark it as occupied
+        if (clientData.location_type === 'shelf_row' && clientData.assigned_row_id &&
+            oldData.assigned_row_id !== clientData.assigned_row_id) {
+          await supabase
+            .from('warehouse_rows')
+            .update({ 
+              is_occupied: true,
+              assigned_company_id: editingClient.id 
+            })
+            .eq('id', clientData.assigned_row_id);
+        }
       }
 
       await fetchClients();

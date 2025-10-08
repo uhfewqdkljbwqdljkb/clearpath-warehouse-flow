@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +16,6 @@ import {
   AlertTriangle,
   CheckCircle
 } from 'lucide-react';
-import { warehouseZones, warehouseLocations, warehouseMetrics, recentWarehouseActivities, clients } from '@/data/warehouseData';
 import { ZoneUtilizationChart } from '@/components/ZoneUtilizationChart';
 import { WarehouseLocationMap } from '@/components/WarehouseLocationMap';
 import { LocationsTable } from '@/components/LocationsTable';
@@ -26,15 +25,174 @@ import { ZoneClientBreakdown } from '@/components/ZoneClientBreakdown';
 import { ReceiveInventoryModal } from '@/components/ReceiveInventoryModal';
 import { ShipOrderModal } from '@/components/ShipOrderModal';
 import { MoveInventoryModal } from '@/components/MoveInventoryModal';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 export const Warehouse: React.FC = () => {
   const [receiveModalOpen, setReceiveModalOpen] = useState(false);
   const [shipModalOpen, setShipModalOpen] = useState(false);
   const [moveModalOpen, setMoveModalOpen] = useState(false);
+  const [warehouseZones, setWarehouseZones] = useState<any[]>([]);
+  const [warehouseLocations, setWarehouseLocations] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-  const totalOccupied = warehouseZones.filter(zone => zone.is_occupied).length;
-  const totalLocations = warehouseZones.length;
+  useEffect(() => {
+    fetchWarehouseData();
+  }, []);
+
+  const fetchWarehouseData = async () => {
+    try {
+      // Fetch all zones with their assigned companies
+      const { data: zones, error: zonesError } = await supabase
+        .from('warehouse_zones')
+        .select(`
+          *,
+          warehouse_rows(*)
+        `)
+        .eq('is_active', true);
+
+      if (zonesError) throw zonesError;
+
+      // Fetch companies with their warehouse assignments
+      const { data: companies, error: companiesError } = await supabase
+        .from('companies')
+        .select(`
+          id,
+          name,
+          client_code,
+          location_type,
+          assigned_floor_zone_id,
+          assigned_row_id
+        `)
+        .eq('is_active', true);
+
+      if (companiesError) throw companiesError;
+
+      // Fetch inventory data to calculate utilization
+      const { data: inventory, error: inventoryError } = await supabase
+        .from('inventory_items')
+        .select('company_id, quantity');
+
+      if (inventoryError) throw inventoryError;
+
+      // Process zones and calculate utilization
+      const processedZones = zones?.map(zone => {
+        if (zone.zone_type === 'floor') {
+          // Check if this floor zone is assigned to a company
+          const assignedCompany = companies?.find(c => c.assigned_floor_zone_id === zone.id);
+          const companyInventory = inventory?.filter(i => i.company_id === assignedCompany?.id) || [];
+          const totalItems = companyInventory.reduce((sum, item) => sum + item.quantity, 0);
+          
+          return {
+            ...zone,
+            is_occupied: !!assignedCompany,
+            client_name: assignedCompany?.name,
+            client_code: assignedCompany?.client_code,
+            utilization: assignedCompany ? Math.min((totalItems / (zone.total_capacity_cubic_feet || 1000)) * 100, 100) : 0,
+          };
+        } else if (zone.zone_type === 'shelf') {
+          // For shelf zones, calculate based on occupied rows
+          const rows = zone.warehouse_rows || [];
+          const occupiedRows = rows.filter((r: any) => r.is_occupied).length;
+          const utilization = rows.length > 0 ? (occupiedRows / rows.length) * 100 : 0;
+          
+          return {
+            ...zone,
+            rows: rows.map((row: any) => {
+              const assignedCompany = companies?.find(c => c.assigned_row_id === row.id);
+              const companyInventory = inventory?.filter(i => i.company_id === assignedCompany?.id) || [];
+              const totalItems = companyInventory.reduce((sum, item) => sum + item.quantity, 0);
+              
+              return {
+                ...row,
+                client_name: assignedCompany?.name,
+                client_code: assignedCompany?.client_code,
+                utilization: assignedCompany ? Math.min((totalItems / (row.capacity_cubic_feet || 200)) * 100, 100) : 0,
+              };
+            }),
+            utilization,
+            total_locations: rows.length,
+            occupied_locations: occupiedRows,
+          };
+        }
+        return zone;
+      }) || [];
+
+      // Create locations array for LocationsTable and Map
+      const locations: any[] = [];
+      (processedZones as any[]).forEach((zone: any) => {
+        if (zone.zone_type === 'floor') {
+          locations.push({
+            id: zone.id,
+            code: `ZONE-${zone.code}`,
+            zone: zone.code,
+            type: 'floor',
+            status: zone.is_occupied ? 'occupied' : 'available',
+            utilization: zone.utilization || 0,
+            client: zone.client_name,
+            items: 0, // Will be calculated from inventory
+          });
+        } else if (zone.zone_type === 'shelf' && zone.rows) {
+          zone.rows.forEach((row: any) => {
+            locations.push({
+              id: row.id,
+              code: row.code,
+              zone: zone.code,
+              type: 'shelf',
+              status: row.is_occupied ? 'occupied' : 'available',
+              utilization: row.utilization || 0,
+              client: row.client_name,
+              items: 0, // Will be calculated from inventory
+            });
+          });
+        }
+      });
+
+      setWarehouseZones(processedZones);
+      setWarehouseLocations(locations);
+    } catch (error) {
+      console.error('Error fetching warehouse data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load warehouse data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const totalOccupied = warehouseZones.reduce((sum, zone) => {
+    if (zone.zone_type === 'floor') {
+      return sum + (zone.is_occupied ? 1 : 0);
+    } else if (zone.zone_type === 'shelf') {
+      return sum + (zone.occupied_locations || 0);
+    }
+    return sum;
+  }, 0);
+  
+  const totalLocations = warehouseZones.reduce((sum, zone) => {
+    if (zone.zone_type === 'floor') {
+      return sum + 1;
+    } else if (zone.zone_type === 'shelf') {
+      return sum + (zone.total_locations || 0);
+    }
+    return sum;
+  }, 0);
+  
   const totalItems = warehouseLocations.reduce((sum, loc) => sum + (loc.items || 0), 0);
+  const capacityUsed = totalLocations > 0 ? Math.round((totalOccupied / totalLocations) * 100) : 0;
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="text-lg font-medium text-muted-foreground">Loading warehouse data...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
@@ -118,8 +276,8 @@ export const Warehouse: React.FC = () => {
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{warehouseMetrics.capacityUsed}%</div>
-            <Progress value={warehouseMetrics.capacityUsed} className="mt-2" />
+            <div className="text-2xl font-bold">{capacityUsed}%</div>
+            <Progress value={capacityUsed} className="mt-2" />
             <p className="text-xs text-muted-foreground flex items-center pt-1">
               <TrendingUp className="h-3 w-3 text-blue-600 mr-1" />
               <span className="text-blue-600 font-medium">+3.2%</span> warehouse full
@@ -155,13 +313,13 @@ export const Warehouse: React.FC = () => {
                   stroke="currentColor"
                   strokeWidth="8"
                   fill="transparent"
-                  strokeDasharray={`${warehouseMetrics.capacityUsed * 2.51} 251.2`}
+                  strokeDasharray={`${capacityUsed * 2.51} 251.2`}
                   className="text-blue-600"
                 />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-gray-900">{warehouseMetrics.capacityUsed}%</div>
+                  <div className="text-3xl font-bold text-gray-900">{capacityUsed}%</div>
                   <div className="text-sm text-gray-600">Used</div>
                 </div>
               </div>
@@ -187,10 +345,16 @@ export const Warehouse: React.FC = () => {
       {/* Fourth Row - Client Performance & Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ClientPerformance />
-        <WarehouseActivityFeed activities={recentWarehouseActivities.map(activity => ({
-          ...activity,
-          type: activity.type as "receiving" | "shipping" | "allocation" | "movement" | "quality" | "maintenance"
-        }))} />
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Activity</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-sm text-muted-foreground">
+              Activity feed coming soon...
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Fifth Row - Location Table & Map */}
