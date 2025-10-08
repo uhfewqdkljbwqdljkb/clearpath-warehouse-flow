@@ -40,6 +40,17 @@ import { Client } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+const productVariantSchema = z.object({
+  name: z.string().min(1, 'Variant name is required'),
+  quantity: z.number().min(1, 'Quantity must be at least 1'),
+});
+
+const initialProductSchema = z.object({
+  name: z.string().min(1, 'Product name is required'),
+  variants: z.array(productVariantSchema).optional(),
+  quantity: z.number().min(0, 'Quantity must be at least 0').optional(),
+});
+
 const clientSchema = z.object({
   client_code: z.string().min(1, 'Client code is required'),
   company_name: z.string().min(1, 'Company name is required'),
@@ -58,6 +69,7 @@ const clientSchema = z.object({
   assigned_floor_zone_id: z.string().optional(),
   assigned_row_id: z.string().optional(),
   contract_document_url: z.string().optional(),
+  initial_products: z.array(initialProductSchema).optional(),
 });
 
 type ClientFormData = z.infer<typeof clientSchema>;
@@ -89,6 +101,12 @@ const steps = [
   },
   {
     id: 4,
+    title: 'Add Initial Products',
+    description: 'Add products and variants',
+    icon: Package,
+  },
+  {
+    id: 5,
     title: 'Review & Confirm',
     description: 'Review all information before submitting',
     icon: CheckCircle,
@@ -107,6 +125,7 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [products, setProducts] = useState<Array<{name: string, variants: Array<{name: string, quantity: number}>, quantity?: number}>>([]);
   const { toast } = useToast();
   
   const form = useForm<ClientFormData>({
@@ -129,6 +148,7 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
       assigned_floor_zone_id: (client as any).assigned_floor_zone_id,
       assigned_row_id: (client as any).assigned_row_id,
       contract_document_url: (client as any).contract_document_url,
+      initial_products: [],
     } : {
       client_code: '',
       company_name: '',
@@ -147,6 +167,7 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
       assigned_floor_zone_id: undefined,
       assigned_row_id: undefined,
       contract_document_url: undefined,
+      initial_products: [],
     },
   });
 
@@ -218,10 +239,51 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
       case 3:
         return ['location_type'];
       case 4:
+        return []; // Products are optional
+      case 5:
         return ['is_active'];
       default:
         return [];
     }
+  };
+
+  const addProduct = () => {
+    setProducts([...products, { name: '', variants: [], quantity: 0 }]);
+  };
+
+  const removeProduct = (index: number) => {
+    setProducts(products.filter((_, i) => i !== index));
+  };
+
+  const updateProduct = (index: number, field: string, value: any) => {
+    const updated = [...products];
+    updated[index] = { ...updated[index], [field]: value };
+    setProducts(updated);
+    form.setValue('initial_products', updated);
+  };
+
+  const addVariant = (productIndex: number) => {
+    const updated = [...products];
+    updated[productIndex].variants.push({ name: '', quantity: 0 });
+    setProducts(updated);
+    form.setValue('initial_products', updated);
+  };
+
+  const removeVariant = (productIndex: number, variantIndex: number) => {
+    const updated = [...products];
+    updated[productIndex].variants = updated[productIndex].variants.filter((_, i) => i !== variantIndex);
+    setProducts(updated);
+    form.setValue('initial_products', updated);
+  };
+
+  const updateVariant = (productIndex: number, variantIndex: number, field: string, value: any) => {
+    const updated = [...products];
+    updated[productIndex].variants[variantIndex] = {
+      ...updated[productIndex].variants[variantIndex],
+      [field]: value
+    };
+    setProducts(updated);
+    form.setValue('initial_products', updated);
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -314,7 +376,7 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
           </div>
 
           {/* Step Indicators */}
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-5 gap-2">
             {steps.map((step, index) => {
               const IconComponent = step.icon;
               const isActive = currentStep === step.id;
@@ -657,8 +719,135 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
             </Card>
           )}
 
-          {/* Step 4: Review & Confirm */}
+          {/* Step 4: Add Initial Products */}
           {currentStep === 4 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Package className="h-5 w-5" />
+                  Add Initial Products
+                </CardTitle>
+                <CardDescription>
+                  Add products with optional variants and quantities (optional step)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {products.map((product, productIndex) => (
+                  <div key={productIndex} className="border rounded-lg p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium">Product {productIndex + 1}</h4>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeProduct(productIndex)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Product Name</label>
+                        <Input
+                          value={product.name}
+                          onChange={(e) => updateProduct(productIndex, 'name', e.target.value)}
+                          placeholder="Enter product name"
+                        />
+                      </div>
+
+                      {product.variants.length === 0 && (
+                        <div>
+                          <label className="text-sm font-medium mb-2 block">Quantity (if no variants)</label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={product.quantity || 0}
+                            onChange={(e) => updateProduct(productIndex, 'quantity', parseInt(e.target.value) || 0)}
+                            placeholder="Enter quantity"
+                          />
+                        </div>
+                      )}
+
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <label className="text-sm font-medium">Variants</label>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => addVariant(productIndex)}
+                          >
+                            Add Variant
+                          </Button>
+                        </div>
+
+                        {product.variants.map((variant, variantIndex) => (
+                          <div key={variantIndex} className="flex gap-2 items-start pl-4 border-l-2">
+                            <div className="flex-1 space-y-2">
+                              <Input
+                                value={variant.name}
+                                onChange={(e) => updateVariant(productIndex, variantIndex, 'name', e.target.value)}
+                                placeholder="Variant name (e.g., Size M, Color Red)"
+                              />
+                              <Input
+                                type="number"
+                                min="0"
+                                value={variant.quantity}
+                                onChange={(e) => updateVariant(productIndex, variantIndex, 'quantity', parseInt(e.target.value) || 0)}
+                                placeholder="Quantity"
+                              />
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeVariant(productIndex, variantIndex)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+
+                        {product.variants.length === 0 && (
+                          <p className="text-xs text-muted-foreground pl-4">
+                            No variants added. Add variants or use the quantity field above.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {products.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
+                    <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p>No products added yet</p>
+                    <p className="text-sm">Click "Add Product" to get started</p>
+                  </div>
+                )}
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={addProduct}
+                  className="w-full"
+                >
+                  <Package className="h-4 w-4 mr-2" />
+                  Add Product
+                </Button>
+
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    💡 This step is optional. You can add initial products now or skip and add them later. Products can have multiple variants (e.g., different sizes or colors) or just a single quantity.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 5: Review & Confirm */}
+          {currentStep === 5 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -740,6 +929,34 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
                           </span>
                         </div>
                       )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Initial Products Summary */}
+                {products.length > 0 && (
+                  <div className="border rounded-lg p-4">
+                    <h3 className="font-semibold mb-3 flex items-center gap-2">
+                      <Package className="h-4 w-4" />
+                      Initial Products ({products.length})
+                    </h3>
+                    <div className="space-y-3">
+                      {products.map((product, idx) => (
+                        <div key={idx} className="text-sm border-l-2 pl-3">
+                          <p className="font-medium">{product.name || 'Unnamed Product'}</p>
+                          {product.variants.length > 0 ? (
+                            <div className="mt-1 space-y-1 text-muted-foreground">
+                              {product.variants.map((variant, vIdx) => (
+                                <div key={vIdx} className="pl-3">
+                                  • {variant.name}: {variant.quantity} units
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-muted-foreground mt-1">Quantity: {product.quantity || 0} units</p>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
