@@ -342,7 +342,6 @@ export const Clients: React.FC = () => {
 
   const activeClients = clients.filter(c => c.is_active);
   const totalStorage = clients.reduce((sum, c) => sum + c.max_storage_cubic_feet, 0);
-  const totalRevenue = activeClients.reduce((sum, c) => sum + c.monthly_fee, 0);
 
   const getStoragePlanColor = (plan: string) => {
     switch (plan) {
@@ -381,7 +380,7 @@ export const Clients: React.FC = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Clients</CardTitle>
@@ -402,16 +401,6 @@ export const Clients: React.FC = () => {
           <CardContent>
             <div className="text-2xl font-bold">{totalStorage.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">cubic feet allocated</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${totalRevenue.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">from active contracts</p>
           </CardContent>
         </Card>
       </div>
@@ -458,8 +447,6 @@ export const Clients: React.FC = () => {
                   <TableHead>Plan</TableHead>
                   <TableHead>Storage</TableHead>
                   <TableHead>Products</TableHead>
-                  <TableHead>Inventory Value</TableHead>
-                  <TableHead>Monthly Fee</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -496,10 +483,6 @@ export const Clients: React.FC = () => {
                         <span className="font-medium">{metrics.productCount}</span>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <span className="font-medium">${metrics.inventoryValue.toLocaleString()}</span>
-                    </TableCell>
-                    <TableCell>${client.monthly_fee.toLocaleString()}</TableCell>
                     <TableCell>
                       <Badge variant={client.is_active ? "default" : "secondary"}>
                         {client.is_active ? "Active" : "Inactive"}
