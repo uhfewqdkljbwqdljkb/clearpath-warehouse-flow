@@ -203,6 +203,7 @@ export const Clients: React.FC = () => {
           sku: `${client_code}-${product.name.substring(0, 10).toUpperCase().replace(/\s/g, '')}`,
           name: product.name,
           variants: product.variants || [],
+          quantity: product.quantity || 0,
           is_active: true,
         }));
 
