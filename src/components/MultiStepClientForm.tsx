@@ -70,11 +70,18 @@ const clientSchema = z.object({
   max_storage_cubic_feet: z.number().optional(),
   monthly_fee: z.number().optional(),
   is_active: z.boolean(),
-  location_type: z.enum(['floor_zone', 'shelf_row']).optional(),
+  location_type: z.enum(['floor_zone', 'shelf_row'], { required_error: 'Location type is required' }),
   assigned_floor_zone_id: z.string().optional(),
   assigned_row_id: z.string().optional(),
   contract_document_url: z.string().optional(),
   initial_products: z.array(initialProductSchema).optional(),
+}).superRefine((data, ctx) => {
+  if (data.location_type === 'floor_zone' && !data.assigned_floor_zone_id) {
+    ctx.addIssue({ code: 'custom', path: ['assigned_floor_zone_id'], message: 'Please select a floor zone' });
+  }
+  if (data.location_type === 'shelf_row' && !data.assigned_row_id) {
+    ctx.addIssue({ code: 'custom', path: ['assigned_row_id'], message: 'Please select a shelf row' });
+  }
 });
 
 type ClientFormData = z.infer<typeof clientSchema>;
@@ -258,22 +265,26 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
     }
   };
 
-  const getFieldsForStep = (step: number): (keyof ClientFormData)[] => {
-    switch (step) {
-      case 1:
-        return ['client_code', 'company_name'];
-      case 2:
-        return []; // File upload doesn't need form validation
-      case 3:
-        return ['location_type'];
-      case 4:
-        return []; // Products are optional
-      case 5:
-        return ['is_active'];
-      default:
-        return [];
+const getFieldsForStep = (step: number): (keyof ClientFormData)[] => {
+  switch (step) {
+    case 1:
+      return ['client_code', 'company_name'];
+    case 2:
+      return []; // File upload doesn't need form validation
+    case 3: {
+      const lt = form.getValues('location_type');
+      if (lt === 'floor_zone') return ['location_type', 'assigned_floor_zone_id'];
+      if (lt === 'shelf_row') return ['location_type', 'assigned_row_id'];
+      return ['location_type'];
     }
-  };
+    case 4:
+      return []; // Products are optional
+    case 5:
+      return ['is_active'];
+    default:
+      return [];
+  }
+};
 
   const addProduct = () => {
     setProducts([...products, { name: '', variants: [], quantity: 0 }]);
@@ -770,7 +781,7 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
                                   <SelectValue placeholder="Choose an available floor zone" />
                                 </SelectTrigger>
                               </FormControl>
-                              <SelectContent>
+                              <SelectContent className="z-50 bg-popover border shadow-lg">
                                 {floorZones.map((zone) => (
                                   <SelectItem key={zone.id} value={zone.id}>
                                     <div className="flex items-center gap-2">
@@ -810,7 +821,7 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
                                   <SelectValue placeholder="Choose an available shelf row" />
                                 </SelectTrigger>
                               </FormControl>
-                              <SelectContent className="max-h-[200px]">
+                              <SelectContent className="z-50 bg-popover border shadow-lg max-h-[200px]">
                                 {shelfRows.map((row) => (
                                   <SelectItem key={row.id} value={row.id}>
                                     <div className="flex items-center gap-2">
