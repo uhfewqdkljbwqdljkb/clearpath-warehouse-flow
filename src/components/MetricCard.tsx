@@ -5,8 +5,8 @@ import { LucideIcon } from 'lucide-react';
 interface MetricCardProps {
   title: string;
   value: string;
-  trend: string;
-  trendType: 'positive' | 'negative' | 'neutral';
+  trend?: string;
+  trendType?: 'positive' | 'negative' | 'neutral';
   subtitle: string;
   icon: LucideIcon;
 }
@@ -39,9 +39,11 @@ export const MetricCard: React.FC<MetricCardProps> = ({
       <div className="space-y-2">
         <div className="text-3xl font-bold text-foreground">{value}</div>
         <div className="flex items-center space-x-2">
-          <span className={`text-sm font-medium ${getTrendColor()}`}>
-            {trend}
-          </span>
+          {trend && (
+            <span className={`text-sm font-medium ${getTrendColor()}`}>
+              {trend}
+            </span>
+          )}
           <span className="text-sm text-muted-foreground">{subtitle}</span>
         </div>
       </div>

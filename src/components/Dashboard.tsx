@@ -1,33 +1,96 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Package, Users, MapPin, TrendingUp, Building, AlertTriangle, BarChart3, Activity } from 'lucide-react';
+import { Package, Users, Building, Activity } from 'lucide-react';
 import { MetricCard } from './MetricCard';
-import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { CapacityOverview } from './CapacityOverview';
-import { UtilizationChart } from './UtilizationChart';
-import { AlertsPanel } from './AlertsPanel';
 import { ActivityFeed } from './ActivityFeed';
 import { AdminDashboardEnhancements } from './AdminDashboardEnhancements';
-import { ClientPerformance } from './ClientPerformance';
-import { mockClients, mockClientAllocations, mockProducts, warehouseZones, mockCapacityMetrics, mockCapacityAlerts } from '@/data/mockData';
+import { supabase } from '@/integrations/supabase/client';
+
+interface DashboardStats {
+  totalClients: number;
+  activeClients: number;
+  totalProducts: number;
+  totalInventoryValue: number;
+  totalOrders: number;
+  recentActivities: number;
+}
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const [stats, setStats] = useState<DashboardStats>({
+    totalClients: 0,
+    activeClients: 0,
+    totalProducts: 0,
+    totalInventoryValue: 0,
+    totalOrders: 0,
+    recentActivities: 0
+  });
+  const [loading, setLoading] = useState(true);
 
-  // Calculate key metrics
-  const totalClients = mockClients.length;
-  const totalAllocations = mockClientAllocations.length;
-  const totalProducts = mockProducts.length;
-  const totalZones = warehouseZones.length;
-  
-  const totalCapacity = mockCapacityMetrics.reduce((sum, zone) => sum + zone.totalCapacity, 0);
-  const usedCapacity = mockCapacityMetrics.reduce((sum, zone) => sum + zone.usedCapacity, 0);
-  const utilizationPercentage = Math.round((usedCapacity / totalCapacity) * 100);
-  
-  const activeAlerts = mockCapacityAlerts.filter(alert => !alert.acknowledged).length;
+  useEffect(() => {
+    fetchDashboardStats();
+  }, []);
+
+  const fetchDashboardStats = async () => {
+    try {
+      // Fetch clients
+      const { data: companies } = await supabase
+        .from('companies')
+        .select('*');
+      
+      // Fetch products
+      const { data: products } = await supabase
+        .from('client_products')
+        .select(`
+          *,
+          inventory_items(quantity, unit_value)
+        `);
+      
+      // Fetch orders
+      const { data: orders } = await supabase
+        .from('client_orders')
+        .select('*');
+      
+      // Fetch recent activities
+      const { data: activities } = await supabase
+        .from('client_activity_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      // Calculate inventory value
+      let totalValue = 0;
+      products?.forEach(product => {
+        const quantity = product.inventory_items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0;
+        const unitValue = product.unit_value || 0;
+        totalValue += quantity * unitValue;
+      });
+
+      setStats({
+        totalClients: companies?.length || 0,
+        activeClients: companies?.filter(c => c.is_active).length || 0,
+        totalProducts: products?.length || 0,
+        totalInventoryValue: totalValue,
+        totalOrders: orders?.length || 0,
+        recentActivities: activities?.length || 0
+      });
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-muted-foreground">Loading dashboard...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -38,82 +101,56 @@ export const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           title="Total Clients"
-          value={totalClients.toString()}
+          value={stats.totalClients.toString()}
           icon={Users}
-          trend="+12%"
-          trendType="positive"
-          subtitle="Client accounts"
+          subtitle={`${stats.activeClients} active`}
         />
         <MetricCard
-          title="Active Allocations"
-          value={totalAllocations.toString()}
-          icon={MapPin}
-          trend="+8%"
-          trendType="positive"
-          subtitle="Space allocations"
+          title="Total Products"
+          value={stats.totalProducts.toString()}
+          icon={Package}
+          subtitle="Product catalog"
         />
         <MetricCard
-          title="Warehouse Utilization"
-          value={`${utilizationPercentage}%`}
+          title="Inventory Value"
+          value={`$${stats.totalInventoryValue.toLocaleString()}`}
           icon={Building}
-          trend="+5%"
-          trendType="positive"
-          subtitle="Capacity used"
+          subtitle="Total value"
         />
         <MetricCard
-          title="Active Alerts"
-          value={activeAlerts.toString()}
-          icon={AlertTriangle}
-          trend="-2"
-          trendType="negative"
-          subtitle="Capacity alerts"
+          title="Recent Activity"
+          value={stats.recentActivities.toString()}
+          icon={Activity}
+          subtitle="Latest actions"
         />
       </div>
 
-      {/* Analytics Tabs */}
+      {/* Activity Tabs */}
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="activity">Activity</TabsTrigger>
+          <TabsTrigger value="activity">Recent Activity</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <CapacityOverview />
-            <AlertsPanel />
-          </div>
-          <UtilizationChart />
-        </TabsContent>
-
-        <TabsContent value="analytics" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <UtilizationChart />
-            <ClientPerformance />
-          </div>
-          
-          {/* Zone Performance Summary */}
           <Card>
             <CardHeader>
-              <CardTitle>Warehouse Performance Summary</CardTitle>
+              <CardTitle>Business Summary</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="text-center p-4 border rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">{totalCapacity.toLocaleString()}</div>
-                  <div className="text-sm text-gray-500">Total Capacity (ft³)</div>
+                  <div className="text-2xl font-bold text-primary">{stats.totalClients}</div>
+                  <div className="text-sm text-muted-foreground">Total Clients</div>
+                  <div className="text-xs text-muted-foreground mt-1">{stats.activeClients} active</div>
                 </div>
                 <div className="text-center p-4 border rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">{usedCapacity.toLocaleString()}</div>
-                  <div className="text-sm text-gray-500">Used Capacity (ft³)</div>
+                  <div className="text-2xl font-bold text-primary">{stats.totalProducts}</div>
+                  <div className="text-sm text-muted-foreground">Products Managed</div>
                 </div>
                 <div className="text-center p-4 border rounded-lg">
-                  <div className="text-2xl font-bold text-green-600">{(totalCapacity - usedCapacity).toLocaleString()}</div>
-                  <div className="text-sm text-gray-500">Available Capacity (ft³)</div>
-                </div>
-                <div className="text-center p-4 border rounded-lg">
-                  <div className="text-2xl font-bold text-purple-600">{totalProducts}</div>
-                  <div className="text-sm text-gray-500">Total Products</div>
+                  <div className="text-2xl font-bold text-primary">${stats.totalInventoryValue.toLocaleString()}</div>
+                  <div className="text-sm text-muted-foreground">Inventory Value</div>
                 </div>
               </div>
             </CardContent>
@@ -121,10 +158,7 @@ export const Dashboard: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="activity" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <ActivityFeed />
-            <AlertsPanel />
-          </div>
+          <ActivityFeed />
         </TabsContent>
       </Tabs>
     </div>
