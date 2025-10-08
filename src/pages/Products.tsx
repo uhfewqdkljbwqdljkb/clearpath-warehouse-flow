@@ -21,7 +21,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Search, Plus, MoreHorizontal, Package, Barcode, AlertTriangle, ArrowLeft, Building2, Users } from 'lucide-react';
 import { Client, ClientProduct } from '@/types';
-import { ProductForm } from '@/components/ProductForm';
+import { ProductFormWithVariants } from '@/components/ProductFormWithVariants';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -171,6 +171,7 @@ export const Products: React.FC = () => {
         weight: product.weight,
         unit_value: product.unit_value,
         storage_requirements: product.storage_requirements,
+        variants: product.variants || [], // Include variants from JSONB column
         is_active: product.is_active,
         created_at: product.created_at,
         updated_at: product.updated_at,
@@ -219,6 +220,7 @@ export const Products: React.FC = () => {
           weight: productData.weight,
           unit_value: productData.unit_value,
           storage_requirements: productData.storage_requirements,
+          variants: productData.variants || [], // Save variants to JSONB column
         });
 
       if (error) {
@@ -259,6 +261,7 @@ export const Products: React.FC = () => {
           weight: productData.weight,
           unit_value: productData.unit_value,
           storage_requirements: productData.storage_requirements,
+          variants: productData.variants || [], // Update variants in JSONB column
           updated_at: new Date().toISOString(),
         })
         .eq('id', editingProduct.id);
@@ -288,29 +291,7 @@ export const Products: React.FC = () => {
   };
 
   const openEditDialog = (product: any) => {
-    // Convert our product data to match ClientProduct interface
-    const editableProduct: ClientProduct = {
-      id: product.id,
-      client_id: product.company_id,
-      sku: product.sku,
-      product_name: product.name,
-      description: product.description || '',
-      category: product.category || '',
-      dimensions_length: product.dimensions_length || 0,
-      dimensions_width: product.dimensions_width || 0,
-      dimensions_height: product.dimensions_height || 0,
-      weight_lbs: product.weight || 0,
-      cubic_feet: 0, // Calculate if needed
-      storage_requirements: (product.storage_requirements as 'ambient' | 'refrigerated' | 'fragile' | 'hazardous') || 'ambient',
-      product_barcode: '',
-      internal_barcode: '',
-      reorder_level: 0,
-      cost_per_unit: product.unit_value || 0,
-      is_active: product.is_active,
-      created_at: product.created_at,
-      updated_at: product.updated_at,
-    };
-    setEditingProduct(editableProduct);
+    setEditingProduct(product);
     setIsDialogOpen(true);
   };
 
@@ -498,7 +479,7 @@ export const Products: React.FC = () => {
                 }
               </DialogDescription>
             </DialogHeader>
-            <ProductForm
+            <ProductFormWithVariants
               product={editingProduct}
               onSubmit={editingProduct ? handleEditProduct : handleAddProduct}
               onCancel={closeDialog}
@@ -577,10 +558,9 @@ export const Products: React.FC = () => {
                 <TableHead>SKU</TableHead>
                 <TableHead>Product</TableHead>
                 <TableHead>Category</TableHead>
+                <TableHead>Variants</TableHead>
                 <TableHead>Storage</TableHead>
                 <TableHead>Dimensions</TableHead>
-                <TableHead>Quantity</TableHead>
-                <TableHead>Location</TableHead>
                 <TableHead>Unit Value</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
@@ -594,11 +574,34 @@ export const Products: React.FC = () => {
                     <div>
                       <div className="font-medium">{product.name}</div>
                       <div className="text-sm text-muted-foreground">
-                        {product.description && product.description.substring(0, 50)}...
+                        {product.description && product.description.substring(0, 50)}
+                        {product.description && product.description.length > 50 && '...'}
                       </div>
                     </div>
                   </TableCell>
                   <TableCell>{product.category || 'N/A'}</TableCell>
+                  <TableCell>
+                    {product.variants && product.variants.length > 0 ? (
+                      <div className="space-y-1">
+                        {product.variants.map((variant: any, idx: number) => (
+                          <div key={idx} className="text-sm">
+                            <div className="font-medium text-xs text-muted-foreground">
+                              {variant.attribute}:
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {variant.values.map((val: any, vIdx: number) => (
+                                <Badge key={vIdx} variant="outline" className="text-xs">
+                                  {val.value} ({val.quantity})
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">No variants</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <Badge className={getStorageRequirementColor(product.storage_requirements || 'ambient')}>
                       {product.storage_requirements || 'ambient'}
@@ -613,12 +616,6 @@ export const Products: React.FC = () => {
                         </div>
                       )}
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-medium">{product.inventory_quantity || 0}</span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm font-mono">{product.location_info}</span>
                   </TableCell>
                   <TableCell>${product.unit_value || 0}</TableCell>
                   <TableCell>
