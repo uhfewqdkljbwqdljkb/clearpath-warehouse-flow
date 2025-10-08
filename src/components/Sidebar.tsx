@@ -66,7 +66,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             return (
               <li key={item.name}>
                 <NavLink 
-                  to={item.path} 
+                  to={item.path}
+                  end={item.path === '/dashboard'}
                   className={({ isActive }) => 
                     `flex items-center px-3 py-2 text-xs font-medium rounded-[8px] transition-colors ${
                       isActive ? 'text-gray-600 hover:text-gray-800' : 'text-gray-600 hover:text-gray-800'
