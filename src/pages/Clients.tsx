@@ -92,12 +92,11 @@ export const Clients: React.FC = () => {
 
   const fetchClientMetrics = async () => {
     try {
-      // Get product counts and inventory values for each client
+      // Get product counts for each client
       const { data: productData, error: productError } = await supabase
         .from('client_products')
         .select(`
           company_id,
-          unit_value,
           inventory_items(quantity)
         `)
         .eq('is_active', true);
@@ -117,10 +116,8 @@ export const Clients: React.FC = () => {
         
         metrics[companyId].productCount += 1;
         
-        // Calculate inventory value: unit_value * total_quantity
-        const totalQuantity = (product.inventory_items as any)?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0;
-        const unitValue = product.unit_value || 0;
-        metrics[companyId].inventoryValue += unitValue * totalQuantity;
+        // Inventory value calculation removed since unit_value field was removed
+        metrics[companyId].inventoryValue = 0;
       });
 
       setClientMetrics(metrics);

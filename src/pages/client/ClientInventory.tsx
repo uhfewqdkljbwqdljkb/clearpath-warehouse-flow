@@ -57,8 +57,7 @@ export const ClientInventory: React.FC = () => {
           *,
           client_products!inner (
             name,
-            sku,
-            unit_value
+            sku
           )
         `)
         .eq('company_id', profile.company_id)

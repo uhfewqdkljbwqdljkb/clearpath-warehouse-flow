@@ -78,20 +78,15 @@ export const ClientDashboard: React.FC = () => {
       const { data: inventoryData } = await supabase
         .from('inventory_items')
         .select(`
-          quantity,
-          client_products!inner (
-            unit_value
-          )
+          quantity
         `)
         .eq('company_id', profile.company_id)
         .gt('quantity', 0);
 
       // Calculate inventory stats
       const totalInventory = inventoryData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
-      const totalValue = inventoryData?.reduce((sum, item) => {
-        const unitValue = item.client_products?.unit_value || 0;
-        return sum + (item.quantity * unitValue);
-      }, 0) || 0;
+      // Total value calculation removed since unit_value field was removed
+      const totalValue = 0;
 
       // Fetch orders count
       const { count: ordersCount } = await supabase

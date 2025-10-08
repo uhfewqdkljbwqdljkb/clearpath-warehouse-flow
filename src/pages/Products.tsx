@@ -163,15 +163,7 @@ export const Products: React.FC = () => {
         company_id: product.company_id,
         sku: product.sku,
         name: product.name,
-        description: product.description,
-        category: product.category,
-        dimensions_length: product.dimensions_length,
-        dimensions_width: product.dimensions_width,
-        dimensions_height: product.dimensions_height,
-        weight: product.weight,
-        unit_value: product.unit_value,
-        storage_requirements: product.storage_requirements,
-        variants: product.variants || [], // Include variants from JSONB column
+        variants: product.variants || [],
         is_active: product.is_active,
         created_at: product.created_at,
         updated_at: product.updated_at,
@@ -195,8 +187,7 @@ export const Products: React.FC = () => {
     ? products.filter(product => {
         const matchesSearch = 
           product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (product.category || '').toLowerCase().includes(searchTerm.toLowerCase());
+          product.sku.toLowerCase().includes(searchTerm.toLowerCase());
         
         return matchesSearch;
       })
@@ -303,15 +294,6 @@ export const Products: React.FC = () => {
     }
   };
 
-  const getStorageRequirementColor = (requirement: string) => {
-    switch (requirement) {
-      case 'ambient': return 'bg-green-100 text-green-800';
-      case 'refrigerated': return 'bg-blue-100 text-blue-800';
-      case 'fragile': return 'bg-yellow-100 text-yellow-800';
-      case 'hazardous': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
 
 
   const totalProducts = products.filter(p => p.is_active).length;
@@ -523,7 +505,7 @@ export const Products: React.FC = () => {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search products, SKU, or barcode..."
+            placeholder="Search products or SKU..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-8"
@@ -544,12 +526,8 @@ export const Products: React.FC = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>SKU</TableHead>
-                <TableHead>Product</TableHead>
-                <TableHead>Category</TableHead>
+                <TableHead>Product Name</TableHead>
                 <TableHead>Variants</TableHead>
-                <TableHead>Storage</TableHead>
-                <TableHead>Dimensions</TableHead>
-                <TableHead>Unit Value</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -559,15 +537,8 @@ export const Products: React.FC = () => {
                 <TableRow key={product.id} className="animate-fade-in">
                   <TableCell className="font-medium">{product.sku}</TableCell>
                   <TableCell>
-                    <div>
-                      <div className="font-medium">{product.name}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {product.description && product.description.substring(0, 50)}
-                        {product.description && product.description.length > 50 && '...'}
-                      </div>
-                    </div>
+                    <div className="font-medium">{product.name}</div>
                   </TableCell>
-                  <TableCell>{product.category || 'N/A'}</TableCell>
                   <TableCell>
                     {product.variants && product.variants.length > 0 ? (
                       <div className="space-y-1">
@@ -590,22 +561,6 @@ export const Products: React.FC = () => {
                       <span className="text-sm text-muted-foreground">No variants</span>
                     )}
                   </TableCell>
-                  <TableCell>
-                    <Badge className={getStorageRequirementColor(product.storage_requirements || 'ambient')}>
-                      {product.storage_requirements || 'ambient'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm">
-                      {product.dimensions_length ? `${product.dimensions_length}" × ${product.dimensions_width}" × ${product.dimensions_height}"` : 'N/A'}
-                      {product.weight && (
-                        <div className="text-muted-foreground">
-                          {product.weight} lbs
-                        </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>${product.unit_value || 0}</TableCell>
                   <TableCell>
                     <Badge variant={product.is_active ? "default" : "secondary"}>
                       {product.is_active ? "Active" : "Inactive"}

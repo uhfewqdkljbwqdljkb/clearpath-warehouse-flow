@@ -214,58 +214,34 @@ export type Database = {
       }
       client_products: {
         Row: {
-          category: string | null
           company_id: string
           created_at: string
-          description: string | null
-          dimensions_height: number | null
-          dimensions_length: number | null
-          dimensions_width: number | null
           id: string
           is_active: boolean
           name: string
           sku: string
-          storage_requirements: string | null
-          unit_value: number | null
           updated_at: string
           variants: Json | null
-          weight: number | null
         }
         Insert: {
-          category?: string | null
           company_id: string
           created_at?: string
-          description?: string | null
-          dimensions_height?: number | null
-          dimensions_length?: number | null
-          dimensions_width?: number | null
           id?: string
           is_active?: boolean
           name: string
           sku: string
-          storage_requirements?: string | null
-          unit_value?: number | null
           updated_at?: string
           variants?: Json | null
-          weight?: number | null
         }
         Update: {
-          category?: string | null
           company_id?: string
           created_at?: string
-          description?: string | null
-          dimensions_height?: number | null
-          dimensions_length?: number | null
-          dimensions_width?: number | null
           id?: string
           is_active?: boolean
           name?: string
           sku?: string
-          storage_requirements?: string | null
-          unit_value?: number | null
           updated_at?: string
           variants?: Json | null
-          weight?: number | null
         }
         Relationships: [
           {

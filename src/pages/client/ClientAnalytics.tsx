@@ -53,8 +53,7 @@ export const ClientAnalytics: React.FC = () => {
           client_products!inner (
             id,
             name,
-            sku,
-            unit_value
+            sku
           )
         `)
         .eq('company_id', profile.company_id)
@@ -64,8 +63,8 @@ export const ClientAnalytics: React.FC = () => {
 
       // Process analytics data
       const processedAnalytics: ProductAnalytics[] = (inventoryData || []).map(item => {
-        const unitValue = item.client_products?.unit_value || 0;
-        const totalValue = item.quantity * unitValue;
+        // Total value calculation removed since unit_value field was removed
+        const totalValue = 0;
         
         // Simple stock status calculation
         let stockStatus: 'healthy' | 'low' | 'critical' | 'out' = 'healthy';

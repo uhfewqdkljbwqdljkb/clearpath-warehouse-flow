@@ -46,7 +46,7 @@ export const Dashboard: React.FC = () => {
         .from('client_products')
         .select(`
           *,
-          inventory_items(quantity, unit_value)
+          inventory_items(quantity)
         `);
       
       // Fetch orders
@@ -61,13 +61,8 @@ export const Dashboard: React.FC = () => {
         .order('created_at', { ascending: false })
         .limit(10);
 
-      // Calculate inventory value
+      // Calculate inventory value - no longer available since unit_value was removed
       let totalValue = 0;
-      products?.forEach(product => {
-        const quantity = product.inventory_items?.reduce((sum: number, item: any) => sum + item.quantity, 0) || 0;
-        const unitValue = product.unit_value || 0;
-        totalValue += quantity * unitValue;
-      });
 
       setStats({
         totalClients: companies?.length || 0,
