@@ -180,6 +180,29 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
     fetchWarehouseLocations();
   }, []);
 
+  // Auto-generate client code if missing for existing clients
+  useEffect(() => {
+    const generateClientCode = async () => {
+      if (client && !form.getValues('client_code')) {
+        try {
+          const { data, error } = await supabase.rpc('generate_client_code');
+          if (error) throw error;
+          if (data) {
+            form.setValue('client_code', data);
+            toast({
+              title: "Client code generated",
+              description: `Auto-generated code: ${data}`,
+            });
+          }
+        } catch (error) {
+          console.error('Error generating client code:', error);
+        }
+      }
+    };
+    
+    generateClientCode();
+  }, [client]);
+
   const fetchWarehouseLocations = async () => {
     try {
       // Fetch floor zones
@@ -379,6 +402,50 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
     onSubmit(data as Omit<Client, 'id' | 'created_at' | 'updated_at'>);
   };
 
+  const handleInvalidSubmit = (errors: any) => {
+    console.warn('Form validation errors:', errors);
+    
+    // Map fields to their respective steps
+    const fieldStepMap: Record<string, number> = {
+      client_code: 1,
+      company_name: 1,
+      contact_name: 1,
+      email: 1,
+      phone: 1,
+      address: 1,
+      billing_address: 1,
+      contract_start_date: 1,
+      contract_end_date: 1,
+      storage_plan: 1,
+      max_storage_cubic_feet: 1,
+      monthly_fee: 1,
+      contract_document_url: 2,
+      location_type: 3,
+      assigned_floor_zone_id: 3,
+      assigned_row_id: 3,
+      initial_products: 4,
+      is_active: 5,
+    };
+
+    // Find the first invalid field and its step
+    const invalidFields = Object.keys(errors);
+    if (invalidFields.length > 0) {
+      const firstInvalidField = invalidFields[0];
+      const targetStep = fieldStepMap[firstInvalidField] || 1;
+      
+      setCurrentStep(targetStep);
+      
+      // Scroll to top
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      
+      toast({
+        title: "Validation Error",
+        description: `Please fill in all required fields in Step ${targetStep}: ${steps[targetStep - 1].title}`,
+        variant: "destructive",
+      });
+    }
+  };
+
   const getStoragePlanDetails = (plan: string) => {
     switch (plan) {
       case 'basic':
@@ -499,7 +566,7 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
 
       {/* Form Content */}
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)}>
+        <form onSubmit={form.handleSubmit(handleSubmit, handleInvalidSubmit)}>
           {/* Step 1: Company Information */}
           {currentStep === 1 && (
             <Card>
@@ -565,6 +632,18 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                {client?.contract_document_url && !uploadedFile && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-green-800">
+                      <CheckCircle className="h-5 w-5" />
+                      <span className="font-medium">Existing contract on file</span>
+                    </div>
+                    <p className="text-sm text-green-700 mt-1">
+                      Upload a new file to replace the existing contract
+                    </p>
+                  </div>
+                )}
+                
                 <div className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary transition-colors">
                   <input
                     type="file"
