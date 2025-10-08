@@ -75,29 +75,23 @@ const steps = [
   {
     id: 1,
     title: 'Company Information',
-    description: 'Basic company and contact details',
+    description: 'Basic company details',
     icon: Building2,
   },
   {
     id: 2,
-    title: 'Address Details',
-    description: 'Physical and billing addresses',
-    icon: MapPin,
-  },
-  {
-    id: 3,
     title: 'Contract & Storage',
     description: 'Storage plan and contract terms',
     icon: FileText,
   },
   {
-    id: 4,
+    id: 3,
     title: 'Warehouse Location',
     description: 'Assign warehouse zone or shelf',
     icon: Warehouse,
   },
   {
-    id: 5,
+    id: 4,
     title: 'Review & Confirm',
     description: 'Review all information before submitting',
     icon: CheckCircle,
@@ -217,12 +211,10 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
       case 1:
         return ['client_code', 'company_name'];
       case 2:
-        return ['address', 'billing_address'];
-      case 3:
         return ['contract_start_date', 'contract_end_date', 'storage_plan', 'max_storage_cubic_feet', 'monthly_fee'];
-      case 4:
+      case 3:
         return ['location_type'];
-      case 5:
+      case 4:
         return ['is_active'];
       default:
         return [];
@@ -406,66 +398,8 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
             </Card>
           )}
 
-          {/* Step 2: Address Details */}
+          {/* Step 2: Contract & Storage */}
           {currentStep === 2 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5" />
-                  Address Information
-                </CardTitle>
-                <CardDescription>
-                  Provide the physical and billing addresses
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <FormField
-                  control={form.control}
-                  name="address"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Physical Address</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          {...field} 
-                          placeholder="123 Business Street, City, State 12345" 
-                          rows={3}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="billing_address"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Billing Address</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          {...field} 
-                          placeholder="123 Billing Street, City, State 12345" 
-                          rows={3}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <p className="text-sm text-muted-foreground">
-                    💡 If the billing address is the same as the physical address, you can copy the information above.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Step 3: Contract & Storage */}
-          {currentStep === 3 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -600,8 +534,8 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
             </Card>
           )}
 
-          {/* Step 4: Warehouse Location */}
-          {currentStep === 4 && (
+          {/* Step 3: Warehouse Location */}
+          {currentStep === 3 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -752,8 +686,8 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
             </Card>
           )}
 
-          {/* Step 5: Review & Confirm */}
-          {currentStep === 5 && (
+          {/* Step 4: Review & Confirm */}
+          {currentStep === 4 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -779,36 +713,6 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
                     <div>
                       <span className="text-muted-foreground">Company:</span>
                       <span className="ml-2 font-medium">{formData.company_name}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Contact:</span>
-                      <span className="ml-2 font-medium">{formData.contact_name}</span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Email:</span>
-                      <span className="ml-2 font-medium">{formData.email}</span>
-                    </div>
-                    <div className="md:col-span-2">
-                      <span className="text-muted-foreground">Phone:</span>
-                      <span className="ml-2 font-medium">{formData.phone}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Address Summary */}
-                <div className="border rounded-lg p-4">
-                  <h3 className="font-semibold mb-3 flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    Address Information
-                  </h3>
-                  <div className="space-y-2 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Physical Address:</span>
-                      <p className="mt-1 ml-4">{formData.address}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Billing Address:</span>
-                      <p className="mt-1 ml-4">{formData.billing_address}</p>
                     </div>
                   </div>
                 </div>
