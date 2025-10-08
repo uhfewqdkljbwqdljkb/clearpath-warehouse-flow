@@ -5,17 +5,14 @@ import { Progress } from '@/components/ui/progress';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { MapPin, Users, DollarSign, Package } from 'lucide-react';
 import { warehouseZones, clients } from '@/data/warehouseData';
-
 export const ZoneClientBreakdown: React.FC = () => {
   // Filter to only show occupied zones
   const occupiedZones = warehouseZones.filter(zone => zone.is_occupied || zone.zone_type === 'shelf');
-  
   const zoneData = occupiedZones.map(zone => {
     let zoneClients: any[] = [];
     let totalValue = 0;
     let totalOrders = 0;
     let productCategories: string[] = [];
-
     if (zone.zone_type === 'floor' && zone.client_id) {
       // For floor zones, find the single assigned client
       const client = clients.find(c => c.id === zone.client_id);
@@ -31,12 +28,11 @@ export const ZoneClientBreakdown: React.FC = () => {
         const occupiedRows = zone.rows.filter(row => row.is_occupied && row.client_id);
         const clientIds = [...new Set(occupiedRows.map(row => row.client_id))];
         zoneClients = clients.filter(c => clientIds.includes(c.id));
-        totalValue = zoneClients.reduce((sum, client) => sum + (client.totalValue * 0.3), 0); // Estimate 30% overflow
-        totalOrders = zoneClients.reduce((sum, client) => sum + (client.monthlyOrders * 0.2), 0); // Estimate 20% overflow orders
+        totalValue = zoneClients.reduce((sum, client) => sum + client.totalValue * 0.3, 0); // Estimate 30% overflow
+        totalOrders = zoneClients.reduce((sum, client) => sum + client.monthlyOrders * 0.2, 0); // Estimate 20% overflow orders
         productCategories = [...new Set(zoneClients.flatMap(c => c.products))];
       }
     }
-    
     return {
       ...zone,
       clientCount: zoneClients.length,
@@ -47,59 +43,28 @@ export const ZoneClientBreakdown: React.FC = () => {
       productCategories
     };
   }).filter(zone => zone.clientCount > 0);
-
   const maxValue = Math.max(...zoneData.map(z => z.totalValue));
-
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       {/* Zone Overview Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <BarChart className="h-5 w-5" />
-            <span>Zone Revenue Distribution</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={zoneData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="code" />
-              <YAxis />
-              <Tooltip 
-                formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']}
-                labelFormatter={(label) => `Zone ${label}`}
-              />
-              <Bar dataKey="totalValue" radius={[4, 4, 0, 0]}>
-                {zoneData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      
 
       {/* Detailed Zone Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {zoneData.map(zone => {
-          const valuePercentage = maxValue > 0 ? (zone.totalValue / maxValue) * 100 : 0;
-
-          return (
-            <Card key={zone.id}>
+        const valuePercentage = maxValue > 0 ? zone.totalValue / maxValue * 100 : 0;
+        return <Card key={zone.id}>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center space-x-2">
-                    <div 
-                      className="w-4 h-4 rounded-full"
-                      style={{ backgroundColor: zone.color }}
-                    />
+                    <div className="w-4 h-4 rounded-full" style={{
+                  backgroundColor: zone.color
+                }} />
                     <span>{zone.name} ({zone.code})</span>
                   </CardTitle>
-                  <Badge 
-                    variant="outline"
-                    style={{ borderColor: zone.color, color: zone.color }}
-                  >
+                  <Badge variant="outline" style={{
+                borderColor: zone.color,
+                color: zone.color
+              }}>
                     {zone.utilization}% utilized
                   </Badge>
                 </div>
@@ -153,8 +118,7 @@ export const ZoneClientBreakdown: React.FC = () => {
                     <span>Clients in Zone</span>
                   </h4>
                   <div className="space-y-2">
-                    {zone.zoneClients.map(client => (
-                      <div key={client.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                    {zone.zoneClients.map(client => <div key={client.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
                         <div>
                           <div className="font-medium text-sm text-gray-900">{client.name}</div>
                           <div className="text-xs text-gray-500">{client.products.length} products</div>
@@ -167,8 +131,7 @@ export const ZoneClientBreakdown: React.FC = () => {
                             {client.monthlyOrders}/mo
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      </div>)}
                   </div>
                 </div>
 
@@ -179,27 +142,17 @@ export const ZoneClientBreakdown: React.FC = () => {
                     <span>Product Categories</span>
                   </h4>
                   <div className="flex flex-wrap gap-1">
-                    {zone.productCategories.slice(0, 4).map(category => (
-                      <Badge 
-                        key={category}
-                        variant="secondary"
-                        className="text-xs"
-                      >
+                    {zone.productCategories.slice(0, 4).map(category => <Badge key={category} variant="secondary" className="text-xs">
                         {category}
-                      </Badge>
-                    ))}
-                    {zone.productCategories.length > 4 && (
-                      <Badge variant="outline" className="text-xs">
+                      </Badge>)}
+                    {zone.productCategories.length > 4 && <Badge variant="outline" className="text-xs">
                         +{zone.productCategories.length - 4} more
-                      </Badge>
-                    )}
+                      </Badge>}
                   </div>
                 </div>
               </CardContent>
-            </Card>
-          );
-        })}
+            </Card>;
+      })}
       </div>
-    </div>
-  );
+    </div>;
 };
