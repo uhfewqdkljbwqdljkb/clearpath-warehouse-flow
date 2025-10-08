@@ -2,45 +2,58 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { MapPin, Users, DollarSign, Package } from 'lucide-react';
-import { warehouseZones, clients } from '@/data/warehouseData';
-export const ZoneClientBreakdown: React.FC = () => {
+
+interface ZoneClientBreakdownProps {
+  zones: any[];
+  companies: any[];
+}
+
+export const ZoneClientBreakdown: React.FC<ZoneClientBreakdownProps> = ({ zones, companies }) => {
   // Filter to only show occupied zones
-  const occupiedZones = warehouseZones.filter(zone => zone.is_occupied || zone.zone_type === 'shelf');
+  const occupiedZones = zones.filter(zone => zone.is_occupied || zone.zone_type === 'shelf');
   const zoneData = occupiedZones.map(zone => {
     let zoneClients: any[] = [];
     let totalValue = 0;
-    let totalOrders = 0;
-    let productCategories: string[] = [];
-    if (zone.zone_type === 'floor' && zone.client_id) {
-      // For floor zones, find the single assigned client
-      const client = clients.find(c => c.id === zone.client_id);
-      if (client) {
-        zoneClients = [client];
-        totalValue = client.totalValue;
-        totalOrders = client.monthlyOrders;
-        productCategories = client.products;
+    
+    if (zone.zone_type === 'floor') {
+      // For floor zones, find the single assigned company
+      const company = companies.find(c => c.assigned_floor_zone_id === zone.id);
+      if (company) {
+        zoneClients = [{
+          id: company.id,
+          name: company.name,
+          totalValue: (company.monthly_fee || 0) * 12, // Annualized
+          monthlyOrders: 0, // Will be calculated from orders in future
+          products: [] // Will be populated from client_products
+        }];
+        totalValue = (company.monthly_fee || 0) * 12;
       }
     } else if (zone.zone_type === 'shelf') {
-      // For shelf zone, aggregate clients from occupied rows
+      // For shelf zone, aggregate companies from occupied rows
       if (zone.rows) {
-        const occupiedRows = zone.rows.filter(row => row.is_occupied && row.client_id);
-        const clientIds = [...new Set(occupiedRows.map(row => row.client_id))];
-        zoneClients = clients.filter(c => clientIds.includes(c.id));
-        totalValue = zoneClients.reduce((sum, client) => sum + client.totalValue * 0.3, 0); // Estimate 30% overflow
-        totalOrders = zoneClients.reduce((sum, client) => sum + client.monthlyOrders * 0.2, 0); // Estimate 20% overflow orders
-        productCategories = [...new Set(zoneClients.flatMap(c => c.products))];
+        const occupiedRows = zone.rows.filter((row: any) => row.is_occupied && row.assigned_company_id);
+        const companyIds = [...new Set(occupiedRows.map((row: any) => row.assigned_company_id))];
+        zoneClients = companies
+          .filter(c => companyIds.includes(c.id))
+          .map(company => ({
+            id: company.id,
+            name: company.name,
+            totalValue: (company.monthly_fee || 0) * 12,
+            monthlyOrders: 0,
+            products: []
+          }));
+        totalValue = zoneClients.reduce((sum, client) => sum + client.totalValue, 0);
       }
     }
+    
     return {
       ...zone,
       clientCount: zoneClients.length,
       totalValue,
-      totalOrders,
-      avgOrderValue: totalOrders > 0 ? totalValue / totalOrders : 0,
+      totalItems: zone.total_items || 0,
       zoneClients,
-      productCategories
+      productCategories: [] // Will be populated from client_products in future
     };
   }).filter(zone => zone.clientCount > 0);
   const maxValue = Math.max(...zoneData.map(z => z.totalValue));
@@ -118,36 +131,20 @@ export const ZoneClientBreakdown: React.FC = () => {
                     <span>Clients in Zone</span>
                   </h4>
                   <div className="space-y-2">
-                    {zone.zoneClients.map(client => <div key={client.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                    {zone.zoneClients.map((client: any) => <div key={client.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
                         <div>
                           <div className="font-medium text-sm text-gray-900">{client.name}</div>
-                          <div className="text-xs text-gray-500">{client.products.length} products</div>
+                          <div className="text-xs text-gray-500">Active client</div>
                         </div>
                         <div className="text-right">
                           <div className="text-sm font-medium text-gray-900">
                             ${Math.round(client.totalValue / 1000)}K
                           </div>
                           <div className="text-xs text-gray-500">
-                            {client.monthlyOrders}/mo
+                            Annual value
                           </div>
                         </div>
                       </div>)}
-                  </div>
-                </div>
-
-                {/* Product Categories */}
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-gray-900 flex items-center space-x-1">
-                    <Package className="h-4 w-4" />
-                    <span>Product Categories</span>
-                  </h4>
-                  <div className="flex flex-wrap gap-1">
-                    {zone.productCategories.slice(0, 4).map(category => <Badge key={category} variant="secondary" className="text-xs">
-                        {category}
-                      </Badge>)}
-                    {zone.productCategories.length > 4 && <Badge variant="outline" className="text-xs">
-                        +{zone.productCategories.length - 4} more
-                      </Badge>}
                   </div>
                 </div>
               </CardContent>

@@ -34,6 +34,7 @@ export const Warehouse: React.FC = () => {
   const [moveModalOpen, setMoveModalOpen] = useState(false);
   const [warehouseZones, setWarehouseZones] = useState<any[]>([]);
   const [warehouseLocations, setWarehouseLocations] = useState<any[]>([]);
+  const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -68,6 +69,9 @@ export const Warehouse: React.FC = () => {
         .eq('is_active', true);
 
       if (companiesError) throw companiesError;
+
+      // Store companies in state
+      setCompanies(companies || []);
 
       // Fetch inventory data to calculate utilization
       const { data: inventory, error: inventoryError } = await supabase
@@ -340,7 +344,7 @@ export const Warehouse: React.FC = () => {
       </div>
 
       {/* Third Row - Zone-Client Relationships */}
-      <ZoneClientBreakdown />
+      <ZoneClientBreakdown zones={warehouseZones} companies={companies} />
 
       {/* Fourth Row - Client Performance & Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
