@@ -132,7 +132,10 @@ export const Clients: React.FC = () => {
     return dateStr && dateStr.trim() !== '' ? dateStr : null;
   };
 
-  const handleAddClient = async (clientData: Omit<Client, 'id' | 'created_at' | 'updated_at'> & { initial_products?: Array<{name: string, variants?: any[], quantity?: number}> }) => {
+  const handleAddClient = async (clientData: Omit<Client, 'id' | 'created_at' | 'updated_at'> & { 
+    initial_products?: Array<{name: string, variants?: any[], quantity?: number}>,
+    contract_document_url?: string 
+  }) => {
     try {
       // Generate client code if not provided
       let client_code = clientData.client_code;
@@ -154,7 +157,14 @@ export const Clients: React.FC = () => {
           contact_email: clientData.email,
           contact_phone: clientData.phone,
           address: clientData.address,
+          billing_address: clientData.billing_address || clientData.address,
+          contract_start_date: clientData.contract_start_date || null,
+          contract_end_date: clientData.contract_end_date || null,
+          contract_document_url: clientData.contract_document_url || null,
           is_active: clientData.is_active,
+          location_type: clientData.location_type || null,
+          assigned_floor_zone_id: clientData.assigned_floor_zone_id || null,
+          assigned_row_id: clientData.assigned_row_id || null,
         })
         .select()
         .single();
@@ -169,9 +179,6 @@ export const Clients: React.FC = () => {
         return;
       }
 
-      // Remove row occupancy logic since these columns don't exist
-      // Just insert the company without the occupancy tracking
-
       // Save initial products if provided
       if (clientData.initial_products && clientData.initial_products.length > 0) {
         const productsToInsert = clientData.initial_products.map(product => ({
@@ -179,7 +186,6 @@ export const Clients: React.FC = () => {
           sku: `${client_code}-${product.name.substring(0, 10).toUpperCase().replace(/\s/g, '')}`,
           name: product.name,
           variants: product.variants || [],
-          quantity: product.quantity || 0,
           is_active: true,
         }));
 
@@ -214,17 +220,12 @@ export const Clients: React.FC = () => {
     }
   };
 
-  const handleEditClient = async (clientData: Omit<Client, 'id' | 'created_at' | 'updated_at'>) => {
+  const handleEditClient = async (clientData: Omit<Client, 'id' | 'created_at' | 'updated_at'> & {
+    contract_document_url?: string
+  }) => {
     if (!editingClient) return;
 
     try {
-      // Get old assignment to update occupancy if changing
-      const { data: oldData } = await supabase
-        .from('companies')
-        .select('assigned_row_id, location_type')
-        .eq('id', editingClient.id)
-        .single();
-
       const { error } = await supabase
         .from('companies')
         .update({
@@ -233,7 +234,14 @@ export const Clients: React.FC = () => {
           contact_email: clientData.email,
           contact_phone: clientData.phone,
           address: clientData.address,
+          billing_address: clientData.billing_address || clientData.address,
+          contract_start_date: clientData.contract_start_date || null,
+          contract_end_date: clientData.contract_end_date || null,
+          contract_document_url: clientData.contract_document_url || null,
           is_active: clientData.is_active,
+          location_type: clientData.location_type || null,
+          assigned_floor_zone_id: clientData.assigned_floor_zone_id || null,
+          assigned_row_id: clientData.assigned_row_id || null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', editingClient.id);
@@ -247,8 +255,6 @@ export const Clients: React.FC = () => {
         });
         return;
       }
-
-      // Remove row occupancy logic since location_type and related columns don't exist in companies table
 
       await fetchClients();
       await fetchClientMetrics();

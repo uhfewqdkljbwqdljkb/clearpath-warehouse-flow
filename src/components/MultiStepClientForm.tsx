@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -21,6 +22,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from '@/components/ui/form';
 import { 
   ChevronLeft, 
@@ -29,10 +31,23 @@ import {
   Warehouse,
   CheckCircle,
   X,
+  Package,
+  FileText,
+  Upload,
 } from 'lucide-react';
 import { Client } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { uploadContractDocument } from '@/utils/fileUpload';
+
+interface Product {
+  name: string;
+  variants: Array<{
+    attribute: string;
+    values: Array<{ value: string; quantity: number }>;
+  }>;
+  quantity: number;
+}
 
 const clientSchema = z.object({
   client_code: z.string().min(1, 'Client code is required'),
@@ -43,6 +58,7 @@ const clientSchema = z.object({
   billing_address: z.string().optional(),
   contract_start_date: z.string().optional(),
   contract_end_date: z.string().optional(),
+  contract_document_url: z.string().optional(),
   is_active: z.boolean(),
   location_type: z.enum(['floor_zone', 'shelf_row']).optional(),
   assigned_floor_zone_id: z.string().optional(),
@@ -58,6 +74,15 @@ const clientSchema = z.object({
 }, {
   message: "Please select a location",
   path: ["location_type"],
+}).refine((data) => {
+  // If contract end date is provided, it must be after start date
+  if (data.contract_start_date && data.contract_end_date) {
+    return new Date(data.contract_end_date) > new Date(data.contract_start_date);
+  }
+  return true;
+}, {
+  message: "Contract end date must be after start date",
+  path: ["contract_end_date"],
 });
 
 type ClientFormData = z.infer<typeof clientSchema>;
@@ -83,6 +108,18 @@ const steps = [
   },
   {
     id: 3,
+    title: 'Products',
+    description: 'Add client products',
+    icon: Package,
+  },
+  {
+    id: 4,
+    title: 'Contract Details',
+    description: 'Contract information',
+    icon: FileText,
+  },
+  {
+    id: 5,
     title: 'Review & Confirm',
     description: 'Review all information',
     icon: CheckCircle,
@@ -98,6 +135,9 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
   const [floorZones, setFloorZones] = useState<any[]>([]);
   const [shelfRows, setShelfRows] = useState<any[]>([]);
   const [loadingLocations, setLoadingLocations] = useState(true);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [contractFile, setContractFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
   
   const form = useForm<ClientFormData>({
@@ -204,18 +244,57 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
         if (lt === 'floor_zone') return ['location_type', 'assigned_floor_zone_id'];
         if (lt === 'shelf_row') return ['location_type', 'assigned_row_id'];
         return [];
+      case 3:
+        return []; // Products are optional
+      case 4:
+        return ['contract_start_date', 'contract_end_date']; // Validate dates if provided
       default:
         return [];
     }
   };
 
-  const handleSubmit = (data: ClientFormData) => {
-    onSubmit({
-      ...data,
-      contact_name: data.contact_email || '',
-      email: data.contact_email || '',
-      phone: data.contact_phone || '',
-    } as Omit<Client, 'id' | 'created_at' | 'updated_at'>);
+  const handleSubmit = async (data: ClientFormData) => {
+    setIsUploading(true);
+    
+    try {
+      let contractDocUrl = data.contract_document_url;
+      
+      // Upload contract document if provided
+      if (contractFile && !client) {
+        // Generate temporary ID for folder structure
+        const tempId = crypto.randomUUID();
+        const uploadResult = await uploadContractDocument(contractFile, tempId);
+        
+        if (!uploadResult.success) {
+          toast({
+            title: "Upload Error",
+            description: uploadResult.error || "Failed to upload contract document",
+            variant: "destructive",
+          });
+          setIsUploading(false);
+          return;
+        }
+        
+        contractDocUrl = uploadResult.url;
+      }
+      
+      onSubmit({
+        ...data,
+        contact_name: data.contact_email || '',
+        email: data.contact_email || '',
+        phone: data.contact_phone || '',
+        contract_document_url: contractDocUrl,
+        initial_products: products.length > 0 ? products : undefined,
+      } as any);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit form",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const formData = form.getValues();
@@ -249,7 +328,7 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {steps.map((step) => {
               const Icon = step.icon;
               const isCompleted = currentStep > step.id;
@@ -482,8 +561,305 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
             </Card>
           )}
 
-          {/* Step 3: Review */}
+          {/* Step 3: Products */}
           {currentStep === 3 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Products</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-4">
+                  {products.map((product, index) => (
+                    <div key={index} className="border rounded-lg p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium">Product {index + 1}</h4>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setProducts(products.filter((_, i) => i !== index))}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Product Name</label>
+                        <Input
+                          value={product.name}
+                          onChange={(e) => {
+                            const updated = [...products];
+                            updated[index].name = e.target.value;
+                            setProducts(updated);
+                          }}
+                          placeholder="Enter product name"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">
+                          Total Quantity
+                          {product.variants.length > 0 && (
+                            <span className="text-xs text-muted-foreground ml-2">(Auto-calculated)</span>
+                          )}
+                        </label>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={
+                            product.variants.length > 0
+                              ? product.variants.reduce((sum, v) => 
+                                  sum + v.values.reduce((s, val) => s + val.quantity, 0), 0)
+                              : product.quantity
+                          }
+                          onChange={(e) => {
+                            const updated = [...products];
+                            updated[index].quantity = parseInt(e.target.value) || 0;
+                            setProducts(updated);
+                          }}
+                          disabled={product.variants.length > 0}
+                          className={product.variants.length > 0 ? 'bg-muted cursor-not-allowed' : ''}
+                        />
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <label className="text-sm font-medium">Variants</label>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const updated = [...products];
+                              updated[index].variants.push({ attribute: '', values: [{ value: '', quantity: 0 }] });
+                              setProducts(updated);
+                            }}
+                          >
+                            Add Variant
+                          </Button>
+                        </div>
+
+                        {product.variants.map((variant, vIdx) => (
+                          <div key={vIdx} className="border rounded-lg p-3 space-y-2 bg-muted/30">
+                            <div className="flex items-center justify-between">
+                              <Input
+                                value={variant.attribute}
+                                onChange={(e) => {
+                                  const updated = [...products];
+                                  updated[index].variants[vIdx].attribute = e.target.value;
+                                  setProducts(updated);
+                                }}
+                                placeholder="Attribute (Color, Size)"
+                                className="flex-1 mr-2"
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  const updated = [...products];
+                                  updated[index].variants = updated[index].variants.filter((_, i) => i !== vIdx);
+                                  setProducts(updated);
+                                }}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+
+                            {variant.values.map((val, valIdx) => (
+                              <div key={valIdx} className="flex gap-2 items-center pl-3">
+                                <Input
+                                  value={val.value}
+                                  onChange={(e) => {
+                                    const updated = [...products];
+                                    updated[index].variants[vIdx].values[valIdx].value = e.target.value;
+                                    setProducts(updated);
+                                  }}
+                                  placeholder="Value (Red, Large)"
+                                  className="flex-1"
+                                />
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  value={val.quantity}
+                                  onChange={(e) => {
+                                    const updated = [...products];
+                                    updated[index].variants[vIdx].values[valIdx].quantity = parseInt(e.target.value) || 0;
+                                    setProducts(updated);
+                                  }}
+                                  placeholder="Qty"
+                                  className="w-24"
+                                />
+                                {variant.values.length > 1 && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      const updated = [...products];
+                                      updated[index].variants[vIdx].values = 
+                                        updated[index].variants[vIdx].values.filter((_, i) => i !== valIdx);
+                                      setProducts(updated);
+                                    }}
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </div>
+                            ))}
+
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const updated = [...products];
+                                updated[index].variants[vIdx].values.push({ value: '', quantity: 0 });
+                                setProducts(updated);
+                              }}
+                              className="w-full ml-3"
+                            >
+                              + Add Value
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+
+                  {products.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
+                      <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p>No products added yet</p>
+                      <p className="text-sm">Products can be added later if needed</p>
+                    </div>
+                  )}
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setProducts([...products, { name: '', variants: [], quantity: 0 }])}
+                    className="w-full"
+                  >
+                    <Package className="h-4 w-4 mr-2" />
+                    Add Product
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 4: Contract Details */}
+          {currentStep === 4 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Contract Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="contract_start_date"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Contract Start Date</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="date" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="contract_end_date"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Contract End Date</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="date" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="billing_address"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Billing Address</FormLabel>
+                      <FormControl>
+                        <Textarea {...field} placeholder="Enter billing address (defaults to company address)" rows={3} />
+                      </FormControl>
+                      <FormDescription>
+                        Leave empty to use company address
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Contract Document (PDF)</label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="file"
+                      accept="application/pdf"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          // Validate file
+                          if (file.type !== 'application/pdf') {
+                            toast({
+                              title: "Invalid File",
+                              description: "Only PDF files are allowed",
+                              variant: "destructive",
+                            });
+                            e.target.value = '';
+                            return;
+                          }
+                          if (file.size > 10 * 1024 * 1024) {
+                            toast({
+                              title: "File Too Large",
+                              description: "File must be less than 10MB",
+                              variant: "destructive",
+                            });
+                            e.target.value = '';
+                            return;
+                          }
+                          setContractFile(file);
+                        }
+                      }}
+                    />
+                    {contractFile && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setContractFile(null)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  {contractFile && (
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Selected: {contractFile.name} ({(contractFile.size / 1024 / 1024).toFixed(2)} MB)
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Max file size: 10MB, PDF only
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 5: Review */}
+          {currentStep === 5 && (
             <Card>
               <CardHeader>
                 <CardTitle>Review & Confirm</CardTitle>
@@ -504,6 +880,14 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
                       <span className="text-muted-foreground">Email:</span>
                       <p className="font-medium">{formData.contact_email || 'N/A'}</p>
                     </div>
+                    <div>
+                      <span className="text-muted-foreground">Phone:</span>
+                      <p className="font-medium">{formData.contact_phone || 'N/A'}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Address:</span>
+                      <p className="font-medium">{formData.address || 'N/A'}</p>
+                    </div>
                   </div>
                 </div>
 
@@ -515,6 +899,71 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
                       <Badge className="ml-2">
                         {formData.location_type === 'floor_zone' ? 'Dedicated Floor Zone' : 'Shared Shelf Row'}
                       </Badge>
+                    </div>
+                  </div>
+                )}
+
+                {products.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-3">Products ({products.length})</h3>
+                    <div className="space-y-2">
+                      {products.map((product, idx) => (
+                        <div key={idx} className="border rounded-lg p-3 text-sm">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-medium">{product.name || `Product ${idx + 1}`}</span>
+                            <Badge variant="secondary">
+                              Qty: {product.variants.length > 0 
+                                ? product.variants.reduce((sum, v) => sum + v.values.reduce((s, val) => s + val.quantity, 0), 0)
+                                : product.quantity}
+                            </Badge>
+                          </div>
+                          {product.variants.length > 0 && (
+                            <div className="pl-3 space-y-1 text-xs text-muted-foreground">
+                              {product.variants.map((variant, vIdx) => (
+                                <div key={vIdx}>
+                                  <span className="font-medium">{variant.attribute}:</span>{' '}
+                                  {variant.values.map(v => `${v.value} (${v.quantity})`).join(', ')}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {(formData.contract_start_date || formData.contract_end_date || contractFile || formData.billing_address) && (
+                  <div>
+                    <h3 className="font-semibold mb-3">Contract Details</h3>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      {formData.contract_start_date && (
+                        <div>
+                          <span className="text-muted-foreground">Start Date:</span>
+                          <p className="font-medium">{new Date(formData.contract_start_date).toLocaleDateString()}</p>
+                        </div>
+                      )}
+                      {formData.contract_end_date && (
+                        <div>
+                          <span className="text-muted-foreground">End Date:</span>
+                          <p className="font-medium">{new Date(formData.contract_end_date).toLocaleDateString()}</p>
+                        </div>
+                      )}
+                      {formData.billing_address && (
+                        <div className="col-span-2">
+                          <span className="text-muted-foreground">Billing Address:</span>
+                          <p className="font-medium">{formData.billing_address}</p>
+                        </div>
+                      )}
+                      {contractFile && (
+                        <div className="col-span-2">
+                          <span className="text-muted-foreground">Contract Document:</span>
+                          <p className="font-medium flex items-center gap-2">
+                            <FileText className="h-4 w-4" />
+                            {contractFile.name}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -539,8 +988,8 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
                 <ChevronRight className="h-4 w-4 ml-2" />
               </Button>
             ) : (
-              <Button type="submit">
-                {client ? 'Update Client' : 'Create Client'}
+              <Button type="submit" disabled={isUploading}>
+                {isUploading ? 'Uploading...' : client ? 'Update Client' : 'Create Client'}
               </Button>
             )}
           </div>

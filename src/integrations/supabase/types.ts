@@ -266,6 +266,7 @@ export type Database = {
           storage_requirements: string | null
           unit_price: number | null
           updated_at: string | null
+          variants: Json | null
           weight_lbs: number | null
         }
         Insert: {
@@ -284,6 +285,7 @@ export type Database = {
           storage_requirements?: string | null
           unit_price?: number | null
           updated_at?: string | null
+          variants?: Json | null
           weight_lbs?: number | null
         }
         Update: {
@@ -302,6 +304,7 @@ export type Database = {
           storage_requirements?: string | null
           unit_price?: number | null
           updated_at?: string | null
+          variants?: Json | null
           weight_lbs?: number | null
         }
         Relationships: [
