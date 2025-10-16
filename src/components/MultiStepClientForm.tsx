@@ -31,7 +31,6 @@ import {
   Warehouse,
   CheckCircle,
   X,
-  Package,
   FileText,
   Upload,
 } from 'lucide-react';
@@ -39,15 +38,6 @@ import { Client } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { uploadContractDocument } from '@/utils/fileUpload';
-
-interface Product {
-  name: string;
-  variants: Array<{
-    attribute: string;
-    values: Array<{ value: string; quantity: number }>;
-  }>;
-  quantity: number;
-}
 
 const clientSchema = z.object({
   client_code: z.string().min(1, 'Client code is required'),
@@ -108,18 +98,12 @@ const steps = [
   },
   {
     id: 3,
-    title: 'Products',
-    description: 'Add client products',
-    icon: Package,
-  },
-  {
-    id: 4,
     title: 'Contract Details',
     description: 'Contract information',
     icon: FileText,
   },
   {
-    id: 5,
+    id: 4,
     title: 'Review & Confirm',
     description: 'Review all information',
     icon: CheckCircle,
@@ -135,7 +119,6 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
   const [floorZones, setFloorZones] = useState<any[]>([]);
   const [shelfRows, setShelfRows] = useState<any[]>([]);
   const [loadingLocations, setLoadingLocations] = useState(true);
-  const [products, setProducts] = useState<Product[]>([]);
   const [contractFile, setContractFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
@@ -238,12 +221,7 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
     console.log('Step validation result:', isStepValid, 'Errors:', form.formState.errors);
     
     if (isStepValid) {
-      let nextStepNumber = currentStep + 1;
-      
-      // Skip products step when editing (products managed separately)
-      if (client && nextStepNumber === 3) {
-        nextStepNumber = 4;
-      }
+      const nextStepNumber = currentStep + 1;
       
       if (nextStepNumber <= steps.length) {
         console.log('Moving to step', nextStepNumber);
@@ -256,14 +234,7 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
 
   const prevStep = () => {
     if (currentStep > 1) {
-      let prevStepNumber = currentStep - 1;
-      
-      // Skip products step when editing (products managed separately)
-      if (client && prevStepNumber === 3) {
-        prevStepNumber = 2;
-      }
-      
-      setCurrentStep(prevStepNumber);
+      setCurrentStep(currentStep - 1);
     }
   };
 
@@ -277,8 +248,6 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
         if (lt === 'shelf_row') return ['location_type', 'assigned_row_id'];
         return [];
       case 3:
-        return []; // Products are optional
-      case 4:
         return ['contract_start_date', 'contract_end_date']; // Validate dates if provided
       default:
         return [];
@@ -286,13 +255,6 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
   };
 
   const handleSubmit = async (data: ClientFormData) => {
-    console.log('=== Form submit triggered ===');
-    console.log('Form data:', data);
-    console.log('Is editing?', !!client);
-    console.log('Current step:', currentStep);
-    console.log('Products state:', products);
-    console.log('Contract file:', contractFile);
-    
     setIsUploading(true);
     
     try {
@@ -300,12 +262,9 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
       
       // Upload contract document if a new file is provided
       if (contractFile) {
-        console.log('Uploading contract file...', contractFile.name);
         // Use client ID if editing, otherwise generate temp ID
         const folderId = client?.id || crypto.randomUUID();
         const uploadResult = await uploadContractDocument(contractFile, folderId);
-        
-        console.log('Upload result:', uploadResult);
         
         if (!uploadResult.success) {
           toast({
@@ -318,9 +277,6 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
         }
         
         contractDocUrl = uploadResult.url;
-        console.log('Contract uploaded to:', contractDocUrl);
-      } else {
-        console.log('No contract file to upload');
       }
       
       // Prepare submission data
@@ -339,15 +295,6 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
         submissionData.assigned_floor_zone_id = null;
       }
       
-      // Only include products when creating a new client
-      if (!client && products.length > 0) {
-        console.log('Including products in submission:', products);
-        submissionData.initial_products = products;
-      } else {
-        console.log('Not including products. client?', !!client, 'products.length:', products.length);
-      }
-      
-      console.log('Final submission data:', submissionData);
       onSubmit(submissionData);
     } catch (error: any) {
       console.error('Form submission error:', error);
@@ -651,196 +598,8 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
             </Card>
           )}
 
-          {/* Step 3: Products */}
-          {currentStep === 3 && !client && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Products</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-4">
-                  {products.map((product, index) => (
-                    <div key={index} className="border rounded-lg p-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-medium">Product {index + 1}</h4>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setProducts(products.filter((_, i) => i !== index))}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-
-                      <div>
-                        <label className="text-sm font-medium mb-2 block">Product Name</label>
-                        <Input
-                          value={product.name}
-                          onChange={(e) => {
-                            const updated = [...products];
-                            updated[index].name = e.target.value;
-                            setProducts(updated);
-                          }}
-                          placeholder="Enter product name"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-sm font-medium mb-2 block">
-                          Total Quantity
-                          {product.variants.length > 0 && (
-                            <span className="text-xs text-muted-foreground ml-2">(Auto-calculated)</span>
-                          )}
-                        </label>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={
-                            product.variants.length > 0
-                              ? product.variants.reduce((sum, v) => 
-                                  sum + v.values.reduce((s, val) => s + val.quantity, 0), 0)
-                              : product.quantity
-                          }
-                          onChange={(e) => {
-                            const updated = [...products];
-                            updated[index].quantity = parseInt(e.target.value) || 0;
-                            setProducts(updated);
-                          }}
-                          disabled={product.variants.length > 0}
-                          className={product.variants.length > 0 ? 'bg-muted cursor-not-allowed' : ''}
-                        />
-                      </div>
-
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <label className="text-sm font-medium">Variants</label>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              const updated = [...products];
-                              updated[index].variants.push({ attribute: '', values: [{ value: '', quantity: 0 }] });
-                              setProducts(updated);
-                            }}
-                          >
-                            Add Variant
-                          </Button>
-                        </div>
-
-                        {product.variants.map((variant, vIdx) => (
-                          <div key={vIdx} className="border rounded-lg p-3 space-y-2 bg-muted/30">
-                            <div className="flex items-center justify-between">
-                              <Input
-                                value={variant.attribute}
-                                onChange={(e) => {
-                                  const updated = [...products];
-                                  updated[index].variants[vIdx].attribute = e.target.value;
-                                  setProducts(updated);
-                                }}
-                                placeholder="Attribute (Color, Size)"
-                                className="flex-1 mr-2"
-                              />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  const updated = [...products];
-                                  updated[index].variants = updated[index].variants.filter((_, i) => i !== vIdx);
-                                  setProducts(updated);
-                                }}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-
-                            {variant.values.map((val, valIdx) => (
-                              <div key={valIdx} className="flex gap-2 items-center pl-3">
-                                <Input
-                                  value={val.value}
-                                  onChange={(e) => {
-                                    const updated = [...products];
-                                    updated[index].variants[vIdx].values[valIdx].value = e.target.value;
-                                    setProducts(updated);
-                                  }}
-                                  placeholder="Value (Red, Large)"
-                                  className="flex-1"
-                                />
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  value={val.quantity}
-                                  onChange={(e) => {
-                                    const updated = [...products];
-                                    updated[index].variants[vIdx].values[valIdx].quantity = parseInt(e.target.value) || 0;
-                                    setProducts(updated);
-                                  }}
-                                  placeholder="Qty"
-                                  className="w-24"
-                                />
-                                {variant.values.length > 1 && (
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => {
-                                      const updated = [...products];
-                                      updated[index].variants[vIdx].values = 
-                                        updated[index].variants[vIdx].values.filter((_, i) => i !== valIdx);
-                                      setProducts(updated);
-                                    }}
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </Button>
-                                )}
-                              </div>
-                            ))}
-
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                const updated = [...products];
-                                updated[index].variants[vIdx].values.push({ value: '', quantity: 0 });
-                                setProducts(updated);
-                              }}
-                              className="w-full ml-3"
-                            >
-                              + Add Value
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-
-                  {products.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
-                      <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                      <p>No products added yet</p>
-                      <p className="text-sm">Products can be added later if needed</p>
-                    </div>
-                  )}
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setProducts([...products, { name: '', variants: [], quantity: 0 }])}
-                    className="w-full"
-                  >
-                    <Package className="h-4 w-4 mr-2" />
-                    Add Product
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Step 4: Contract Details */}
-          {currentStep === 4 && (
+          {/* Step 3: Contract Details */}
+          {currentStep === 3 && (
             <Card>
               <CardHeader>
                 <CardTitle>Contract Details</CardTitle>
@@ -948,8 +707,8 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
             </Card>
           )}
 
-          {/* Step 5: Review */}
-          {currentStep === 5 && (
+          {/* Step 4: Review */}
+          {currentStep === 4 && (
             <Card>
               <CardHeader>
                 <CardTitle>Review & Confirm</CardTitle>
@@ -989,36 +748,6 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
                       <Badge className="ml-2">
                         {formData.location_type === 'floor_zone' ? 'Dedicated Floor Zone' : 'Shared Shelf Row'}
                       </Badge>
-                    </div>
-                  </div>
-                )}
-
-                {!client && products.length > 0 && (
-                  <div>
-                    <h3 className="font-semibold mb-3">Products ({products.length})</h3>
-                    <div className="space-y-2">
-                      {products.map((product, idx) => (
-                        <div key={idx} className="border rounded-lg p-3 text-sm">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium">{product.name || `Product ${idx + 1}`}</span>
-                            <Badge variant="secondary">
-                              Qty: {product.variants.length > 0 
-                                ? product.variants.reduce((sum, v) => sum + v.values.reduce((s, val) => s + val.quantity, 0), 0)
-                                : product.quantity}
-                            </Badge>
-                          </div>
-                          {product.variants.length > 0 && (
-                            <div className="pl-3 space-y-1 text-xs text-muted-foreground">
-                              {product.variants.map((variant, vIdx) => (
-                                <div key={vIdx}>
-                                  <span className="font-medium">{variant.attribute}:</span>{' '}
-                                  {variant.values.map(v => `${v.value} (${v.quantity})`).join(', ')}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      ))}
                     </div>
                   </div>
                 )}

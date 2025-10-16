@@ -18,9 +18,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Package, TrendingUp, Box, DollarSign } from 'lucide-react';
+import { Search, Package, TrendingUp, Box, DollarSign, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { ProductForm } from '@/components/ProductForm';
 
 interface Product {
   id: string;
@@ -49,6 +50,7 @@ export const Products: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClient, setSelectedClient] = useState<string>('all');
+  const [showAddForm, setShowAddForm] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -129,15 +131,30 @@ export const Products: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Product Catalog</h1>
-          <p className="text-muted-foreground">
-            Manage products across all clients
-          </p>
-        </div>
-      </div>
+      {showAddForm ? (
+        <ProductForm 
+          clients={clients}
+          onSuccess={() => {
+            setShowAddForm(false);
+            fetchData();
+          }}
+          onCancel={() => setShowAddForm(false)}
+        />
+      ) : (
+        <>
+          {/* Header */}
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Product Catalog</h1>
+              <p className="text-muted-foreground">
+                Manage products across all clients
+              </p>
+            </div>
+            <Button onClick={() => setShowAddForm(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Product
+            </Button>
+          </div>
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -322,6 +339,8 @@ export const Products: React.FC = () => {
           )}
         </CardContent>
       </Card>
+        </>
+      )}
     </div>
   );
 };

@@ -150,15 +150,9 @@ export const Clients: React.FC = () => {
   };
 
   const handleAddClient = async (clientData: Omit<Client, 'id' | 'created_at' | 'updated_at'> & { 
-    initial_products?: Array<{name: string, variants?: any[], quantity?: number}>,
     contract_document_url?: string 
   }) => {
     try {
-      console.log('=== handleAddClient called ===');
-      console.log('Received clientData:', clientData);
-      console.log('Initial products:', clientData.initial_products);
-      console.log('Contract document URL:', clientData.contract_document_url);
-      
       // Generate client code if not provided
       let client_code = clientData.client_code;
       if (!client_code) {
@@ -186,8 +180,6 @@ export const Clients: React.FC = () => {
         assigned_floor_zone_id: clientData.assigned_floor_zone_id || null,
         assigned_row_id: clientData.assigned_row_id || null,
       };
-      
-      console.log('Inserting company with data:', insertData);
 
       const { data, error } = await supabase
         .from('companies')
@@ -205,40 +197,6 @@ export const Clients: React.FC = () => {
         return;
       }
       
-      console.log('Company created:', data);
-
-      // Save initial products if provided
-      if (clientData.initial_products && clientData.initial_products.length > 0) {
-        console.log('Saving initial products, count:', clientData.initial_products.length);
-        
-        const productsToInsert = clientData.initial_products.map(product => ({
-          company_id: data.id,
-          sku: `${client_code}-${product.name.substring(0, 10).toUpperCase().replace(/\s/g, '')}`,
-          name: product.name,
-          variants: product.variants || [],
-          is_active: true,
-        }));
-        
-        console.log('Products to insert:', productsToInsert);
-
-        const { error: productsError } = await supabase
-          .from('client_products')
-          .insert(productsToInsert);
-
-        if (productsError) {
-          console.error('Error adding initial products:', productsError);
-          toast({
-            title: "Warning",
-            description: "Client added but some products could not be saved",
-            variant: "destructive",
-          });
-        } else {
-          console.log('Products saved successfully');
-        }
-      } else {
-        console.log('No products to save');
-      }
-
       await fetchClients();
       await fetchClientMetrics();
       setShowAddForm(false);
