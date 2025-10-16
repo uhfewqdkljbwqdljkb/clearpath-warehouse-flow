@@ -59,20 +59,20 @@ export const Clients: React.FC = () => {
         id: company.id,
         client_code: company.client_code || '',
         company_name: company.name,
-        contact_name: company.contact_person || '',
-        email: company.email || '',
-        phone: company.phone || '',
+        contact_name: company.contact_email || '',
+        email: company.contact_email || '',
+        phone: company.contact_phone || '',
         address: company.address || '',
-        billing_address: company.billing_address || '',
-        contract_start_date: company.contract_start_date || '',
-        contract_end_date: company.contract_end_date || '',
-        storage_plan: (company.storage_plan as 'basic' | 'premium' | 'enterprise') || 'basic',
-        max_storage_cubic_feet: company.max_storage_cubic_feet || 0,
-        monthly_fee: parseFloat(company.monthly_fee?.toString() || '0'),
+        billing_address: company.address || '', // Using address as billing_address since that column doesn't exist
+        contract_start_date: new Date().toISOString(), // Default values since these columns don't exist
+        contract_end_date: new Date(Date.now() + 365*24*60*60*1000).toISOString(),
+        storage_plan: 'basic', // Default since column doesn't exist
+        max_storage_cubic_feet: 0, // Default since column doesn't exist
+        monthly_fee: 0, // Default since column doesn't exist
         is_active: company.is_active ?? true,
-        location_type: company.location_type as 'floor_zone' | 'shelf_row' | undefined,
-        assigned_floor_zone_id: company.assigned_floor_zone_id,
-        assigned_row_id: company.assigned_row_id,
+        location_type: undefined,
+        assigned_floor_zone_id: undefined,
+        assigned_row_id: undefined,
         created_at: company.created_at,
         updated_at: company.updated_at,
       })) || [];
@@ -156,21 +156,10 @@ export const Clients: React.FC = () => {
         .insert({
           client_code,
           name: clientData.company_name,
-          contact_person: clientData.contact_name,
-          email: clientData.email,
-          phone: clientData.phone,
+          contact_email: clientData.email,
+          contact_phone: clientData.phone,
           address: clientData.address,
-          billing_address: clientData.billing_address,
-          contract_start_date: toDateOrNull(clientData.contract_start_date),
-          contract_end_date: toDateOrNull(clientData.contract_end_date),
-          storage_plan: clientData.storage_plan,
-          max_storage_cubic_feet: clientData.max_storage_cubic_feet,
-          monthly_fee: clientData.monthly_fee,
           is_active: clientData.is_active,
-          location_type: clientData.location_type,
-          assigned_floor_zone_id: clientData.assigned_floor_zone_id || null,
-          assigned_row_id: clientData.assigned_row_id || null,
-          contract_document_url: clientData.contract_document_url,
         })
         .select()
         .single();
@@ -185,16 +174,8 @@ export const Clients: React.FC = () => {
         return;
       }
 
-      // Update row occupancy if shelf row was assigned
-      if (clientData.location_type === 'shelf_row' && clientData.assigned_row_id) {
-        await supabase
-          .from('warehouse_rows')
-          .update({ 
-            is_occupied: true,
-            assigned_company_id: data.id 
-          })
-          .eq('id', clientData.assigned_row_id);
-      }
+      // Remove row occupancy logic since these columns don't exist
+      // Just insert the company without the occupancy tracking
 
       // Save initial products if provided
       if (clientData.initial_products && clientData.initial_products.length > 0) {
@@ -254,21 +235,10 @@ export const Clients: React.FC = () => {
         .update({
           client_code: clientData.client_code,
           name: clientData.company_name,
-          contact_person: clientData.contact_name,
-          email: clientData.email,
-          phone: clientData.phone,
+          contact_email: clientData.email,
+          contact_phone: clientData.phone,
           address: clientData.address,
-          billing_address: clientData.billing_address,
-          contract_start_date: toDateOrNull(clientData.contract_start_date),
-          contract_end_date: toDateOrNull(clientData.contract_end_date),
-          storage_plan: clientData.storage_plan,
-          max_storage_cubic_feet: clientData.max_storage_cubic_feet,
-          monthly_fee: clientData.monthly_fee,
           is_active: clientData.is_active,
-          location_type: clientData.location_type,
-          assigned_floor_zone_id: clientData.assigned_floor_zone_id || null,
-          assigned_row_id: clientData.assigned_row_id || null,
-          contract_document_url: clientData.contract_document_url || null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', editingClient.id);
@@ -283,32 +253,7 @@ export const Clients: React.FC = () => {
         return;
       }
 
-      // Handle row occupancy changes
-      if (oldData) {
-        // If old assignment was a shelf row, mark it as available
-        if (oldData.location_type === 'shelf_row' && oldData.assigned_row_id && 
-            oldData.assigned_row_id !== clientData.assigned_row_id) {
-          await supabase
-            .from('warehouse_rows')
-            .update({ 
-              is_occupied: false,
-              assigned_company_id: null 
-            })
-            .eq('id', oldData.assigned_row_id);
-        }
-
-        // If new assignment is a shelf row, mark it as occupied
-        if (clientData.location_type === 'shelf_row' && clientData.assigned_row_id &&
-            oldData.assigned_row_id !== clientData.assigned_row_id) {
-          await supabase
-            .from('warehouse_rows')
-            .update({ 
-              is_occupied: true,
-              assigned_company_id: editingClient.id 
-            })
-            .eq('id', clientData.assigned_row_id);
-        }
-      }
+      // Remove row occupancy logic since location_type and related columns don't exist in companies table
 
       await fetchClients();
       await fetchClientMetrics();

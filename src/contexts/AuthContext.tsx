@@ -16,10 +16,13 @@ export interface Profile {
 export interface Company {
   id: string;
   name: string;
-  contact_person: string | null;
-  email: string | null;
-  phone: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
   address: string | null;
+  client_code: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 interface AuthContextType {

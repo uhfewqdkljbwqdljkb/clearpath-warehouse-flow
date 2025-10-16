@@ -110,7 +110,7 @@ export const IntegrationProvider: React.FC<IntegrationProviderProps> = ({ childr
       // End the admin session
       await supabase
         .from('admin_sessions')
-        .update({ session_end: new Date().toISOString() })
+        .update({ ended_at: new Date().toISOString() })
         .eq('id', sessionId);
 
       // Log the activity

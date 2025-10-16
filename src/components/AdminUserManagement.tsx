@@ -56,12 +56,21 @@ export const AdminUserManagement: React.FC = () => {
         .from('profiles')
         .select(`
           *,
-          companies!profiles_company_id_fkey(name, client_code)
+          companies!profiles_company_id_fkey(name, client_code),
+          user_roles!inner(role)
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setUsers(data || []);
+      
+      // Map data to include user_id and role
+      const mappedUsers = (data || []).map(user => ({
+        ...user,
+        user_id: user.id,
+        role: (user as any).user_roles?.role || 'client'
+      }));
+      
+      setUsers(mappedUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
       toast({
