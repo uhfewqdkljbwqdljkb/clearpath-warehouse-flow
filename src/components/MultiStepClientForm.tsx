@@ -224,14 +224,30 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
     const fieldsToValidate = getFieldsForStep(currentStep);
     const isStepValid = await form.trigger(fieldsToValidate);
     
-    if (isStepValid && currentStep < steps.length) {
-      setCurrentStep(currentStep + 1);
+    if (isStepValid) {
+      let nextStepNumber = currentStep + 1;
+      
+      // Skip products step when editing (products managed separately)
+      if (client && nextStepNumber === 3) {
+        nextStepNumber = 4;
+      }
+      
+      if (nextStepNumber <= steps.length) {
+        setCurrentStep(nextStepNumber);
+      }
     }
   };
 
   const prevStep = () => {
     if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
+      let prevStepNumber = currentStep - 1;
+      
+      // Skip products step when editing (products managed separately)
+      if (client && prevStepNumber === 3) {
+        prevStepNumber = 2;
+      }
+      
+      setCurrentStep(prevStepNumber);
     }
   };
 
@@ -259,11 +275,11 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
     try {
       let contractDocUrl = data.contract_document_url;
       
-      // Upload contract document if provided
-      if (contractFile && !client) {
-        // Generate temporary ID for folder structure
-        const tempId = crypto.randomUUID();
-        const uploadResult = await uploadContractDocument(contractFile, tempId);
+      // Upload contract document if a new file is provided
+      if (contractFile) {
+        // Use client ID if editing, otherwise generate temp ID
+        const folderId = client?.id || crypto.randomUUID();
+        const uploadResult = await uploadContractDocument(contractFile, folderId);
         
         if (!uploadResult.success) {
           toast({
@@ -278,14 +294,21 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
         contractDocUrl = uploadResult.url;
       }
       
-      onSubmit({
+      // Prepare submission data
+      const submissionData: any = {
         ...data,
         contact_name: data.contact_email || '',
         email: data.contact_email || '',
         phone: data.contact_phone || '',
         contract_document_url: contractDocUrl,
-        initial_products: products.length > 0 ? products : undefined,
-      } as any);
+      };
+      
+      // Only include products when creating a new client
+      if (!client && products.length > 0) {
+        submissionData.initial_products = products;
+      }
+      
+      onSubmit(submissionData);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -562,7 +585,7 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
           )}
 
           {/* Step 3: Products */}
-          {currentStep === 3 && (
+          {currentStep === 3 && !client && (
             <Card>
               <CardHeader>
                 <CardTitle>Products</CardTitle>
@@ -903,7 +926,7 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
                   </div>
                 )}
 
-                {products.length > 0 && (
+                {!client && products.length > 0 && (
                   <div>
                     <h3 className="font-semibold mb-3">Products ({products.length})</h3>
                     <div className="space-y-2">
