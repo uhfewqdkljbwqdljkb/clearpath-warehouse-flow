@@ -36,6 +36,16 @@ export const ClientHeader: React.FC = () => {
             <Bell className="h-4 w-4" />
           </Button>
 
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleSignOut}
+            className="gap-2"
+          >
+            <LogOut className="h-4 w-4" />
+            Logout
+          </Button>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-8 gap-2 px-2">
