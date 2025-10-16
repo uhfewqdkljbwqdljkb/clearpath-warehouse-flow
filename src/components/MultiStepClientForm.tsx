@@ -53,6 +53,10 @@ const clientSchema = z.object({
   location_type: z.enum(['floor_zone', 'shelf_row']).optional(),
   assigned_floor_zone_id: z.string().optional(),
   assigned_row_id: z.string().optional(),
+  // Client Portal Credentials (optional)
+  create_portal_access: z.boolean().default(false),
+  client_user_email: z.string().email('Valid email required').optional().or(z.literal('')),
+  client_user_password: z.string().min(8, 'Password must be at least 8 characters').optional().or(z.literal('')),
 }).refine((data) => {
   if (data.location_type === 'floor_zone' && !data.assigned_floor_zone_id) {
     return false;
@@ -73,6 +77,15 @@ const clientSchema = z.object({
 }, {
   message: "Contract end date must be after start date",
   path: ["contract_end_date"],
+}).refine((data) => {
+  // If create_portal_access is true, email and password must be provided
+  if (data.create_portal_access) {
+    return data.client_user_email && data.client_user_password;
+  }
+  return true;
+}, {
+  message: "Email and password are required for portal access",
+  path: ["client_user_email"],
 });
 
 type ClientFormData = z.infer<typeof clientSchema>;
@@ -104,6 +117,12 @@ const steps = [
   },
   {
     id: 4,
+    title: 'Portal Access',
+    description: 'Client portal credentials (optional)',
+    icon: Building2,
+  },
+  {
+    id: 5,
     title: 'Review & Confirm',
     description: 'Review all information',
     icon: CheckCircle,
@@ -148,6 +167,9 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
       is_active: client.is_active,
       location_type: client.location_type || undefined,
       assigned_floor_zone_id: client.assigned_floor_zone_id || undefined,
+      create_portal_access: false,
+      client_user_email: '',
+      client_user_password: '',
       assigned_row_id: client.assigned_row_id || undefined,
     } : {
       client_code: '',
@@ -157,6 +179,9 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
       address: '',
       billing_address: '',
       is_active: true,
+      create_portal_access: false,
+      client_user_email: '',
+      client_user_password: '',
     },
   });
 
@@ -249,6 +274,10 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
         return [];
       case 3:
         return ['contract_start_date', 'contract_end_date']; // Validate dates if provided
+      case 4:
+        const createPortal = form.getValues('create_portal_access');
+        if (createPortal) return ['client_user_email', 'client_user_password'];
+        return [];
       default:
         return [];
     }
@@ -707,8 +736,105 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
             </Card>
           )}
 
-          {/* Step 4: Review */}
+          {/* Step 4: Portal Access */}
           {currentStep === 4 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Client Portal Access (Optional)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="create_portal_access"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                        <FormControl>
+                          <input
+                            type="checkbox"
+                            checked={field.value}
+                            onChange={field.onChange}
+                            className="h-4 w-4 rounded border-gray-300"
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>
+                            Create client portal login credentials
+                          </FormLabel>
+                          <FormDescription>
+                            Allow this client to access their own portal dashboard with the credentials below
+                          </FormDescription>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+
+                  {form.watch('create_portal_access') && (
+                    <>
+                      <FormField
+                        control={form.control}
+                        name="client_user_email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Portal Email *</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                type="email"
+                                placeholder="client@company.com"
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Email address for client portal login
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="client_user_password"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Portal Password *</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                type="password"
+                                placeholder="Minimum 8 characters"
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Password for client portal access (min. 8 characters)
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="bg-blue-50 p-4 rounded-md">
+                        <p className="text-sm text-blue-900">
+                          ℹ️ The client will be able to login at <strong>/client/login</strong> with these credentials to view their inventory, orders, and products.
+                        </p>
+                      </div>
+                    </>
+                  )}
+
+                  {!form.watch('create_portal_access') && (
+                    <div className="bg-gray-50 p-4 rounded-md">
+                      <p className="text-sm text-muted-foreground">
+                        You can skip this step and create portal access later from the client management page.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Step 5: Review */}
+          {currentStep === 5 && (
             <Card>
               <CardHeader>
                 <CardTitle>Review & Confirm</CardTitle>

@@ -150,7 +150,10 @@ export const Clients: React.FC = () => {
   };
 
   const handleAddClient = async (clientData: Omit<Client, 'id' | 'created_at' | 'updated_at'> & { 
-    contract_document_url?: string 
+    contract_document_url?: string;
+    create_portal_access?: boolean;
+    client_user_email?: string;
+    client_user_password?: string;
   }) => {
     try {
       // Generate client code if not provided
@@ -210,22 +213,62 @@ export const Clients: React.FC = () => {
 
         if (allocError) {
           console.error('Error creating allocation:', allocError);
-          // Don't fail the whole operation, just warn
           toast({
             title: "Warning",
-            description: "Client created but allocation record failed. Please update the client to fix.",
+            description: "Client created but allocation record failed.",
             variant: "destructive",
           });
         }
+      }
+
+      // Create portal user if requested
+      if (data && clientData.create_portal_access && clientData.client_user_email && clientData.client_user_password) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          
+          const { data: userData, error: authError } = await supabase.functions.invoke('create-client-user', {
+            body: {
+              email: clientData.client_user_email,
+              password: clientData.client_user_password,
+              company_name: clientData.company_name,
+              company_id: data.id
+            },
+            headers: {
+              Authorization: `Bearer ${session?.access_token}`
+            }
+          });
+
+          if (authError) {
+            console.error('Error creating user:', authError);
+            toast({
+              title: "Warning",
+              description: "Client created but portal user creation failed: " + authError.message,
+              variant: "destructive",
+            });
+          } else {
+            toast({
+              title: "Success",
+              description: `Client and portal access created successfully. Login: ${clientData.client_user_email}`,
+            });
+          }
+        } catch (error: any) {
+          console.error('Error in user creation:', error);
+          toast({
+            title: "Warning",
+            description: "Client created but portal setup encountered an error.",
+            variant: "destructive",
+          });
+        }
+      } else {
+        toast({
+          title: "Success",
+          description: "Client added successfully",
+        });
       }
       
       await fetchClients();
       await fetchClientMetrics();
       setShowAddForm(false);
-      toast({
-        title: "Success",
-        description: "Client added successfully",
-      });
     } catch (error: any) {
       console.error('Error:', error);
       toast({
@@ -237,7 +280,10 @@ export const Clients: React.FC = () => {
   };
 
   const handleEditClient = async (clientData: Omit<Client, 'id' | 'created_at' | 'updated_at'> & {
-    contract_document_url?: string
+    contract_document_url?: string;
+    create_portal_access?: boolean;
+    client_user_email?: string;
+    client_user_password?: string;
   }) => {
     if (!editingClient) return;
 
