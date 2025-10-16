@@ -37,7 +37,11 @@ export const Clients: React.FC = () => {
     try {
       const { data: companies, error } = await supabase
         .from('companies')
-        .select('*')
+        .select(`
+          *,
+          warehouse_zones:assigned_floor_zone_id(id, code, name, color),
+          warehouse_rows:assigned_row_id(id, code, row_number)
+        `)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -59,16 +63,16 @@ export const Clients: React.FC = () => {
         email: company.contact_email || '',
         phone: company.contact_phone || '',
         address: company.address || '',
-        billing_address: company.address || '', // Using address as billing_address since that column doesn't exist
-        contract_start_date: new Date().toISOString(), // Default values since these columns don't exist
-        contract_end_date: new Date(Date.now() + 365*24*60*60*1000).toISOString(),
-        storage_plan: 'basic', // Default since column doesn't exist
-        max_storage_cubic_feet: 0, // Default since column doesn't exist
-        monthly_fee: 0, // Default since column doesn't exist
+        billing_address: company.billing_address || company.address || '',
+        contract_start_date: company.contract_start_date || new Date().toISOString(),
+        contract_end_date: company.contract_end_date || new Date(Date.now() + 365*24*60*60*1000).toISOString(),
+        storage_plan: (company.storage_plan as 'basic' | 'premium' | 'enterprise') || 'basic',
+        max_storage_cubic_feet: company.max_storage_cubic_feet || 0,
+        monthly_fee: company.monthly_fee || 0,
         is_active: company.is_active ?? true,
-        location_type: undefined,
-        assigned_floor_zone_id: undefined,
-        assigned_row_id: undefined,
+        location_type: company.location_type,
+        assigned_floor_zone_id: company.assigned_floor_zone_id,
+        assigned_row_id: company.assigned_row_id,
         created_at: company.created_at,
         updated_at: company.updated_at,
       })) || [];
@@ -87,9 +91,34 @@ export const Clients: React.FC = () => {
   };
 
   const fetchClientMetrics = async () => {
-    // Disabled due to type instantiation issues with deep Supabase query types
-    // TODO: Re-implement when schema stabilizes
-    setClientMetrics({});
+    try {
+      // Fetch product counts for each client
+      const { data: productData, error: productError } = await supabase
+        .from('client_products')
+        .select('company_id')
+        .eq('is_active', true);
+
+      if (productError) {
+        console.error('Error fetching product metrics:', productError);
+        return;
+      }
+
+      const metrics: Record<string, { productCount: number; inventoryValue: number }> = {};
+      
+      productData?.forEach(product => {
+        const companyId = product.company_id;
+        if (!metrics[companyId]) {
+          metrics[companyId] = { productCount: 0, inventoryValue: 0 };
+        }
+        
+        metrics[companyId].productCount += 1;
+        metrics[companyId].inventoryValue = 0; // Value calculation removed
+      });
+
+      setClientMetrics(metrics);
+    } catch (error) {
+      console.error('Error fetching client metrics:', error);
+    }
   };
 
   const filteredClients = clients.filter(client =>
