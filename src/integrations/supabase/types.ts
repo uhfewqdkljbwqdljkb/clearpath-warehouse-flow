@@ -256,6 +256,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           name: string
+          sku: string | null
           updated_at: string | null
           variants: Json | null
         }
@@ -265,6 +266,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name: string
+          sku?: string | null
           updated_at?: string | null
           variants?: Json | null
         }
@@ -274,6 +276,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           name?: string
+          sku?: string | null
           updated_at?: string | null
           variants?: Json | null
         }
@@ -294,6 +297,7 @@ export type Database = {
           assigned_row_id: string | null
           billing_address: string | null
           client_code: string | null
+          client_sequence_number: number | null
           contact_email: string | null
           contact_phone: string | null
           contract_document_url: string | null
@@ -312,6 +316,7 @@ export type Database = {
           assigned_row_id?: string | null
           billing_address?: string | null
           client_code?: string | null
+          client_sequence_number?: number | null
           contact_email?: string | null
           contact_phone?: string | null
           contract_document_url?: string | null
@@ -330,6 +335,7 @@ export type Database = {
           assigned_row_id?: string | null
           billing_address?: string | null
           client_code?: string | null
+          client_sequence_number?: number | null
           contact_email?: string | null
           contact_phone?: string | null
           contract_document_url?: string | null
