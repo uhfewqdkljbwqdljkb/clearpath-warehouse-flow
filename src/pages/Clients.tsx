@@ -11,7 +11,23 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Search, Plus, MoreHorizontal, Building2, Users, DollarSign, Package, Eye } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Building2, Users, DollarSign, Package, Eye, Pencil, Trash2 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Client } from '@/types';
 import { MultiStepClientForm } from '@/components/MultiStepClientForm';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,6 +41,7 @@ export const Clients: React.FC = () => {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [clientMetrics, setClientMetrics] = useState<Record<string, { productCount: number; inventoryValue: number }>>({});
+  const [deletingClient, setDeletingClient] = useState<Client | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -292,6 +309,42 @@ export const Clients: React.FC = () => {
     navigate(`/dashboard/clients/${client.id}/products`);
   };
 
+  const handleDeleteClient = async () => {
+    if (!deletingClient) return;
+
+    try {
+      const { error } = await supabase
+        .from('companies')
+        .delete()
+        .eq('id', deletingClient.id);
+
+      if (error) {
+        console.error('Error deleting client:', error);
+        toast({
+          title: "Error",
+          description: error.message || "Failed to delete client",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      await fetchClients();
+      await fetchClientMetrics();
+      setDeletingClient(null);
+      toast({
+        title: "Success",
+        description: "Client deleted successfully",
+      });
+    } catch (error: any) {
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to delete client",
+        variant: "destructive",
+      });
+    }
+  };
+
   const activeClients = clients.filter(c => c.is_active);
 
   const getStoragePlanColor = (plan: string) => {
@@ -429,14 +482,30 @@ export const Clients: React.FC = () => {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openEditForm(client)}
-                          title="Edit Client"
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              title="More actions"
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEditForm(client)}>
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Edit Client
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => setDeletingClient(client)}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete Client
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -447,6 +516,23 @@ export const Clients: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!deletingClient} onOpenChange={() => setDeletingClient(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Client</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {deletingClient?.company_name}? This action cannot be undone and will remove all associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteClient} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
