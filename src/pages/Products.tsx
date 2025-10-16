@@ -26,6 +26,7 @@ import { ProductForm } from '@/components/ProductForm';
 interface Product {
   id: string;
   name: string;
+  sku?: string;
   variants?: any;
   is_active: boolean;
   company_id: string;
@@ -221,10 +222,10 @@ export const Products: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>SKU</TableHead>
                     <TableHead>Product Name</TableHead>
                     <TableHead>Client</TableHead>
                     <TableHead>Variants</TableHead>
@@ -234,6 +235,9 @@ export const Products: React.FC = () => {
                 <TableBody>
                   {filteredProducts.map((product) => (
                     <TableRow key={product.id}>
+                      <TableCell className="font-mono text-sm font-medium">
+                        {product.sku || 'Pending...'}
+                      </TableCell>
                       <TableCell className="font-medium">{product.name}</TableCell>
                       <TableCell>
                         <div>
@@ -247,9 +251,18 @@ export const Products: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         {product.variants && Array.isArray(product.variants) && product.variants.length > 0 ? (
-                          <Badge variant="secondary">
-                            {product.variants.length} variant{product.variants.length > 1 ? 's' : ''}
-                          </Badge>
+                          <div className="space-y-1">
+                            <Badge variant="secondary">
+                              {product.variants.length} variant{product.variants.length > 1 ? 's' : ''}
+                            </Badge>
+                            {product.variants.map((variant: any, idx: number) => (
+                              <div key={idx} className="text-xs text-muted-foreground">
+                                {variant.sku && (
+                                  <span className="font-mono">{variant.sku}</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         ) : (
                           <span className="text-muted-foreground">No variants</span>
                         )}
@@ -263,7 +276,6 @@ export const Products: React.FC = () => {
                   ))}
                 </TableBody>
               </Table>
-            </div>
           )}
         </CardContent>
       </Card>
