@@ -154,6 +154,11 @@ export const Clients: React.FC = () => {
     contract_document_url?: string 
   }) => {
     try {
+      console.log('=== handleAddClient called ===');
+      console.log('Received clientData:', clientData);
+      console.log('Initial products:', clientData.initial_products);
+      console.log('Contract document URL:', clientData.contract_document_url);
+      
       // Generate client code if not provided
       let client_code = clientData.client_code;
       if (!client_code) {
@@ -166,23 +171,27 @@ export const Clients: React.FC = () => {
         client_code = generatedCode;
       }
 
+      const insertData = {
+        client_code,
+        name: clientData.company_name,
+        contact_email: clientData.email,
+        contact_phone: clientData.phone,
+        address: clientData.address,
+        billing_address: clientData.billing_address || clientData.address,
+        contract_start_date: clientData.contract_start_date || null,
+        contract_end_date: clientData.contract_end_date || null,
+        contract_document_url: clientData.contract_document_url || null,
+        is_active: clientData.is_active,
+        location_type: clientData.location_type || null,
+        assigned_floor_zone_id: clientData.assigned_floor_zone_id || null,
+        assigned_row_id: clientData.assigned_row_id || null,
+      };
+      
+      console.log('Inserting company with data:', insertData);
+
       const { data, error } = await supabase
         .from('companies')
-        .insert({
-          client_code,
-          name: clientData.company_name,
-          contact_email: clientData.email,
-          contact_phone: clientData.phone,
-          address: clientData.address,
-          billing_address: clientData.billing_address || clientData.address,
-          contract_start_date: clientData.contract_start_date || null,
-          contract_end_date: clientData.contract_end_date || null,
-          contract_document_url: clientData.contract_document_url || null,
-          is_active: clientData.is_active,
-          location_type: clientData.location_type || null,
-          assigned_floor_zone_id: clientData.assigned_floor_zone_id || null,
-          assigned_row_id: clientData.assigned_row_id || null,
-        })
+        .insert(insertData)
         .select()
         .single();
 
@@ -195,9 +204,13 @@ export const Clients: React.FC = () => {
         });
         return;
       }
+      
+      console.log('Company created:', data);
 
       // Save initial products if provided
       if (clientData.initial_products && clientData.initial_products.length > 0) {
+        console.log('Saving initial products, count:', clientData.initial_products.length);
+        
         const productsToInsert = clientData.initial_products.map(product => ({
           company_id: data.id,
           sku: `${client_code}-${product.name.substring(0, 10).toUpperCase().replace(/\s/g, '')}`,
@@ -205,6 +218,8 @@ export const Clients: React.FC = () => {
           variants: product.variants || [],
           is_active: true,
         }));
+        
+        console.log('Products to insert:', productsToInsert);
 
         const { error: productsError } = await supabase
           .from('client_products')
@@ -217,7 +232,11 @@ export const Clients: React.FC = () => {
             description: "Client added but some products could not be saved",
             variant: "destructive",
           });
+        } else {
+          console.log('Products saved successfully');
         }
+      } else {
+        console.log('No products to save');
       }
 
       await fetchClients();

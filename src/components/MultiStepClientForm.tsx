@@ -286,7 +286,13 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
   };
 
   const handleSubmit = async (data: ClientFormData) => {
-    console.log('Form submit triggered', { data, client, currentStep });
+    console.log('=== Form submit triggered ===');
+    console.log('Form data:', data);
+    console.log('Is editing?', !!client);
+    console.log('Current step:', currentStep);
+    console.log('Products state:', products);
+    console.log('Contract file:', contractFile);
+    
     setIsUploading(true);
     
     try {
@@ -294,10 +300,12 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
       
       // Upload contract document if a new file is provided
       if (contractFile) {
-        console.log('Uploading contract file...');
+        console.log('Uploading contract file...', contractFile.name);
         // Use client ID if editing, otherwise generate temp ID
         const folderId = client?.id || crypto.randomUUID();
         const uploadResult = await uploadContractDocument(contractFile, folderId);
+        
+        console.log('Upload result:', uploadResult);
         
         if (!uploadResult.success) {
           toast({
@@ -310,6 +318,9 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
         }
         
         contractDocUrl = uploadResult.url;
+        console.log('Contract uploaded to:', contractDocUrl);
+      } else {
+        console.log('No contract file to upload');
       }
       
       // Prepare submission data
@@ -330,10 +341,13 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
       
       // Only include products when creating a new client
       if (!client && products.length > 0) {
+        console.log('Including products in submission:', products);
         submissionData.initial_products = products;
+      } else {
+        console.log('Not including products. client?', !!client, 'products.length:', products.length);
       }
       
-      console.log('Submitting client data:', submissionData);
+      console.log('Final submission data:', submissionData);
       onSubmit(submissionData);
     } catch (error: any) {
       console.error('Form submission error:', error);
