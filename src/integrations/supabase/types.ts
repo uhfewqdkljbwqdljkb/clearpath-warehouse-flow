@@ -145,13 +145,61 @@ export type Database = {
           },
         ]
       }
+      client_order_items: {
+        Row: {
+          created_at: string | null
+          id: string
+          notes: string | null
+          order_id: string
+          product_id: string
+          quantity: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          order_id: string
+          product_id: string
+          quantity?: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          order_id?: string
+          product_id?: string
+          quantity?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "client_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "client_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_orders: {
         Row: {
           company_id: string
+          completed_date: string | null
           created_at: string | null
           id: string
           notes: string | null
           order_number: string
+          order_type: Database["public"]["Enums"]["order_type"] | null
+          requested_date: string | null
           shipping_address: string | null
           status: Database["public"]["Enums"]["order_status"] | null
           total_items: number | null
@@ -161,10 +209,13 @@ export type Database = {
         }
         Insert: {
           company_id: string
+          completed_date?: string | null
           created_at?: string | null
           id?: string
           notes?: string | null
           order_number: string
+          order_type?: Database["public"]["Enums"]["order_type"] | null
+          requested_date?: string | null
           shipping_address?: string | null
           status?: Database["public"]["Enums"]["order_status"] | null
           total_items?: number | null
@@ -174,10 +225,13 @@ export type Database = {
         }
         Update: {
           company_id?: string
+          completed_date?: string | null
           created_at?: string | null
           id?: string
           notes?: string | null
           order_number?: string
+          order_type?: Database["public"]["Enums"]["order_type"] | null
+          requested_date?: string | null
           shipping_address?: string | null
           status?: Database["public"]["Enums"]["order_status"] | null
           total_items?: number | null
@@ -205,6 +259,7 @@ export type Database = {
           dimensions_length: number | null
           dimensions_width: number | null
           id: string
+          is_active: boolean | null
           name: string
           reorder_point: number | null
           sku: string
@@ -222,6 +277,7 @@ export type Database = {
           dimensions_length?: number | null
           dimensions_width?: number | null
           id?: string
+          is_active?: boolean | null
           name: string
           reorder_point?: number | null
           sku: string
@@ -239,6 +295,7 @@ export type Database = {
           dimensions_length?: number | null
           dimensions_width?: number | null
           id?: string
+          is_active?: boolean | null
           name?: string
           reorder_point?: number | null
           sku?: string
@@ -260,38 +317,83 @@ export type Database = {
       companies: {
         Row: {
           address: string | null
+          assigned_floor_zone_id: string | null
+          assigned_row_id: string | null
+          billing_address: string | null
           client_code: string | null
           contact_email: string | null
           contact_phone: string | null
+          contract_document_url: string | null
+          contract_end_date: string | null
+          contract_start_date: string | null
           created_at: string | null
           id: string
           is_active: boolean | null
+          location_type: Database["public"]["Enums"]["location_type"] | null
+          max_storage_cubic_feet: number | null
+          monthly_fee: number | null
           name: string
+          storage_plan: string | null
           updated_at: string | null
         }
         Insert: {
           address?: string | null
+          assigned_floor_zone_id?: string | null
+          assigned_row_id?: string | null
+          billing_address?: string | null
           client_code?: string | null
           contact_email?: string | null
           contact_phone?: string | null
+          contract_document_url?: string | null
+          contract_end_date?: string | null
+          contract_start_date?: string | null
           created_at?: string | null
           id?: string
           is_active?: boolean | null
+          location_type?: Database["public"]["Enums"]["location_type"] | null
+          max_storage_cubic_feet?: number | null
+          monthly_fee?: number | null
           name: string
+          storage_plan?: string | null
           updated_at?: string | null
         }
         Update: {
           address?: string | null
+          assigned_floor_zone_id?: string | null
+          assigned_row_id?: string | null
+          billing_address?: string | null
           client_code?: string | null
           contact_email?: string | null
           contact_phone?: string | null
+          contract_document_url?: string | null
+          contract_end_date?: string | null
+          contract_start_date?: string | null
           created_at?: string | null
           id?: string
           is_active?: boolean | null
+          location_type?: Database["public"]["Enums"]["location_type"] | null
+          max_storage_cubic_feet?: number | null
+          monthly_fee?: number | null
           name?: string
+          storage_plan?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_companies_floor_zone"
+            columns: ["assigned_floor_zone_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_zones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_companies_row"
+            columns: ["assigned_row_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_rows"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       inventory_items: {
         Row: {
@@ -459,33 +561,49 @@ export type Database = {
       }
       warehouse_rows: {
         Row: {
+          assigned_company_id: string | null
           capacity_cubic_ft: number | null
+          code: string | null
           created_at: string | null
           current_usage_cubic_ft: number | null
           id: string
           is_active: boolean | null
+          is_occupied: boolean | null
           row_number: string
           zone_id: string | null
         }
         Insert: {
+          assigned_company_id?: string | null
           capacity_cubic_ft?: number | null
+          code?: string | null
           created_at?: string | null
           current_usage_cubic_ft?: number | null
           id?: string
           is_active?: boolean | null
+          is_occupied?: boolean | null
           row_number: string
           zone_id?: string | null
         }
         Update: {
+          assigned_company_id?: string | null
           capacity_cubic_ft?: number | null
+          code?: string | null
           created_at?: string | null
           current_usage_cubic_ft?: number | null
           id?: string
           is_active?: boolean | null
+          is_occupied?: boolean | null
           row_number?: string
           zone_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_warehouse_rows_company"
+            columns: ["assigned_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "warehouse_rows_zone_id_fkey"
             columns: ["zone_id"]
@@ -498,29 +616,38 @@ export type Database = {
       warehouse_zones: {
         Row: {
           capacity_sqft: number | null
+          code: string | null
+          color: string | null
           created_at: string | null
           current_usage_sqft: number | null
           id: string
           is_active: boolean | null
           name: string
+          total_capacity_cubic_feet: number | null
           zone_type: string
         }
         Insert: {
           capacity_sqft?: number | null
+          code?: string | null
+          color?: string | null
           created_at?: string | null
           current_usage_sqft?: number | null
           id?: string
           is_active?: boolean | null
           name: string
+          total_capacity_cubic_feet?: number | null
           zone_type: string
         }
         Update: {
           capacity_sqft?: number | null
+          code?: string | null
+          color?: string | null
           created_at?: string | null
           current_usage_sqft?: number | null
           id?: string
           is_active?: boolean | null
           name?: string
+          total_capacity_cubic_feet?: number | null
           zone_type?: string
         }
         Relationships: []
@@ -553,6 +680,7 @@ export type Database = {
         | "shipped"
         | "delivered"
         | "cancelled"
+      order_type: "inbound" | "outbound"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -691,6 +819,7 @@ export const Constants = {
         "delivered",
         "cancelled",
       ],
+      order_type: ["inbound", "outbound"],
     },
   },
 } as const
