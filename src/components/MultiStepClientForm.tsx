@@ -140,6 +140,17 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
   
+  const onInvalid = (errors: any) => {
+    console.error('Form invalid on submit:', errors);
+    const firstKey = Object.keys(errors)[0];
+    const message = firstKey ? (errors as any)[firstKey]?.message || 'Please check highlighted fields' : 'Please check highlighted fields';
+    toast({
+      title: 'Fix errors to continue',
+      description: String(message),
+      variant: 'destructive',
+    });
+  };
+  
   const form = useForm<ClientFormData>({
     resolver: zodResolver(clientSchema),
     defaultValues: client ? {
@@ -416,7 +427,7 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
 
       {/* Form */}
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+        <form onSubmit={form.handleSubmit(handleSubmit, onInvalid)} className="space-y-6">
           {/* Step 1: Company Information */}
           {currentStep === 1 && (
             <Card>
