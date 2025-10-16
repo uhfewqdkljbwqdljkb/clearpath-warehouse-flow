@@ -96,9 +96,9 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <IntegrationProvider>
-          <RealTimeNotifications />
           <TooltipProvider>
-          <BrowserRouter>
+            <RealTimeNotifications />
+            <BrowserRouter>
             <Routes>
               {/* Login route - unprotected */}
               <Route path="/dashboard/login" element={<LoginRoute />} />
