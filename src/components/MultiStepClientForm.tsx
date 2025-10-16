@@ -222,7 +222,9 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
 
   const nextStep = async () => {
     const fieldsToValidate = getFieldsForStep(currentStep);
+    console.log('Validating step', currentStep, 'fields:', fieldsToValidate);
     const isStepValid = await form.trigger(fieldsToValidate);
+    console.log('Step validation result:', isStepValid, 'Errors:', form.formState.errors);
     
     if (isStepValid) {
       let nextStepNumber = currentStep + 1;
@@ -233,8 +235,11 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
       }
       
       if (nextStepNumber <= steps.length) {
+        console.log('Moving to step', nextStepNumber);
         setCurrentStep(nextStepNumber);
       }
+    } else {
+      console.log('Validation failed for step', currentStep);
     }
   };
 
@@ -270,6 +275,7 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
   };
 
   const handleSubmit = async (data: ClientFormData) => {
+    console.log('Form submit triggered', { data, client, currentStep });
     setIsUploading(true);
     
     try {
@@ -277,6 +283,7 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
       
       // Upload contract document if a new file is provided
       if (contractFile) {
+        console.log('Uploading contract file...');
         // Use client ID if editing, otherwise generate temp ID
         const folderId = client?.id || crypto.randomUUID();
         const uploadResult = await uploadContractDocument(contractFile, folderId);
@@ -308,8 +315,10 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
         submissionData.initial_products = products;
       }
       
+      console.log('Submitting client data:', submissionData);
       onSubmit(submissionData);
     } catch (error: any) {
+      console.error('Form submission error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to submit form",
