@@ -368,14 +368,56 @@ export const Clients: React.FC = () => {
           .eq('company_id', editingClient.id);
       }
 
+      // Create portal user on edit if requested
+      if (clientData.create_portal_access && clientData.client_user_email && clientData.client_user_password) {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+
+          const { data: userData, error: authError } = await supabase.functions.invoke('create-client-user', {
+            body: {
+              email: clientData.client_user_email,
+              password: clientData.client_user_password,
+              company_name: clientData.company_name,
+              company_id: editingClient.id,
+            },
+            headers: {
+              Authorization: `Bearer ${session?.access_token}`,
+            },
+          });
+
+          if (authError) {
+            console.error('Error creating user:', authError);
+            toast({
+              title: 'Warning',
+              description:
+                'Client updated but portal user creation failed: ' + authError.message,
+              variant: 'destructive',
+            });
+          } else {
+            toast({
+              title: 'Success',
+              description: `Client updated and portal access created. Login: ${clientData.client_user_email}`,
+            });
+          }
+        } catch (error: any) {
+          console.error('Error in user creation:', error);
+          toast({
+            title: 'Warning',
+            description: 'Client updated but portal setup encountered an error.',
+            variant: 'destructive',
+          });
+        }
+      } else {
+        toast({
+          title: 'Success',
+          description: 'Client updated successfully',
+        });
+      }
+
       await fetchClients();
       await fetchClientMetrics();
       setEditingClient(null);
       setShowAddForm(false);
-      toast({
-        title: "Success",
-        description: "Client updated successfully",
-      });
     } catch (error: any) {
       console.error('Error:', error);
       toast({
