@@ -1,20 +1,9 @@
 import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
-  Form, 
-  FormControl, 
-  FormField, 
-  FormItem, 
-  FormLabel, 
-  FormMessage,
-  FormDescription,
-} from '@/components/ui/form';
 import {
   Select,
   SelectContent,
@@ -22,25 +11,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { X } from 'lucide-react';
+import { X, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-const productSchema = z.object({
-  company_id: z.string().min(1, 'Client is required'),
-  sku: z.string().min(1, 'SKU is required'),
-  name: z.string().min(1, 'Product name is required'),
-  description: z.string().optional(),
-  category: z.string().optional(),
-  unit_price: z.number().min(0).optional(),
-  dimensions_length: z.number().min(0).optional(),
-  dimensions_width: z.number().min(0).optional(),
-  dimensions_height: z.number().min(0).optional(),
-  weight_lbs: z.number().min(0).optional(),
-  storage_requirements: z.string().optional(),
-});
+interface Variant {
+  attribute: string;
+  values: { value: string; quantity: number }[];
+}
 
-type ProductFormData = z.infer<typeof productSchema>;
+interface ProductFormData {
+  company_id: string;
+  sku: string;
+  name: string;
+  description?: string;
+  category?: string;
+  storage_requirements?: string;
+  variants?: Variant[];
+}
 
 interface ProductFormProps {
   clients: Array<{ id: string; name: string; client_code: string }>;
@@ -52,31 +40,89 @@ export const ProductForm: React.FC<ProductFormProps> = ({ clients, onSuccess, on
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  const form = useForm<ProductFormData>({
-    resolver: zodResolver(productSchema),
-    defaultValues: {
-      sku: '',
-      name: '',
-      description: '',
-      category: '',
-    },
+  const [formData, setFormData] = useState<ProductFormData>({
+    company_id: '',
+    sku: '',
+    name: '',
+    description: '',
+    category: '',
+    storage_requirements: 'ambient',
+    variants: [],
   });
 
-  const handleSubmit = async (data: ProductFormData) => {
+  const addVariant = () => {
+    setFormData({
+      ...formData,
+      variants: [
+        ...(formData.variants || []),
+        { attribute: '', values: [{ value: '', quantity: 0 }] },
+      ],
+    });
+  };
+
+  const removeVariant = (variantIndex: number) => {
+    setFormData({
+      ...formData,
+      variants: formData.variants?.filter((_, i) => i !== variantIndex) || [],
+    });
+  };
+
+  const updateVariant = (variantIndex: number, field: string, value: any) => {
+    const updated = [...(formData.variants || [])];
+    updated[variantIndex] = { ...updated[variantIndex], [field]: value };
+    setFormData({ ...formData, variants: updated });
+  };
+
+  const addValueToVariant = (variantIndex: number) => {
+    const updated = [...(formData.variants || [])];
+    updated[variantIndex].values.push({ value: '', quantity: 0 });
+    setFormData({ ...formData, variants: updated });
+  };
+
+  const removeValueFromVariant = (variantIndex: number, valueIndex: number) => {
+    const updated = [...(formData.variants || [])];
+    updated[variantIndex].values = updated[variantIndex].values.filter(
+      (_, i) => i !== valueIndex
+    );
+    setFormData({ ...formData, variants: updated });
+  };
+
+  const updateVariantValue = (
+    variantIndex: number,
+    valueIndex: number,
+    field: string,
+    value: any
+  ) => {
+    const updated = [...(formData.variants || [])];
+    updated[variantIndex].values[valueIndex] = {
+      ...updated[variantIndex].values[valueIndex],
+      [field]: value,
+    };
+    setFormData({ ...formData, variants: updated });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.company_id || !formData.sku || !formData.name) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const productData = {
-        company_id: data.company_id,
-        sku: data.sku,
-        name: data.name,
-        description: data.description,
-        category: data.category,
-        unit_price: data.unit_price,
-        dimensions_length: data.dimensions_length,
-        dimensions_width: data.dimensions_width,
-        dimensions_height: data.dimensions_height,
-        weight_lbs: data.weight_lbs,
-        storage_requirements: data.storage_requirements,
+        company_id: formData.company_id,
+        sku: formData.sku,
+        name: formData.name,
+        description: formData.description,
+        category: formData.category,
+        storage_requirements: formData.storage_requirements,
+        variants: (formData.variants || []) as any,
         is_active: true,
       };
 
@@ -115,220 +161,198 @@ export const ProductForm: React.FC<ProductFormProps> = ({ clients, onSuccess, on
         </div>
       </CardHeader>
       <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="company_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Client *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a client" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {clients.map((client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.name} ({client.client_code})
-                        </SelectItem>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <Label htmlFor="company_id">Client *</Label>
+            <Select 
+              value={formData.company_id} 
+              onValueChange={(value) => setFormData({ ...formData, company_id: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a client" />
+              </SelectTrigger>
+              <SelectContent>
+                {clients.map((client) => (
+                  <SelectItem key={client.id} value={client.id}>
+                    {client.name} ({client.client_code})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="sku">SKU *</Label>
+              <Input
+                id="sku"
+                value={formData.sku}
+                onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                placeholder="e.g., PROD-001"
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="name">Product Name *</Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="e.g., Wireless Headphones"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Product description..."
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="category">Category</Label>
+              <Input
+                id="category"
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                placeholder="e.g., Electronics"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="storage_requirements">Storage Requirements</Label>
+              <Select
+                value={formData.storage_requirements}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, storage_requirements: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select storage type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ambient">Ambient Temperature</SelectItem>
+                  <SelectItem value="refrigerated">Refrigerated</SelectItem>
+                  <SelectItem value="fragile">Fragile</SelectItem>
+                  <SelectItem value="hazardous">Hazardous</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Variants Section */}
+          <div className="space-y-3 border-t pt-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-base font-semibold">Product Variants</Label>
+              <Button type="button" variant="outline" size="sm" onClick={addVariant}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Variant
+              </Button>
+            </div>
+
+            {formData.variants && formData.variants.length > 0 ? (
+              <div className="space-y-4">
+                {formData.variants.map((variant, variantIndex) => (
+                  <div key={variantIndex} className="border rounded-lg p-4 space-y-3 bg-muted/30">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <Label className="text-xs text-muted-foreground">Attribute Name</Label>
+                        <Input
+                          value={variant.attribute}
+                          onChange={(e) =>
+                            updateVariant(variantIndex, 'attribute', e.target.value)
+                          }
+                          placeholder="e.g., Color, Size, Material"
+                          className="mt-1"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeVariant(variantIndex)}
+                        className="ml-2"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <div className="space-y-2 pl-3 border-l-2">
+                      <Label className="text-xs text-muted-foreground">Values</Label>
+                      {variant.values.map((val, valueIndex) => (
+                        <div key={valueIndex} className="flex gap-2 items-center">
+                          <Input
+                            value={val.value}
+                            onChange={(e) =>
+                              updateVariantValue(variantIndex, valueIndex, 'value', e.target.value)
+                            }
+                            placeholder="e.g., Red, Large"
+                            className="flex-1"
+                          />
+                          <Input
+                            type="number"
+                            min="0"
+                            value={val.quantity}
+                            onChange={(e) =>
+                              updateVariantValue(
+                                variantIndex,
+                                valueIndex,
+                                'quantity',
+                                parseInt(e.target.value) || 0
+                              )
+                            }
+                            placeholder="Qty"
+                            className="w-24"
+                          />
+                          {variant.values.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeValueFromVariant(variantIndex, valueIndex)}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
                       ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="sku"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>SKU *</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="PROD-001" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Product Name *</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Product name" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <Textarea {...field} placeholder="Product description" rows={3} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="category"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Category</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Electronics, Apparel, etc." />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="unit_price"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Unit Price ($)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        step="0.01"
-                        {...field}
-                        onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                        placeholder="0.00" 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="space-y-3">
-              <FormLabel>Dimensions (inches)</FormLabel>
-              <div className="grid grid-cols-3 gap-4">
-                <FormField
-                  control={form.control}
-                  name="dimensions_length"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          step="0.01"
-                          {...field}
-                          onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                          placeholder="Length" 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="dimensions_width"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          step="0.01"
-                          {...field}
-                          onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                          placeholder="Width" 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="dimensions_height"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          step="0.01"
-                          {...field}
-                          onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                          placeholder="Height" 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => addValueToVariant(variantIndex)}
+                        className="w-full"
+                      >
+                        + Add Value
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
+            ) : (
+              <p className="text-sm text-muted-foreground pl-4">
+                No variants added. Add variants to group values by attribute (e.g., Color with Red,
+                Blue, Green).
+              </p>
+            )}
+          </div>
 
-            <FormField
-              control={form.control}
-              name="weight_lbs"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Weight (lbs)</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="number" 
-                      step="0.01"
-                      {...field}
-                      onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                      placeholder="0.00" 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="storage_requirements"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Storage Requirements</FormLabel>
-                  <FormControl>
-                    <Textarea {...field} placeholder="Temperature controlled, fragile, etc." rows={2} />
-                  </FormControl>
-                  <FormDescription>
-                    Special storage conditions if any
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="flex gap-3 justify-end pt-4">
-              <Button type="button" variant="outline" onClick={onCancel}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? 'Adding...' : 'Add Product'}
-              </Button>
-            </div>
-          </form>
-        </Form>
+          <div className="flex gap-3 justify-end pt-4">
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Adding...' : 'Add Product'}
+            </Button>
+          </div>
+        </form>
       </CardContent>
     </Card>
   );
