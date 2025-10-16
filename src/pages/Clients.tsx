@@ -66,9 +66,9 @@ export const Clients: React.FC = () => {
         billing_address: company.billing_address || company.address || '',
         contract_start_date: company.contract_start_date || new Date().toISOString(),
         contract_end_date: company.contract_end_date || new Date(Date.now() + 365*24*60*60*1000).toISOString(),
-        storage_plan: (company.storage_plan as 'basic' | 'premium' | 'enterprise') || 'basic',
-        max_storage_cubic_feet: company.max_storage_cubic_feet || 0,
-        monthly_fee: company.monthly_fee || 0,
+        storage_plan: 'basic',
+        max_storage_cubic_feet: 0,
+        monthly_fee: 0,
         is_active: company.is_active ?? true,
         location_type: company.location_type,
         assigned_floor_zone_id: company.assigned_floor_zone_id,
@@ -283,7 +283,6 @@ export const Clients: React.FC = () => {
   };
 
   const activeClients = clients.filter(c => c.is_active);
-  const totalStorage = clients.reduce((sum, c) => sum + c.max_storage_cubic_feet, 0);
 
   const getStoragePlanColor = (plan: string) => {
     switch (plan) {
@@ -335,16 +334,6 @@ export const Clients: React.FC = () => {
             </p>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Storage</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalStorage.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">cubic feet allocated</p>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Search and Filters */}
@@ -386,8 +375,6 @@ export const Clients: React.FC = () => {
                   <TableHead>Client Code</TableHead>
                   <TableHead>Company</TableHead>
                   <TableHead>Contact</TableHead>
-                  <TableHead>Plan</TableHead>
-                  <TableHead>Storage</TableHead>
                   <TableHead>Products</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
@@ -410,14 +397,6 @@ export const Clients: React.FC = () => {
                         <div className="font-medium">{client.contact_name}</div>
                         <div className="text-sm text-muted-foreground">{client.phone}</div>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={getStoragePlanColor(client.storage_plan)}>
-                        {client.storage_plan}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {client.max_storage_cubic_feet.toLocaleString()} ft³
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">

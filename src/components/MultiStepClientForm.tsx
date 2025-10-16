@@ -21,7 +21,6 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-  FormDescription,
 } from '@/components/ui/form';
 import { 
   ChevronLeft, 
@@ -44,9 +43,6 @@ const clientSchema = z.object({
   billing_address: z.string().optional(),
   contract_start_date: z.string().optional(),
   contract_end_date: z.string().optional(),
-  storage_plan: z.enum(['basic', 'premium', 'enterprise']).optional(),
-  max_storage_cubic_feet: z.number().optional(),
-  monthly_fee: z.number().optional(),
   is_active: z.boolean(),
   location_type: z.enum(['floor_zone', 'shelf_row']).optional(),
   assigned_floor_zone_id: z.string().optional(),
@@ -115,9 +111,6 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
       billing_address: client.billing_address,
       contract_start_date: client.contract_start_date,
       contract_end_date: client.contract_end_date,
-      storage_plan: client.storage_plan,
-      max_storage_cubic_feet: client.max_storage_cubic_feet,
-      monthly_fee: client.monthly_fee,
       is_active: client.is_active,
       location_type: client.location_type,
       assigned_floor_zone_id: client.assigned_floor_zone_id,
@@ -129,9 +122,6 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
       contact_phone: '',
       address: '',
       billing_address: '',
-      storage_plan: 'basic',
-      max_storage_cubic_feet: 1000,
-      monthly_fee: 0,
       is_active: true,
     },
   });
@@ -387,65 +377,6 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
                     </FormItem>
                   )}
                 />
-
-                <div className="grid grid-cols-3 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="storage_plan"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Storage Plan</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select plan" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="basic">Basic</SelectItem>
-                            <SelectItem value="premium">Premium</SelectItem>
-                            <SelectItem value="enterprise">Enterprise</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="max_storage_cubic_feet"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Max Storage (cu ft)</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number" 
-                            {...field}
-                            onChange={e => field.onChange(parseFloat(e.target.value))}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="monthly_fee"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Monthly Fee ($)</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number" 
-                            {...field}
-                            onChange={e => field.onChange(parseFloat(e.target.value))}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
               </CardContent>
             </Card>
           )}
@@ -572,10 +503,6 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
                     <div>
                       <span className="text-muted-foreground">Email:</span>
                       <p className="font-medium">{formData.contact_email || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Storage Plan:</span>
-                      <Badge>{formData.storage_plan}</Badge>
                     </div>
                   </div>
                 </div>
