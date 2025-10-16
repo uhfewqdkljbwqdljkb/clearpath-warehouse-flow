@@ -196,6 +196,28 @@ export const Clients: React.FC = () => {
         });
         return;
       }
+
+      // Create allocation record if location is assigned
+      if (data && (clientData.assigned_floor_zone_id || clientData.assigned_row_id)) {
+        const { error: allocError } = await supabase
+          .from('client_allocations')
+          .insert({
+            company_id: data.id,
+            location_type: clientData.location_type,
+            assigned_floor_zone_id: clientData.assigned_floor_zone_id || null,
+            assigned_row_id: clientData.assigned_row_id || null,
+          });
+
+        if (allocError) {
+          console.error('Error creating allocation:', allocError);
+          // Don't fail the whole operation, just warn
+          toast({
+            title: "Warning",
+            description: "Client created but allocation record failed. Please update the client to fix.",
+            variant: "destructive",
+          });
+        }
+      }
       
       await fetchClients();
       await fetchClientMetrics();
@@ -252,6 +274,52 @@ export const Clients: React.FC = () => {
           variant: "destructive",
         });
         return;
+      }
+
+      // Sync allocation record
+      if (clientData.assigned_floor_zone_id || clientData.assigned_row_id) {
+        // Check if allocation exists
+        const { data: existingAlloc } = await supabase
+          .from('client_allocations')
+          .select('id')
+          .eq('company_id', editingClient.id)
+          .maybeSingle();
+
+        if (existingAlloc) {
+          // Update existing allocation
+          const { error: allocError } = await supabase
+            .from('client_allocations')
+            .update({
+              location_type: clientData.location_type,
+              assigned_floor_zone_id: clientData.assigned_floor_zone_id || null,
+              assigned_row_id: clientData.assigned_row_id || null,
+            })
+            .eq('id', existingAlloc.id);
+
+          if (allocError) {
+            console.error('Error updating allocation:', allocError);
+          }
+        } else {
+          // Create new allocation
+          const { error: allocError } = await supabase
+            .from('client_allocations')
+            .insert({
+              company_id: editingClient.id,
+              location_type: clientData.location_type,
+              assigned_floor_zone_id: clientData.assigned_floor_zone_id || null,
+              assigned_row_id: clientData.assigned_row_id || null,
+            });
+
+          if (allocError) {
+            console.error('Error creating allocation:', allocError);
+          }
+        }
+      } else {
+        // Remove allocation if no location assigned
+        await supabase
+          .from('client_allocations')
+          .delete()
+          .eq('company_id', editingClient.id);
       }
 
       await fetchClients();
