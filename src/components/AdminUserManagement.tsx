@@ -52,22 +52,32 @@ export const AdminUserManagement: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
-      const { data, error } = await supabase
+      // First fetch profiles
+      const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select(`
           *,
-          companies!profiles_company_id_fkey(name, client_code),
-          user_roles!inner(role)
+          companies!profiles_company_id_fkey(name, client_code)
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (profilesError) throw profilesError;
+      
+      // Then fetch all user roles
+      const { data: rolesData, error: rolesError } = await supabase
+        .from('user_roles')
+        .select('user_id, role');
+
+      if (rolesError) throw rolesError;
+
+      // Create a map of user_id to role
+      const rolesMap = new Map(rolesData?.map(r => [r.user_id, r.role]) || []);
       
       // Map data to include user_id and role
-      const mappedUsers = (data || []).map(user => ({
+      const mappedUsers = (profilesData || []).map(user => ({
         ...user,
         user_id: user.id,
-        role: (user as any).user_roles?.role || 'client'
+        role: rolesMap.get(user.id) || 'client'
       }));
       
       setUsers(mappedUsers);

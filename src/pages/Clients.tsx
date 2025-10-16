@@ -37,11 +37,7 @@ export const Clients: React.FC = () => {
     try {
       const { data: companies, error } = await supabase
         .from('companies')
-        .select(`
-          *,
-          warehouse_zones:assigned_floor_zone_id(code, name, color),
-          warehouse_rows:assigned_row_id(code)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) {
