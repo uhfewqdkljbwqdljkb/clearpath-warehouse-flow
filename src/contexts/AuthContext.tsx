@@ -46,8 +46,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const { data: profileData, error } = await supabase
         .from('profiles')
-        .select('*')
-        .eq('user_id', userId)
+        .select(`
+          *,
+          user_roles!inner(role)
+        `)
+        .eq('id', userId)
         .single();
 
       if (error) {
@@ -55,7 +58,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return;
       }
 
-      setProfile(profileData as Profile);
+      // Extract role from joined user_roles
+      const role = (profileData as any).user_roles?.role || 'client';
+      
+      setProfile({
+        ...profileData,
+        user_id: profileData.id,
+        role
+      } as Profile);
 
       // Fetch company if user has one
       if (profileData.company_id) {
