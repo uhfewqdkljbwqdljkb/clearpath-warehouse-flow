@@ -226,24 +226,28 @@ export const Clients: React.FC = () => {
     if (!editingClient) return;
 
     try {
+      console.log('Updating company with data:', clientData);
+      const updatePayload = {
+        client_code: clientData.client_code,
+        name: clientData.company_name,
+        contact_email: clientData.email,
+        contact_phone: clientData.phone,
+        address: clientData.address,
+        billing_address: clientData.billing_address || clientData.address,
+        contract_start_date: clientData.contract_start_date || null,
+        contract_end_date: clientData.contract_end_date || null,
+        contract_document_url: clientData.contract_document_url || null,
+        is_active: clientData.is_active,
+        location_type: clientData.location_type || null,
+        assigned_floor_zone_id: clientData.assigned_floor_zone_id || null,
+        assigned_row_id: clientData.assigned_row_id || null,
+        updated_at: new Date().toISOString(),
+      };
+      console.log('Supabase update payload:', updatePayload);
+
       const { error } = await supabase
         .from('companies')
-        .update({
-          client_code: clientData.client_code,
-          name: clientData.company_name,
-          contact_email: clientData.email,
-          contact_phone: clientData.phone,
-          address: clientData.address,
-          billing_address: clientData.billing_address || clientData.address,
-          contract_start_date: clientData.contract_start_date || null,
-          contract_end_date: clientData.contract_end_date || null,
-          contract_document_url: clientData.contract_document_url || null,
-          is_active: clientData.is_active,
-          location_type: clientData.location_type || null,
-          assigned_floor_zone_id: clientData.assigned_floor_zone_id || null,
-          assigned_row_id: clientData.assigned_row_id || null,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updatePayload)
         .eq('id', editingClient.id);
 
       if (error) {

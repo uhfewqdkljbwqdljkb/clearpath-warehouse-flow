@@ -310,6 +310,13 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
         contract_document_url: contractDocUrl,
       };
       
+      // Ensure only the relevant assignment is set
+      if (submissionData.location_type === 'floor_zone') {
+        submissionData.assigned_row_id = null;
+      } else if (submissionData.location_type === 'shelf_row') {
+        submissionData.assigned_floor_zone_id = null;
+      }
+      
       // Only include products when creating a new client
       if (!client && products.length > 0) {
         submissionData.initial_products = products;
@@ -507,8 +514,16 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
                       <FormLabel>Location Type</FormLabel>
                       <FormControl>
                         <RadioGroup
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
+                          onValueChange={(val) => {
+                            // Clear previous assignment when switching type
+                            if (val === 'floor_zone') {
+                              form.setValue('assigned_row_id', undefined);
+                            } else if (val === 'shelf_row') {
+                              form.setValue('assigned_floor_zone_id', undefined);
+                            }
+                            field.onChange(val);
+                          }}
+                          value={field.value}
                           className="grid grid-cols-2 gap-4"
                         >
                           <div className="flex items-center space-x-2 border rounded-lg p-4 cursor-pointer hover:bg-accent">
