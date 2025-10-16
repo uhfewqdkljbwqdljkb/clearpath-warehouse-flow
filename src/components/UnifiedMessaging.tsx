@@ -1,7 +1,8 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-// Placeholder component - legacy code disabled due to schema mismatch
+// This component is now replaced by the main Messages page
+// Kept for backward compatibility
 export const UnifiedMessaging: React.FC = () => {
   return (
     <Card>
@@ -10,7 +11,7 @@ export const UnifiedMessaging: React.FC = () => {
       </CardHeader>
       <CardContent>
         <p className="text-muted-foreground">
-          Messaging feature is currently unavailable.
+          Please use the main Messages page from the navigation menu.
         </p>
       </CardContent>
     </Card>
