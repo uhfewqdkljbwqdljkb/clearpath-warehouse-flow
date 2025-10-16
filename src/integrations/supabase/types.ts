@@ -553,10 +553,8 @@ export type Database = {
       warehouse_rows: {
         Row: {
           assigned_company_id: string | null
-          capacity_cubic_ft: number | null
           code: string | null
           created_at: string | null
-          current_usage_cubic_ft: number | null
           id: string
           is_active: boolean | null
           is_occupied: boolean | null
@@ -565,10 +563,8 @@ export type Database = {
         }
         Insert: {
           assigned_company_id?: string | null
-          capacity_cubic_ft?: number | null
           code?: string | null
           created_at?: string | null
-          current_usage_cubic_ft?: number | null
           id?: string
           is_active?: boolean | null
           is_occupied?: boolean | null
@@ -577,10 +573,8 @@ export type Database = {
         }
         Update: {
           assigned_company_id?: string | null
-          capacity_cubic_ft?: number | null
           code?: string | null
           created_at?: string | null
-          current_usage_cubic_ft?: number | null
           id?: string
           is_active?: boolean | null
           is_occupied?: boolean | null
@@ -606,39 +600,30 @@ export type Database = {
       }
       warehouse_zones: {
         Row: {
-          capacity_sqft: number | null
           code: string | null
           color: string | null
           created_at: string | null
-          current_usage_sqft: number | null
           id: string
           is_active: boolean | null
           name: string
-          total_capacity_cubic_feet: number | null
           zone_type: string
         }
         Insert: {
-          capacity_sqft?: number | null
           code?: string | null
           color?: string | null
           created_at?: string | null
-          current_usage_sqft?: number | null
           id?: string
           is_active?: boolean | null
           name: string
-          total_capacity_cubic_feet?: number | null
           zone_type: string
         }
         Update: {
-          capacity_sqft?: number | null
           code?: string | null
           color?: string | null
           created_at?: string | null
-          current_usage_sqft?: number | null
           id?: string
           is_active?: boolean | null
           name?: string
-          total_capacity_cubic_feet?: number | null
           zone_type?: string
         }
         Relationships: []

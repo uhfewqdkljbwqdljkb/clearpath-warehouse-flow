@@ -19,11 +19,9 @@ import {
 } from '@/components/ui/tabs';
 import { 
   Warehouse as WarehouseIcon, 
-  Package, 
   MapPin, 
   Search,
   Plus,
-  TrendingUp,
   Users,
   Box
 } from 'lucide-react';
@@ -92,10 +90,6 @@ export const Warehouse: React.FC = () => {
   const activeZones = zones.filter(z => z.is_active).length;
   const totalRows = rows.length;
   const occupiedRows = rows.filter(r => r.is_occupied).length;
-  
-  const totalCapacity = zones.reduce((sum, z) => sum + (z.total_capacity_cubic_feet || 0), 0);
-  const totalUsage = zones.reduce((sum, z) => sum + (z.current_usage_sqft || 0), 0);
-  const utilizationPercentage = totalCapacity > 0 ? Math.round((totalUsage / totalCapacity) * 100) : 0;
 
   const filteredZones = zones.filter(zone =>
     zone.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -107,11 +101,6 @@ export const Warehouse: React.FC = () => {
     row.row_number?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const getUtilizationColor = (percentage: number) => {
-    if (percentage >= 90) return 'text-red-600 bg-red-50';
-    if (percentage >= 70) return 'text-yellow-600 bg-yellow-50';
-    return 'text-green-600 bg-green-50';
-  };
 
   return (
     <div className="space-y-6">
@@ -126,7 +115,7 @@ export const Warehouse: React.FC = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2">
         <WarehouseMetricsCard
           title="Total Zones"
           value={totalZones.toString()}
@@ -138,20 +127,6 @@ export const Warehouse: React.FC = () => {
           value={totalRows.toString()}
           subtitle={`${occupiedRows} occupied`}
           icon={Box}
-        />
-        <WarehouseMetricsCard
-          title="Capacity"
-          value={`${totalCapacity.toLocaleString()} ft³`}
-          subtitle="Total cubic feet"
-          icon={Package}
-        />
-        <WarehouseMetricsCard
-          title="Utilization"
-          value={`${utilizationPercentage}%`}
-          subtitle={utilizationPercentage >= 80 ? "High capacity" : "Good space"}
-          icon={TrendingUp}
-          trend={utilizationPercentage >= 80 ? "↑" : "→"}
-          trendType={utilizationPercentage >= 80 ? "negative" : "positive"}
         />
       </div>
 
@@ -202,61 +177,32 @@ export const Warehouse: React.FC = () => {
                       <TableHead>Code</TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Type</TableHead>
-                      <TableHead>Capacity</TableHead>
-                      <TableHead>Usage</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredZones.map((zone) => {
-                      const utilization = zone.capacity_sqft > 0 
-                        ? Math.round((zone.current_usage_sqft / zone.capacity_sqft) * 100)
-                        : 0;
-                      
-                      return (
-                        <TableRow key={zone.id}>
-                          <TableCell className="font-medium">{zone.code}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center space-x-2">
-                              <div 
-                                className="w-3 h-3 rounded-full" 
-                                style={{ backgroundColor: zone.color }}
-                              />
-                              <span>{zone.name}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{zone.zone_type}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            {zone.total_capacity_cubic_feet?.toLocaleString() || 0} ft³
-                          </TableCell>
-                          <TableCell>
-                            <div className="space-y-1">
-                              <div className="flex items-center space-x-2">
-                                <div className="w-24 bg-gray-200 rounded-full h-2">
-                                  <div 
-                                    className={`h-2 rounded-full ${
-                                      utilization >= 90 ? 'bg-red-500' : 
-                                      utilization >= 70 ? 'bg-yellow-500' : 'bg-green-500'
-                                    }`}
-                                    style={{ width: `${Math.min(utilization, 100)}%` }}
-                                  />
-                                </div>
-                                <Badge className={getUtilizationColor(utilization)}>
-                                  {utilization}%
-                                </Badge>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={zone.is_active ? "default" : "secondary"}>
-                              {zone.is_active ? "Active" : "Inactive"}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
+                    {filteredZones.map((zone) => (
+                      <TableRow key={zone.id}>
+                        <TableCell className="font-medium">{zone.code}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            <div 
+                              className="w-3 h-3 rounded-full" 
+                              style={{ backgroundColor: zone.color }}
+                            />
+                            <span>{zone.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{zone.zone_type}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={zone.is_active ? "default" : "secondary"}>
+                            {zone.is_active ? "Active" : "Inactive"}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               )}
@@ -291,81 +237,52 @@ export const Warehouse: React.FC = () => {
                       <TableHead>Row Code</TableHead>
                       <TableHead>Row Number</TableHead>
                       <TableHead>Zone</TableHead>
-                      <TableHead>Capacity</TableHead>
-                      <TableHead>Usage</TableHead>
                       <TableHead>Assigned To</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredRows.map((row) => {
-                      const utilization = row.capacity_cubic_ft > 0 
-                        ? Math.round((row.current_usage_cubic_ft / row.capacity_cubic_ft) * 100)
-                        : 0;
-                      
-                      return (
-                        <TableRow key={row.id}>
-                          <TableCell className="font-medium">{row.code}</TableCell>
-                          <TableCell>Row {row.row_number}</TableCell>
-                          <TableCell>
-                            {row.warehouse_zones ? (
-                              <div className="flex items-center space-x-2">
-                                <div 
-                                  className="w-3 h-3 rounded-full" 
-                                  style={{ backgroundColor: row.warehouse_zones.color }}
-                                />
-                                <span className="text-sm">{row.warehouse_zones.code}</span>
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {row.capacity_cubic_ft?.toLocaleString() || 0} ft³
-                          </TableCell>
-                          <TableCell>
-                            <div className="space-y-1">
-                              <div className="flex items-center space-x-2">
-                                <div className="w-24 bg-gray-200 rounded-full h-2">
-                                  <div 
-                                    className={`h-2 rounded-full ${
-                                      utilization >= 90 ? 'bg-red-500' : 
-                                      utilization >= 70 ? 'bg-yellow-500' : 'bg-green-500'
-                                    }`}
-                                    style={{ width: `${Math.min(utilization, 100)}%` }}
-                                  />
-                                </div>
-                                <Badge className={getUtilizationColor(utilization)}>
-                                  {utilization}%
-                                </Badge>
-                              </div>
+                    {filteredRows.map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell className="font-medium">{row.code}</TableCell>
+                        <TableCell>Row {row.row_number}</TableCell>
+                        <TableCell>
+                          {row.warehouse_zones ? (
+                            <div className="flex items-center space-x-2">
+                              <div 
+                                className="w-3 h-3 rounded-full" 
+                                style={{ backgroundColor: row.warehouse_zones.color }}
+                              />
+                              <span className="text-sm">{row.warehouse_zones.code}</span>
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            {row.companies ? (
-                              <div>
-                                <div className="text-sm font-medium">{row.companies.name}</div>
-                                <div className="text-xs text-muted-foreground">{row.companies.client_code}</div>
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground">Unassigned</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col space-y-1">
-                              <Badge variant={row.is_active ? "default" : "secondary"}>
-                                {row.is_active ? "Active" : "Inactive"}
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {row.companies ? (
+                            <div>
+                              <div className="text-sm font-medium">{row.companies.name}</div>
+                              <div className="text-xs text-muted-foreground">{row.companies.client_code}</div>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">Unassigned</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col space-y-1">
+                            <Badge variant={row.is_active ? "default" : "secondary"}>
+                              {row.is_active ? "Active" : "Inactive"}
+                            </Badge>
+                            {row.is_occupied && (
+                              <Badge variant="outline" className="text-xs">
+                                Occupied
                               </Badge>
-                              {row.is_occupied && (
-                                <Badge variant="outline" className="text-xs">
-                                  Occupied
-                                </Badge>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               )}
