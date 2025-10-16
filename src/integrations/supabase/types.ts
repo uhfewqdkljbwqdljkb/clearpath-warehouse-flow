@@ -251,61 +251,31 @@ export type Database = {
       }
       client_products: {
         Row: {
-          category: string | null
           company_id: string
           created_at: string | null
-          description: string | null
-          dimensions_height: number | null
-          dimensions_length: number | null
-          dimensions_width: number | null
           id: string
           is_active: boolean | null
           name: string
-          reorder_point: number | null
-          sku: string
-          storage_requirements: string | null
-          unit_price: number | null
           updated_at: string | null
           variants: Json | null
-          weight_lbs: number | null
         }
         Insert: {
-          category?: string | null
           company_id: string
           created_at?: string | null
-          description?: string | null
-          dimensions_height?: number | null
-          dimensions_length?: number | null
-          dimensions_width?: number | null
           id?: string
           is_active?: boolean | null
           name: string
-          reorder_point?: number | null
-          sku: string
-          storage_requirements?: string | null
-          unit_price?: number | null
           updated_at?: string | null
           variants?: Json | null
-          weight_lbs?: number | null
         }
         Update: {
-          category?: string | null
           company_id?: string
           created_at?: string | null
-          description?: string | null
-          dimensions_height?: number | null
-          dimensions_length?: number | null
-          dimensions_width?: number | null
           id?: string
           is_active?: boolean | null
           name?: string
-          reorder_point?: number | null
-          sku?: string
-          storage_requirements?: string | null
-          unit_price?: number | null
           updated_at?: string | null
           variants?: Json | null
-          weight_lbs?: number | null
         }
         Relationships: [
           {

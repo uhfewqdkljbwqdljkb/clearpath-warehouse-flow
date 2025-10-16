@@ -18,23 +18,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Package, TrendingUp, Box, DollarSign, Plus } from 'lucide-react';
+import { Search, Package, TrendingUp, Box, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ProductForm } from '@/components/ProductForm';
 
 interface Product {
   id: string;
-  sku: string;
   name: string;
-  description?: string;
-  category?: string;
-  unit_price?: number;
-  dimensions_length?: number;
-  dimensions_width?: number;
-  dimensions_height?: number;
-  weight_lbs?: number;
-  storage_requirements?: string;
+  variants?: any;
   is_active: boolean;
   company_id: string;
   companies?: {
@@ -100,15 +92,12 @@ export const Products: React.FC = () => {
   // Calculate metrics
   const totalProducts = products.length;
   const activeProducts = products.filter(p => p.is_active).length;
-  const totalValue = products.reduce((sum, p) => sum + (p.unit_price || 0), 0);
   const uniqueClients = new Set(products.map(p => p.company_id)).size;
 
   // Filter products
   const filteredProducts = products.filter(product => {
     const matchesSearch = 
       product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.companies?.name?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesClient = 
@@ -116,18 +105,6 @@ export const Products: React.FC = () => {
 
     return matchesSearch && matchesClient;
   });
-
-  const getCategoryColor = (category?: string) => {
-    if (!category) return 'bg-gray-100 text-gray-800';
-    const colors: Record<string, string> = {
-      electronics: 'bg-blue-100 text-blue-800',
-      apparel: 'bg-purple-100 text-purple-800',
-      'home & kitchen': 'bg-green-100 text-green-800',
-      automotive: 'bg-orange-100 text-orange-800',
-      beauty: 'bg-pink-100 text-pink-800',
-    };
-    return colors[category.toLowerCase()] || 'bg-gray-100 text-gray-800';
-  };
 
   return (
     <div className="space-y-6">
@@ -157,7 +134,7 @@ export const Products: React.FC = () => {
           </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Products</CardTitle>
@@ -184,18 +161,6 @@ export const Products: React.FC = () => {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Value</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${totalValue.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              Combined unit values
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Clients</CardTitle>
             <Box className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -213,7 +178,7 @@ export const Products: React.FC = () => {
         <div className="relative flex-1">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search products, SKU, category, or client..."
+            placeholder="Search products or client..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-8"
@@ -260,30 +225,16 @@ export const Products: React.FC = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>SKU</TableHead>
                     <TableHead>Product Name</TableHead>
                     <TableHead>Client</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Dimensions</TableHead>
-                    <TableHead>Weight</TableHead>
-                    <TableHead>Unit Price</TableHead>
+                    <TableHead>Variants</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredProducts.map((product) => (
                     <TableRow key={product.id}>
-                      <TableCell className="font-medium">{product.sku}</TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{product.name}</div>
-                          {product.description && (
-                            <div className="text-sm text-muted-foreground truncate max-w-xs">
-                              {product.description}
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
+                      <TableCell className="font-medium">{product.name}</TableCell>
                       <TableCell>
                         <div>
                           <div className="text-sm font-medium">
@@ -295,35 +246,12 @@ export const Products: React.FC = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {product.category ? (
-                          <Badge className={getCategoryColor(product.category)}>
-                            {product.category}
+                        {product.variants && Array.isArray(product.variants) && product.variants.length > 0 ? (
+                          <Badge variant="secondary">
+                            {product.variants.length} variant{product.variants.length > 1 ? 's' : ''}
                           </Badge>
                         ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {product.dimensions_length && product.dimensions_width && product.dimensions_height ? (
-                          <div className="text-sm">
-                            {product.dimensions_length}" × {product.dimensions_width}" × {product.dimensions_height}"
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {product.weight_lbs ? (
-                          <div className="text-sm">{product.weight_lbs} lbs</div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {product.unit_price ? (
-                          <div className="text-sm font-medium">${product.unit_price.toFixed(2)}</div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
+                          <span className="text-muted-foreground">No variants</span>
                         )}
                       </TableCell>
                       <TableCell>

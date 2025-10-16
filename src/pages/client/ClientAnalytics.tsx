@@ -52,8 +52,7 @@ export const ClientAnalytics: React.FC = () => {
           *,
           client_products!inner (
             id,
-            name,
-            sku
+            name
           )
         `)
         .eq('company_id', profile.company_id)
@@ -74,7 +73,7 @@ export const ClientAnalytics: React.FC = () => {
 
         return {
           id: item.client_products?.id || '',
-          sku: item.client_products?.sku || '',
+          sku: `PROD-${item.client_products?.id?.substring(0, 8) || 'UNKNOWN'}`,
           name: item.client_products?.name || '',
           totalQuantity: item.quantity,
           totalValue,

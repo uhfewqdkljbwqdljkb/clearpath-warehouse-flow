@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, Package, Warehouse, DollarSign } from 'lucide-react';
+import { Search, Package, Warehouse } from 'lucide-react';
 import { useInventorySync } from '@/hooks/useRealTimeSync';
 
 interface InventoryItem {
@@ -20,8 +20,6 @@ interface InventoryItem {
   movement_type?: string;
   client_products: {
     name: string;
-    sku: string;
-    unit_value?: number;
   };
 }
 
@@ -56,8 +54,7 @@ export const ClientInventory: React.FC = () => {
         .select(`
           *,
           client_products!inner (
-            name,
-            sku
+            name
           )
         `)
         .eq('company_id', profile.company_id)
@@ -75,17 +72,12 @@ export const ClientInventory: React.FC = () => {
 
   const filteredInventory = inventory.filter(item =>
     item.client_products.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.client_products.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (item.location_code && item.location_code.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   // Calculate summary stats
   const totalItems = filteredInventory.reduce((sum, item) => sum + item.quantity, 0);
-  const uniqueProducts = new Set(filteredInventory.map(item => item.client_products.sku)).size;
-  const totalValue = filteredInventory.reduce((sum, item) => {
-    const unitValue = item.client_products.unit_value || 0;
-    return sum + (item.quantity * unitValue);
-  }, 0);
+  const uniqueProducts = filteredInventory.length;
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
@@ -100,7 +92,7 @@ export const ClientInventory: React.FC = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Items</CardTitle>
@@ -123,19 +115,6 @@ export const ClientInventory: React.FC = () => {
             <div className="text-2xl font-bold">{uniqueProducts}</div>
             <p className="text-xs text-muted-foreground">
               Different product types
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Value</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">${totalValue.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              Current inventory value
             </p>
           </CardContent>
         </Card>
@@ -164,11 +143,8 @@ export const ClientInventory: React.FC = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Product</TableHead>
-                  <TableHead>SKU</TableHead>
                   <TableHead>Quantity</TableHead>
                   <TableHead>Location</TableHead>
-                  <TableHead>Unit Value</TableHead>
-                  <TableHead>Total Value</TableHead>
                   <TableHead>Last Movement</TableHead>
                 </TableRow>
               </TableHeader>
@@ -178,7 +154,6 @@ export const ClientInventory: React.FC = () => {
                     <TableCell className="font-medium">
                       {item.client_products.name}
                     </TableCell>
-                    <TableCell>{item.client_products.sku}</TableCell>
                     <TableCell>
                       <Badge variant="secondary">{item.quantity}</Badge>
                     </TableCell>
@@ -190,18 +165,6 @@ export const ClientInventory: React.FC = () => {
                       ) : (
                         <span className="text-muted-foreground">Not specified</span>
                       )}
-                    </TableCell>
-                    <TableCell>
-                      {item.client_products.unit_value 
-                        ? `$${item.client_products.unit_value}`
-                        : '-'
-                      }
-                    </TableCell>
-                    <TableCell>
-                      {item.client_products.unit_value
-                        ? `$${(item.quantity * item.client_products.unit_value).toLocaleString()}`
-                        : '-'
-                      }
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {item.last_movement_date 
