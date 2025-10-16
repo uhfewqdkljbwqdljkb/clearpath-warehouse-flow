@@ -540,26 +540,35 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
                   <FormField
                     control={form.control}
                     name="assigned_floor_zone_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Select Floor Zone</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Choose a floor zone" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {floorZones.map((zone) => (
-                              <SelectItem key={zone.id} value={zone.id}>
-                                {zone.code} - {zone.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      console.log('Floor zone field value:', field.value);
+                      return (
+                        <FormItem>
+                          <FormLabel>Select Floor Zone</FormLabel>
+                          <Select 
+                            onValueChange={(value) => {
+                              console.log('Floor zone selected:', value);
+                              field.onChange(value);
+                            }} 
+                            value={field.value || undefined}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Choose a floor zone" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent className="z-50 bg-popover">
+                              {floorZones.map((zone) => (
+                                <SelectItem key={zone.id} value={zone.id}>
+                                  {zone.code} - {zone.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
                 )}
 
@@ -567,26 +576,35 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
                   <FormField
                     control={form.control}
                     name="assigned_row_id"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Select Shelf Row</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Choose a shelf row" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {shelfRows.map((row) => (
-                              <SelectItem key={row.id} value={row.id}>
-                                {row.code} - Row {row.row_number}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      console.log('Shelf row field value:', field.value);
+                      return (
+                        <FormItem>
+                          <FormLabel>Select Shelf Row</FormLabel>
+                          <Select 
+                            onValueChange={(value) => {
+                              console.log('Shelf row selected:', value);
+                              field.onChange(value);
+                            }} 
+                            value={field.value || undefined}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Choose a shelf row" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent className="z-50 bg-popover">
+                              {shelfRows.map((row) => (
+                                <SelectItem key={row.id} value={row.id}>
+                                  {row.code} - Row {row.row_number}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
                 )}
               </CardContent>
