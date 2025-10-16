@@ -21,6 +21,7 @@ interface Variant {
 
 interface Product {
   name: string;
+  quantity: number;
   variants: Variant[];
 }
 
@@ -41,13 +42,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({ clients, onSuccess, on
 
   const [formData, setFormData] = useState<ProductFormData>({
     company_id: '',
-    products: [{ name: '', variants: [] }],
+    products: [{ name: '', quantity: 0, variants: [] }],
   });
 
   const addProduct = () => {
     setFormData({
       ...formData,
-      products: [...formData.products, { name: '', variants: [] }],
+      products: [...formData.products, { name: '', quantity: 0, variants: [] }],
     });
   };
 
@@ -69,6 +70,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({ clients, onSuccess, on
   const updateProductName = (productIndex: number, name: string) => {
     const updated = [...formData.products];
     updated[productIndex] = { ...updated[productIndex], name };
+    setFormData({ ...formData, products: updated });
+  };
+
+  const updateProductQuantity = (productIndex: number, quantity: number) => {
+    const updated = [...formData.products];
+    updated[productIndex] = { ...updated[productIndex], quantity };
     setFormData({ ...formData, products: updated });
   };
 
@@ -152,12 +159,19 @@ export const ProductForm: React.FC<ProductFormProps> = ({ clients, onSuccess, on
 
     setIsSubmitting(true);
     try {
-      const productsData = formData.products.map(product => ({
-        company_id: formData.company_id,
-        name: product.name,
-        variants: product.variants as any,
-        is_active: true,
-      }));
+      const productsData = formData.products.map(product => {
+        // If product has no variants, use the base quantity
+        const finalVariants = product.variants.length === 0 
+          ? [{ attribute: 'Standard', values: [{ value: 'Default', quantity: product.quantity }] }]
+          : product.variants;
+
+        return {
+          company_id: formData.company_id,
+          name: product.name,
+          variants: finalVariants as any,
+          is_active: true,
+        };
+      });
 
       const { error } = await supabase
         .from('client_products')
@@ -249,6 +263,25 @@ export const ProductForm: React.FC<ProductFormProps> = ({ clients, onSuccess, on
                     </Button>
                   )}
                 </div>
+
+                {/* Base Quantity (shown only when no variants) */}
+                {product.variants.length === 0 && (
+                  <div>
+                    <Label>Quantity *</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={product.quantity}
+                      onChange={(e) => updateProductQuantity(productIndex, parseInt(e.target.value) || 0)}
+                      placeholder="Enter quantity"
+                      className="mt-1"
+                      required
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Base quantity for this product (add variants below for multiple SKUs)
+                    </p>
+                  </div>
+                )}
 
                 {/* Variants for this product */}
                 <div className="space-y-3 pl-4 border-l-2">
