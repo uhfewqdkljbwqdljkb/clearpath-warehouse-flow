@@ -21,6 +21,9 @@ export interface Company {
   address: string | null;
   client_code: string | null;
   is_active: boolean;
+  location_type: 'floor_zone' | 'shelf_row' | null;
+  assigned_floor_zone_id: string | null;
+  assigned_row_id: string | null;
   created_at: string;
   updated_at: string;
 }
