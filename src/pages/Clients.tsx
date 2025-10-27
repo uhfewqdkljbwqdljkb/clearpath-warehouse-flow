@@ -11,7 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Search, Plus, MoreHorizontal, Building2, Users, DollarSign, Package, Eye, Pencil, Trash2, Key } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Building2, Users, DollarSign, Package, Eye, Pencil, Trash2, Key, FileText, Download } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -451,6 +451,19 @@ export const Clients: React.FC = () => {
     setShowCredentialsDialog(true);
   };
 
+  const handleViewContract = (client: Client) => {
+    const contractUrl = (client as any).contract_document_url;
+    if (contractUrl) {
+      window.open(contractUrl, '_blank');
+    } else {
+      toast({
+        title: "No Contract",
+        description: "This client doesn't have a contract document uploaded.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDeleteClient = async () => {
     if (!deletingClient) return;
 
@@ -643,6 +656,12 @@ export const Clients: React.FC = () => {
                               <Key className="h-4 w-4 mr-2" />
                               Manage Portal Access
                             </DropdownMenuItem>
+                            {(client as any).contract_document_url && (
+                              <DropdownMenuItem onClick={() => handleViewContract(client)}>
+                                <FileText className="h-4 w-4 mr-2" />
+                                View Contract
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem 
                               onClick={() => setDeletingClient(client)}

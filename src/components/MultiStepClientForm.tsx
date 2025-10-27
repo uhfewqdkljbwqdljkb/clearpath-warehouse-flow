@@ -139,6 +139,7 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
   const [shelfRows, setShelfRows] = useState<any[]>([]);
   const [loadingLocations, setLoadingLocations] = useState(true);
   const [contractFile, setContractFile] = useState<File | null>(null);
+  const [existingContractUrl, setExistingContractUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
   
@@ -164,6 +165,7 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
       billing_address: client.billing_address || '',
       contract_start_date: client.contract_start_date || '',
       contract_end_date: client.contract_end_date || '',
+      contract_document_url: (client as any).contract_document_url || '',
       is_active: client.is_active,
       location_type: client.location_type || undefined,
       assigned_floor_zone_id: client.assigned_floor_zone_id || undefined,
@@ -189,8 +191,14 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
     fetchWarehouseLocations();
     if (!client) {
       generateClientCode();
+    } else {
+      // Set existing contract URL when editing
+      const contractUrl = (client as any).contract_document_url;
+      if (contractUrl) {
+        setExistingContractUrl(contractUrl);
+      }
     }
-  }, []);
+  }, [client]);
 
   const generateClientCode = async () => {
     try {
@@ -292,7 +300,7 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
     setIsUploading(true);
     
     try {
-      let contractDocUrl = data.contract_document_url;
+      let contractDocUrl = existingContractUrl || data.contract_document_url;
       
       // Upload contract document if a new file is provided
       if (contractFile) {
@@ -703,55 +711,89 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
 
                 <div>
                   <label className="text-sm font-medium mb-2 block">Contract Document (PDF)</label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="file"
-                      accept="application/pdf"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          // Validate file
-                          if (file.type !== 'application/pdf') {
-                            toast({
-                              title: "Invalid File",
-                              description: "Only PDF files are allowed",
-                              variant: "destructive",
-                            });
-                            e.target.value = '';
-                            return;
-                          }
-                          if (file.size > 10 * 1024 * 1024) {
-                            toast({
-                              title: "File Too Large",
-                              description: "File must be less than 10MB",
-                              variant: "destructive",
-                            });
-                            e.target.value = '';
-                            return;
-                          }
-                          setContractFile(file);
-                        }
-                      }}
-                    />
-                    {contractFile && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setContractFile(null)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                  {contractFile && (
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Selected: {contractFile.name} ({(contractFile.size / 1024 / 1024).toFixed(2)} MB)
-                    </p>
+                  
+                  {existingContractUrl && !contractFile && (
+                    <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-green-600" />
+                          <span className="text-sm text-green-900 font-medium">Contract document uploaded</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => window.open(existingContractUrl, '_blank')}
+                          >
+                            View
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setExistingContractUrl(null)}
+                          >
+                            Replace
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
                   )}
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Max file size: 10MB, PDF only
-                  </p>
+                  
+                  {(!existingContractUrl || contractFile) && (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="file"
+                          accept="application/pdf"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              // Validate file
+                              if (file.type !== 'application/pdf') {
+                                toast({
+                                  title: "Invalid File",
+                                  description: "Only PDF files are allowed",
+                                  variant: "destructive",
+                                });
+                                e.target.value = '';
+                                return;
+                              }
+                              if (file.size > 10 * 1024 * 1024) {
+                                toast({
+                                  title: "File Too Large",
+                                  description: "File must be less than 10MB",
+                                  variant: "destructive",
+                                });
+                                e.target.value = '';
+                                return;
+                              }
+                              setContractFile(file);
+                            }
+                          }}
+                        />
+                        {contractFile && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setContractFile(null)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                      {contractFile && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          Selected: {contractFile.name} ({(contractFile.size / 1024 / 1024).toFixed(2)} MB)
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Max file size: 10MB, PDF only
+                      </p>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
