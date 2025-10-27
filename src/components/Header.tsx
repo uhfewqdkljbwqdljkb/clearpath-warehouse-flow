@@ -16,10 +16,7 @@ export const Header: React.FC = () => {
       {/* Right Side - Action Buttons */}
       <div className="flex items-center space-x-2">
         
-        <Button variant="outline" size="sm" className="text-gray-700 border-gray-300">
-          <Settings className="h-4 w-4 mr-2" />
-          Dashboard
-        </Button>
+        
         <Button variant="outline" size="sm" className="text-gray-700 border-gray-300 hover:bg-red-50 hover:text-red-700 hover:border-red-300" onClick={signOut}>
           <LogOut className="h-4 w-4 mr-2" />
           Logout
