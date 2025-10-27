@@ -725,9 +725,16 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
                             variant="ghost"
                             size="sm"
                             onClick={async () => {
+                              // Extract file path from URL if it's a full URL
+                              let contractPath = existingContractUrl;
+                              if (existingContractUrl.includes('/storage/v1/object/')) {
+                                const parts = existingContractUrl.split('/contract-documents/');
+                                contractPath = parts[1] || existingContractUrl;
+                              }
+                              
                               const { data, error } = await supabase.storage
                                 .from('contract-documents')
-                                .createSignedUrl(existingContractUrl, 3600);
+                                .createSignedUrl(contractPath, 3600);
                               
                               if (error || !data?.signedUrl) {
                                 toast({

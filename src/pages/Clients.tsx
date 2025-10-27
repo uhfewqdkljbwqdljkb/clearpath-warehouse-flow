@@ -453,9 +453,16 @@ export const Clients: React.FC = () => {
   };
 
   const handleViewContract = async (client: Client) => {
-    const contractPath = (client as any).contract_document_url;
-    if (contractPath) {
+    const contractUrl = (client as any).contract_document_url;
+    if (contractUrl) {
       try {
+        // Extract file path from URL if it's a full URL
+        let contractPath = contractUrl;
+        if (contractUrl.includes('/storage/v1/object/')) {
+          const parts = contractUrl.split('/contract-documents/');
+          contractPath = parts[1] || contractUrl;
+        }
+        
         const { data, error } = await supabase.storage
           .from('contract-documents')
           .createSignedUrl(contractPath, 3600); // URL valid for 1 hour
