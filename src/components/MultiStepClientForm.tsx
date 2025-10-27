@@ -284,6 +284,11 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
   };
 
   const handleSubmit = async (data: ClientFormData) => {
+    // Guard: prevent accidental submissions before final step
+    if (currentStep !== steps.length) {
+      return;
+    }
+
     setIsUploading(true);
     
     try {
@@ -425,7 +430,15 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
 
       {/* Form */}
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit, onInvalid)} className="space-y-6">
+        <form 
+          onSubmit={form.handleSubmit(handleSubmit, onInvalid)} 
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && currentStep !== steps.length) {
+              e.preventDefault();
+            }
+          }}
+          className="space-y-6"
+        >
           {/* Step 1: Company Information */}
           {currentStep === 1 && (
             <Card>
