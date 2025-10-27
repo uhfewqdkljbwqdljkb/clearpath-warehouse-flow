@@ -612,10 +612,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      generate_client_code: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      generate_client_code: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

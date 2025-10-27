@@ -373,16 +373,22 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
               const Icon = step.icon;
               const isCompleted = currentStep > step.id;
               const isCurrent = currentStep === step.id;
+              const canNavigate = isCompleted || isCurrent;
               
               return (
                 <div
                   key={step.id}
+                  onClick={() => {
+                    if (canNavigate) {
+                      setCurrentStep(step.id);
+                    }
+                  }}
                   className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
                     isCurrent
                       ? 'border-primary bg-primary/10'
                       : isCompleted
-                      ? 'border-green-500 bg-green-50'
-                      : 'border-gray-200 bg-gray-50'
+                      ? 'border-green-500 bg-green-50 cursor-pointer hover:bg-green-100'
+                      : 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60'
                   }`}
                 >
                   <div

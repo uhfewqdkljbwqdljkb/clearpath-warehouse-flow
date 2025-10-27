@@ -11,12 +11,13 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Search, Plus, MoreHorizontal, Building2, Users, DollarSign, Package, Eye, Pencil, Trash2 } from 'lucide-react';
+import { Search, Plus, MoreHorizontal, Building2, Users, DollarSign, Package, Eye, Pencil, Trash2, Key } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
@@ -30,6 +31,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Client } from '@/types';
 import { MultiStepClientForm } from '@/components/MultiStepClientForm';
+import { ClientCredentialsDialog } from '@/components/ClientCredentialsDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
@@ -42,6 +44,8 @@ export const Clients: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [clientMetrics, setClientMetrics] = useState<Record<string, { productCount: number; inventoryValue: number }>>({});
   const [deletingClient, setDeletingClient] = useState<Client | null>(null);
+  const [credentialsClient, setCredentialsClient] = useState<Client | null>(null);
+  const [showCredentialsDialog, setShowCredentialsDialog] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -442,6 +446,11 @@ export const Clients: React.FC = () => {
     navigate(`/dashboard/clients/${client.id}/products`);
   };
 
+  const handleManageCredentials = (client: Client) => {
+    setCredentialsClient(client);
+    setShowCredentialsDialog(true);
+  };
+
   const handleDeleteClient = async () => {
     if (!deletingClient) return;
 
@@ -630,6 +639,11 @@ export const Clients: React.FC = () => {
                               <Pencil className="h-4 w-4 mr-2" />
                               Edit Client
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleManageCredentials(client)}>
+                              <Key className="h-4 w-4 mr-2" />
+                              Manage Portal Access
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
                             <DropdownMenuItem 
                               onClick={() => setDeletingClient(client)}
                               className="text-destructive"
@@ -666,6 +680,12 @@ export const Clients: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ClientCredentialsDialog
+        client={credentialsClient}
+        open={showCredentialsDialog}
+        onOpenChange={setShowCredentialsDialog}
+      />
     </div>
   );
 };
