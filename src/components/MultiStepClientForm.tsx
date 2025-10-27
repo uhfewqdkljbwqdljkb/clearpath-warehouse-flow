@@ -378,7 +378,9 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
               return (
                 <div
                   key={step.id}
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     if (canNavigate) {
                       setCurrentStep(step.id);
                     }
