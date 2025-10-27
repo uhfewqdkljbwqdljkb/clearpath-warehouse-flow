@@ -87,6 +87,7 @@ export const Clients: React.FC = () => {
         billing_address: company.billing_address || company.address || '',
         contract_start_date: company.contract_start_date || new Date().toISOString(),
         contract_end_date: company.contract_end_date || new Date(Date.now() + 365*24*60*60*1000).toISOString(),
+        contract_document_url: company.contract_document_url || null,
         storage_plan: 'basic',
         max_storage_cubic_feet: 0,
         monthly_fee: 0,
@@ -96,7 +97,7 @@ export const Clients: React.FC = () => {
         assigned_row_id: company.assigned_row_id,
         created_at: company.created_at,
         updated_at: company.updated_at,
-      })) || [];
+      } as any)) || [];
 
       setClients(clientsData);
     } catch (error) {
