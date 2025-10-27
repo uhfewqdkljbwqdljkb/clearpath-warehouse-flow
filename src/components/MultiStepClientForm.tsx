@@ -37,7 +37,7 @@ import {
 import { Client } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { uploadContractDocument } from '@/utils/fileUpload';
+import { uploadContractDocument, getContractDocumentUrl } from '@/utils/fileUpload';
 
 const clientSchema = z.object({
   client_code: z.string().min(1, 'Client code is required'),
@@ -724,7 +724,22 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
                             type="button"
                             variant="ghost"
                             size="sm"
-                            onClick={() => window.open(existingContractUrl, '_blank')}
+                            onClick={async () => {
+                              const { data, error } = await supabase.storage
+                                .from('contract-documents')
+                                .createSignedUrl(existingContractUrl, 3600);
+                              
+                              if (error || !data?.signedUrl) {
+                                toast({
+                                  title: "Error",
+                                  description: "Failed to generate contract URL",
+                                  variant: "destructive",
+                                });
+                                return;
+                              }
+                              
+                              window.open(data.signedUrl, '_blank');
+                            }}
                           >
                             View
                           </Button>

@@ -452,10 +452,35 @@ export const Clients: React.FC = () => {
     setShowCredentialsDialog(true);
   };
 
-  const handleViewContract = (client: Client) => {
-    const contractUrl = (client as any).contract_document_url;
-    if (contractUrl) {
-      window.open(contractUrl, '_blank');
+  const handleViewContract = async (client: Client) => {
+    const contractPath = (client as any).contract_document_url;
+    if (contractPath) {
+      try {
+        const { data, error } = await supabase.storage
+          .from('contract-documents')
+          .createSignedUrl(contractPath, 3600); // URL valid for 1 hour
+
+        if (error) {
+          console.error('Error creating signed URL:', error);
+          toast({
+            title: "Error",
+            description: "Failed to generate contract URL",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (data?.signedUrl) {
+          window.open(data.signedUrl, '_blank');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        toast({
+          title: "Error",
+          description: "Failed to open contract document",
+          variant: "destructive",
+        });
+      }
     } else {
       toast({
         title: "No Contract",

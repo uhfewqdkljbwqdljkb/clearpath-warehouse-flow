@@ -31,7 +31,7 @@ export const generateUniqueFilename = (originalFilename: string): string => {
 export const uploadContractDocument = async (
   file: File,
   companyId: string
-): Promise<{ success: boolean; url?: string; error?: string }> => {
+): Promise<{ success: boolean; url?: string; path?: string; error?: string }> => {
   try {
     // Validate file
     const validation = validateFile(file);
@@ -56,14 +56,28 @@ export const uploadContractDocument = async (
       return { success: false, error: error.message };
     }
 
-    // Get the public URL (or signed URL for private buckets)
-    const { data: { publicUrl } } = supabase.storage
-      .from('contract-documents')
-      .getPublicUrl(filePath);
-
-    return { success: true, url: publicUrl };
+    // Store the file path (we'll generate signed URLs when needed)
+    return { success: true, path: filePath, url: filePath };
   } catch (error: any) {
     console.error('Upload error:', error);
     return { success: false, error: error.message || 'Failed to upload file' };
+  }
+};
+
+export const getContractDocumentUrl = async (filePath: string): Promise<string | null> => {
+  try {
+    const { data, error } = await supabase.storage
+      .from('contract-documents')
+      .createSignedUrl(filePath, 3600); // URL valid for 1 hour
+
+    if (error) {
+      console.error('Error creating signed URL:', error);
+      return null;
+    }
+
+    return data.signedUrl;
+  } catch (error) {
+    console.error('Error:', error);
+    return null;
   }
 };
