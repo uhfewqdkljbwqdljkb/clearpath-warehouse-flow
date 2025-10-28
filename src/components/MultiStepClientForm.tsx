@@ -50,7 +50,6 @@ const clientSchema = z.object({
   contract_end_date: z.string().optional(),
   contract_document_url: z.string().optional(),
   is_active: z.boolean(),
-  location_type: z.enum(['floor_zone', 'shelf_row']).optional(),
   assigned_floor_zone_id: z.string().optional(),
   assigned_row_id: z.string().optional(),
   // Client Portal Credentials (optional)
@@ -58,16 +57,14 @@ const clientSchema = z.object({
   client_user_email: z.string().email('Valid email required').optional().or(z.literal('')),
   client_user_password: z.string().min(8, 'Password must be at least 8 characters').optional().or(z.literal('')),
 }).refine((data) => {
-  if (data.location_type === 'floor_zone' && !data.assigned_floor_zone_id) {
-    return false;
-  }
-  if (data.location_type === 'shelf_row' && !data.assigned_row_id) {
+  // At least one location must be selected
+  if (!data.assigned_floor_zone_id && !data.assigned_row_id) {
     return false;
   }
   return true;
 }, {
-  message: "Please select a location",
-  path: ["location_type"],
+  message: "Please select at least one warehouse location (floor zone or shelf row)",
+  path: ["assigned_floor_zone_id"],
 }).refine((data) => {
   // If contract end date is provided, it must be after start date
   if (data.contract_start_date && data.contract_end_date) {
@@ -167,12 +164,11 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
       contract_end_date: client.contract_end_date || '',
       contract_document_url: (client as any).contract_document_url || '',
       is_active: client.is_active,
-      location_type: client.location_type || undefined,
       assigned_floor_zone_id: client.assigned_floor_zone_id || undefined,
+      assigned_row_id: client.assigned_row_id || undefined,
       create_portal_access: false,
       client_user_email: '',
       client_user_password: '',
-      assigned_row_id: client.assigned_row_id || undefined,
     } : {
       client_code: '',
       company_name: '',
@@ -276,10 +272,8 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
       case 1:
         return ['client_code', 'company_name'];
       case 2:
-        const lt = form.getValues('location_type');
-        if (lt === 'floor_zone') return ['location_type', 'assigned_floor_zone_id'];
-        if (lt === 'shelf_row') return ['location_type', 'assigned_row_id'];
-        return [];
+        // Validate that at least one location is selected
+        return ['assigned_floor_zone_id'];
       case 3:
         return ['contract_start_date', 'contract_end_date']; // Validate dates if provided
       case 4:
@@ -330,12 +324,24 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
         contract_document_url: contractDocUrl,
       };
       
-      // Ensure only the relevant assignment is set
-      if (submissionData.location_type === 'floor_zone') {
-        submissionData.assigned_row_id = null;
-      } else if (submissionData.location_type === 'shelf_row') {
+      // Determine location_type based on what's assigned
+      let locationType = null;
+      if (submissionData.assigned_floor_zone_id === 'none') {
         submissionData.assigned_floor_zone_id = null;
       }
+      if (submissionData.assigned_row_id === 'none') {
+        submissionData.assigned_row_id = null;
+      }
+      
+      if (submissionData.assigned_floor_zone_id && submissionData.assigned_row_id) {
+        locationType = 'floor_zone'; // Both assigned
+      } else if (submissionData.assigned_floor_zone_id) {
+        locationType = 'floor_zone';
+      } else if (submissionData.assigned_row_id) {
+        locationType = 'shelf_row';
+      }
+      
+      submissionData.location_type = locationType;
       
       onSubmit(submissionData);
     } catch (error: any) {
@@ -534,124 +540,92 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
             <Card>
               <CardHeader>
                 <CardTitle>Warehouse Location Assignment</CardTitle>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Select one or both storage locations for this client
+                </p>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
                 <FormField
                   control={form.control}
-                  name="location_type"
-                  render={({ field }) => (
-                    <FormItem className="space-y-3">
-                      <FormLabel>Location Type</FormLabel>
-                      <FormControl>
-                        <RadioGroup
-                          onValueChange={(val) => {
-                            // Clear previous assignment when switching type
-                            if (val === 'floor_zone') {
-                              form.setValue('assigned_row_id', undefined);
-                            } else if (val === 'shelf_row') {
-                              form.setValue('assigned_floor_zone_id', undefined);
-                            }
-                            field.onChange(val);
-                          }}
-                          value={field.value}
-                          className="grid grid-cols-2 gap-4"
+                  name="assigned_floor_zone_id"
+                  render={({ field }) => {
+                    console.log('Floor zone field value:', field.value);
+                    return (
+                      <FormItem>
+                        <FormLabel>Floor Zone (Optional)</FormLabel>
+                        <FormDescription>
+                          Assign a dedicated floor zone for exclusive storage
+                        </FormDescription>
+                        <Select 
+                          onValueChange={(value) => {
+                            console.log('Floor zone selected:', value);
+                            field.onChange(value);
+                          }} 
+                          value={field.value || undefined}
                         >
-                          <div className="flex items-center space-x-2 border rounded-lg p-4 cursor-pointer hover:bg-accent">
-                            <RadioGroupItem value="floor_zone" id="floor" />
-                            <label htmlFor="floor" className="flex-1 cursor-pointer">
-                              <div className="font-medium">Dedicated Floor Zone</div>
-                              <div className="text-sm text-muted-foreground">
-                                Exclusive warehouse zone
-                              </div>
-                            </label>
-                          </div>
-                          <div className="flex items-center space-x-2 border rounded-lg p-4 cursor-pointer hover:bg-accent">
-                            <RadioGroupItem value="shelf_row" id="shelf" />
-                            <label htmlFor="shelf" className="flex-1 cursor-pointer">
-                              <div className="font-medium">Shared Shelf Row</div>
-                              <div className="text-sm text-muted-foreground">
-                                Assigned shelf row
-                              </div>
-                            </label>
-                          </div>
-                        </RadioGroup>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Choose a floor zone (optional)" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent className="z-50 bg-popover">
+                            <SelectItem value="none">None</SelectItem>
+                            {floorZones.map((zone) => (
+                              <SelectItem key={zone.id} value={zone.id}>
+                                {zone.code} - {zone.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
 
-                {form.watch('location_type') === 'floor_zone' && (
-                  <FormField
-                    control={form.control}
-                    name="assigned_floor_zone_id"
-                    render={({ field }) => {
-                      console.log('Floor zone field value:', field.value);
-                      return (
-                        <FormItem>
-                          <FormLabel>Select Floor Zone</FormLabel>
-                          <Select 
-                            onValueChange={(value) => {
-                              console.log('Floor zone selected:', value);
-                              field.onChange(value);
-                            }} 
-                            value={field.value || undefined}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Choose a floor zone" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent className="z-50 bg-popover">
-                              {floorZones.map((zone) => (
-                                <SelectItem key={zone.id} value={zone.id}>
-                                  {zone.code} - {zone.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      );
-                    }}
-                  />
-                )}
+                <FormField
+                  control={form.control}
+                  name="assigned_row_id"
+                  render={({ field }) => {
+                    console.log('Shelf row field value:', field.value);
+                    return (
+                      <FormItem>
+                        <FormLabel>Shelf Row (Optional)</FormLabel>
+                        <FormDescription>
+                          Assign a specific shelf row for organized storage
+                        </FormDescription>
+                        <Select 
+                          onValueChange={(value) => {
+                            console.log('Shelf row selected:', value);
+                            field.onChange(value);
+                          }} 
+                          value={field.value || undefined}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Choose a shelf row (optional)" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent className="z-50 bg-popover">
+                            <SelectItem value="none">None</SelectItem>
+                            {shelfRows.map((row) => (
+                              <SelectItem key={row.id} value={row.id}>
+                                {row.code} - Row {row.row_number}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
+                />
 
-                {form.watch('location_type') === 'shelf_row' && (
-                  <FormField
-                    control={form.control}
-                    name="assigned_row_id"
-                    render={({ field }) => {
-                      console.log('Shelf row field value:', field.value);
-                      return (
-                        <FormItem>
-                          <FormLabel>Select Shelf Row</FormLabel>
-                          <Select 
-                            onValueChange={(value) => {
-                              console.log('Shelf row selected:', value);
-                              field.onChange(value);
-                            }} 
-                            value={field.value || undefined}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Choose a shelf row" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent className="z-50 bg-popover">
-                              {shelfRows.map((row) => (
-                                <SelectItem key={row.id} value={row.id}>
-                                  {row.code} - Row {row.row_number}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      );
-                    }}
-                  />
-                )}
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    💡 <strong>Note:</strong> You can assign both a floor zone and a shelf row, only one, or change them later. At least one location must be selected.
+                  </p>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -951,14 +925,26 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
                   </div>
                 </div>
 
-                {formData.location_type && (
+                {(formData.assigned_floor_zone_id || formData.assigned_row_id) && (
                   <div>
                     <h3 className="font-semibold mb-3">Warehouse Assignment</h3>
-                    <div className="text-sm">
-                      <span className="text-muted-foreground">Location Type:</span>
-                      <Badge className="ml-2">
-                        {formData.location_type === 'floor_zone' ? 'Dedicated Floor Zone' : 'Shared Shelf Row'}
-                      </Badge>
+                    <div className="space-y-2 text-sm">
+                      {formData.assigned_floor_zone_id && formData.assigned_floor_zone_id !== 'none' && (
+                        <div>
+                          <span className="text-muted-foreground">Floor Zone:</span>
+                          <Badge className="ml-2">
+                            {floorZones.find(z => z.id === formData.assigned_floor_zone_id)?.name || 'Selected'}
+                          </Badge>
+                        </div>
+                      )}
+                      {formData.assigned_row_id && formData.assigned_row_id !== 'none' && (
+                        <div>
+                          <span className="text-muted-foreground">Shelf Row:</span>
+                          <Badge className="ml-2">
+                            {shelfRows.find(r => r.id === formData.assigned_row_id)?.row_number || 'Selected'}
+                          </Badge>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
