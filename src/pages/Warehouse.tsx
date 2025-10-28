@@ -75,8 +75,14 @@ export const Warehouse: React.FC = () => {
             name,
             client_code
           )
-        `)
-        .order('row_number');
+        `);
+      
+      // Sort numerically on client side
+      const sortedRows = (rowsData || []).sort((a, b) => {
+        const numA = parseInt(a.row_number) || 0;
+        const numB = parseInt(b.row_number) || 0;
+        return numA - numB;
+      });
 
       if (rowsError) throw rowsError;
 
@@ -95,7 +101,7 @@ export const Warehouse: React.FC = () => {
       if (allocationsError) throw allocationsError;
 
       setZones(zonesData || []);
-      setRows(rowsData || []);
+      setRows(sortedRows);
     } catch (error) {
       console.error('Error fetching warehouse data:', error);
       toast({
