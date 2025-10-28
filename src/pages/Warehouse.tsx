@@ -194,10 +194,16 @@ export const Warehouse: React.FC = () => {
     zone.code?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const filteredRows = rows.filter(row =>
-    row.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    row.row_number?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredRows = rows
+    .filter(row =>
+      row.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      row.row_number?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => {
+      const numA = parseInt(a.row_number) || 0;
+      const numB = parseInt(b.row_number) || 0;
+      return numA - numB;
+    });
 
 
   return (
