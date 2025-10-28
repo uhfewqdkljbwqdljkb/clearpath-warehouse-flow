@@ -70,13 +70,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   end={item.path === '/dashboard'}
                   className={({ isActive }) => 
                     `flex items-center px-3 py-2 text-xs font-medium rounded-[8px] transition-colors ${
-                      isActive ? 'text-gray-600 hover:text-gray-800' : 'text-gray-600 hover:text-gray-800'
+                      isActive 
+                        ? 'bg-primary text-primary-foreground hover:bg-primary/90' 
+                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                     }`
-                  } 
-                  style={({ isActive }) => ({
-                    backgroundColor: isActive ? '#00FF4DCC' : 'transparent',
-                    color: isActive ? 'white' : undefined
-                  })}
+                  }
                 >
                   <Icon className={`${isCollapsed ? 'mx-auto' : 'mr-2'} h-4 w-4 flex-shrink-0`} />
                   {!isCollapsed && <span>{item.name}</span>}
