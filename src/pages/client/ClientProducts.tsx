@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, Plus, Package, MoreVertical } from 'lucide-react';
+import { Search, Plus, Package, MoreVertical, X } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import {
   DropdownMenu,
@@ -33,6 +34,16 @@ interface Product {
   created_at: string;
 }
 
+interface VariantValue {
+  value: string;
+  quantity: number;
+}
+
+interface Variant {
+  attribute: string;
+  values: VariantValue[];
+}
+
 export const ClientProducts: React.FC = () => {
   const { profile } = useAuth();
   const { logActivity } = useIntegration();
@@ -44,6 +55,8 @@ export const ClientProducts: React.FC = () => {
   const [productName, setProductName] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [variants, setVariants] = useState<Variant[]>([]);
+  const [quantity, setQuantity] = useState(0);
 
   useEffect(() => {
     if (profile?.company_id) {
@@ -93,6 +106,50 @@ export const ClientProducts: React.FC = () => {
     }, 0);
   };
 
+  const addVariant = () => {
+    setVariants([...variants, { attribute: '', values: [{ value: '', quantity: 0 }] }]);
+  };
+
+  const removeVariant = (index: number) => {
+    setVariants(variants.filter((_, i) => i !== index));
+  };
+
+  const updateVariant = (index: number, field: string, value: any) => {
+    const updated = [...variants];
+    updated[index] = { ...updated[index], [field]: value };
+    setVariants(updated);
+  };
+
+  const addValueToVariant = (variantIndex: number) => {
+    const updated = [...variants];
+    updated[variantIndex].values.push({ value: '', quantity: 0 });
+    setVariants(updated);
+  };
+
+  const removeValueFromVariant = (variantIndex: number, valueIndex: number) => {
+    const updated = [...variants];
+    updated[variantIndex].values = updated[variantIndex].values.filter((_, i) => i !== valueIndex);
+    setVariants(updated);
+  };
+
+  const updateVariantValue = (variantIndex: number, valueIndex: number, field: string, value: any) => {
+    const updated = [...variants];
+    updated[variantIndex].values[valueIndex] = {
+      ...updated[variantIndex].values[valueIndex],
+      [field]: value
+    };
+    setVariants(updated);
+  };
+
+  const calculateTotalQuantity = () => {
+    if (variants.length > 0) {
+      return variants.reduce((sum, variant) => 
+        sum + variant.values.reduce((vSum, val) => vSum + (val.quantity || 0), 0), 0
+      );
+    }
+    return quantity;
+  };
+
   const handleAddProduct = async () => {
     if (!productName.trim()) {
       toast({
@@ -109,12 +166,12 @@ export const ClientProducts: React.FC = () => {
     try {
       const { error } = await supabase
         .from('client_products')
-        .insert({
+        .insert([{
           company_id: profile.company_id,
           name: productName,
           is_active: isActive,
-          variants: [],
-        });
+          variants: variants as any,
+        }]);
 
       if (error) throw error;
 
@@ -123,9 +180,7 @@ export const ClientProducts: React.FC = () => {
         description: "Product added successfully",
       });
 
-      setIsDialogOpen(false);
-      setProductName('');
-      setIsActive(true);
+      resetForm();
       fetchProducts();
 
       logActivity('product_created', 'User created a new product', {
@@ -141,6 +196,14 @@ export const ClientProducts: React.FC = () => {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const resetForm = () => {
+    setIsDialogOpen(false);
+    setProductName('');
+    setIsActive(true);
+    setVariants([]);
+    setQuantity(0);
   };
 
   if (isLoading) {
@@ -260,11 +323,11 @@ export const ClientProducts: React.FC = () => {
 
       {/* Add Product Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Product</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-6 py-4">
             <div className="space-y-2">
               <Label htmlFor="productName">Product Name *</Label>
               <Input
@@ -274,6 +337,118 @@ export const ClientProducts: React.FC = () => {
                 onChange={(e) => setProductName(e.target.value)}
               />
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="quantity">
+                Total Quantity
+                {variants.length > 0 && (
+                  <span className="text-xs text-muted-foreground ml-2">(Auto-calculated from variants)</span>
+                )}
+              </Label>
+              <Input
+                id="quantity"
+                type="number"
+                min="0"
+                value={variants.length > 0 ? calculateTotalQuantity() : quantity}
+                onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
+                placeholder="Enter quantity"
+                disabled={variants.length > 0}
+                className={variants.length > 0 ? 'bg-muted cursor-not-allowed' : ''}
+              />
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Variants</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addVariant}
+                >
+                  Add Variant
+                </Button>
+              </div>
+
+              {variants.map((variant, variantIndex) => (
+                <div key={variantIndex} className="border rounded-lg p-4 space-y-3 bg-muted/30">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex-1">
+                      <Label className="text-xs text-muted-foreground block mb-1">
+                        Attribute Name
+                      </Label>
+                      <Input
+                        value={variant.attribute}
+                        onChange={(e) => updateVariant(variantIndex, 'attribute', e.target.value)}
+                        placeholder="e.g., Color, Size, Material"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeVariant(variantIndex)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2 pl-3 border-l-2">
+                    <Label className="text-xs text-muted-foreground">Values</Label>
+                    {variant.values.map((val, valueIndex) => (
+                      <div key={valueIndex} className="flex gap-2 items-center">
+                        <Input
+                          value={val.value}
+                          onChange={(e) => updateVariantValue(variantIndex, valueIndex, 'value', e.target.value)}
+                          placeholder="e.g., Red, Large"
+                          className="flex-1"
+                        />
+                        <Input
+                          type="number"
+                          min="0"
+                          value={val.quantity}
+                          onChange={(e) => updateVariantValue(variantIndex, valueIndex, 'quantity', parseInt(e.target.value) || 0)}
+                          placeholder="Qty"
+                          className="w-24"
+                        />
+                        {variant.values.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeValueFromVariant(variantIndex, valueIndex)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => addValueToVariant(variantIndex)}
+                      className="w-full"
+                    >
+                      + Add Value
+                    </Button>
+                  </div>
+                </div>
+              ))}
+
+              {variants.length === 0 && (
+                <p className="text-xs text-muted-foreground pl-4">
+                  No variants added. Add variants to group values by attribute (e.g., Color with Red, Blue, Green).
+                </p>
+              )}
+            </div>
+
+            <div className="bg-muted/50 p-3 rounded-lg">
+              <p className="text-xs text-muted-foreground">
+                💡 <strong>Tip:</strong> For products with variants, add an attribute (e.g., "Color"), then add multiple values (Red: 5, Blue: 3). Total quantity auto-calculates from all variant values.
+              </p>
+            </div>
+
             <div className="flex items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
                 <Label className="text-base">Active Product</Label>
@@ -290,11 +465,7 @@ export const ClientProducts: React.FC = () => {
           <div className="flex gap-3">
             <Button
               variant="outline"
-              onClick={() => {
-                setIsDialogOpen(false);
-                setProductName('');
-                setIsActive(true);
-              }}
+              onClick={resetForm}
             >
               Cancel
             </Button>
