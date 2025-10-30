@@ -18,11 +18,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Package, TrendingUp, Box, Plus, ArrowLeft } from 'lucide-react';
+import { Search, Package, TrendingUp, Box, Plus, ArrowLeft, Upload } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ProductForm } from '@/components/ProductForm';
 import { useParams, useNavigate } from 'react-router-dom';
+import { ProductImportDialog } from '@/components/ProductImportDialog';
 
 interface Product {
   id: string;
@@ -45,6 +46,7 @@ export const Products: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClient, setSelectedClient] = useState<string>('all');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
   const { toast } = useToast();
   const { clientId } = useParams();
   const navigate = useNavigate();
@@ -161,10 +163,18 @@ export const Products: React.FC = () => {
                 </div>
               </div>
             </div>
-            <Button onClick={() => setShowAddForm(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Product
-            </Button>
+            <div className="flex gap-2">
+              {clientId && selectedClientInfo && (
+                <Button variant="outline" onClick={() => setShowImportDialog(true)}>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import Products
+                </Button>
+              )}
+              <Button onClick={() => setShowAddForm(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Product
+              </Button>
+            </div>
           </div>
 
       {/* Summary Cards */}
@@ -313,6 +323,17 @@ export const Products: React.FC = () => {
         </CardContent>
       </Card>
         </>
+      )}
+
+      {clientId && selectedClientInfo && (
+        <ProductImportDialog
+          open={showImportDialog}
+          onOpenChange={setShowImportDialog}
+          clientId={clientId}
+          clientName={selectedClientInfo.name}
+          clientCode={selectedClientInfo.client_code || ''}
+          onImportComplete={fetchData}
+        />
       )}
     </div>
   );
