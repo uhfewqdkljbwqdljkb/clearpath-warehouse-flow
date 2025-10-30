@@ -26,6 +26,8 @@ import { ClientAnalytics } from "@/pages/client/ClientAnalytics";
 import { ClientMessages } from "@/pages/client/ClientMessages";
 import { ClientProfile } from "@/pages/client/ClientProfile";
 import { RealTimeNotifications } from "@/components/RealTimeNotifications";
+import AIAssistant from "@/pages/AIAssistant";
+import ClientAIAssistant from "@/pages/client/ClientAIAssistant";
 
 const queryClient = new QueryClient();
 
@@ -120,6 +122,7 @@ const App = () => {
                 } />
                 <Route path="clients/:clientId/products" element={<Products />} />
                 <Route path="products" element={<Products />} />
+                <Route path="ai-assistant" element={<AIAssistant />} />
               </Route>
 
               {/* Client login route */}
@@ -138,6 +141,7 @@ const App = () => {
               <Route path="analytics" element={<ClientAnalytics />} />
               <Route path="messages" element={<ClientMessages />} />
               <Route path="profile" element={<ClientProfile />} />
+              <Route path="ai-assistant" element={<ClientAIAssistant />} />
               </Route>
               
               {/* Redirect root to appropriate dashboard */}

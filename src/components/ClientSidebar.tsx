@@ -11,7 +11,8 @@ import {
   MessageSquare,
   Building2,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Sparkles
 } from 'lucide-react';
 
 interface ClientSidebarProps {
@@ -52,6 +53,11 @@ export const ClientSidebar: React.FC<ClientSidebarProps> = ({ isCollapsed, onTog
       name: 'Messages',
       path: '/client/messages',
       icon: MessageSquare
+    },
+    {
+      name: 'AI Assistant',
+      path: '/client/ai-assistant',
+      icon: Sparkles
     },
     {
       name: 'Profile',
