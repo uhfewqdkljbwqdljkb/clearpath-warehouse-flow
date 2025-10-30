@@ -49,6 +49,129 @@ export type Database = {
           },
         ]
       }
+      ai_actions: {
+        Row: {
+          action_data: Json
+          action_type: string
+          created_at: string
+          executed_at: string | null
+          executed_by: string | null
+          id: string
+          message_id: string | null
+          status: string | null
+          table_name: string
+        }
+        Insert: {
+          action_data: Json
+          action_type: string
+          created_at?: string
+          executed_at?: string | null
+          executed_by?: string | null
+          id?: string
+          message_id?: string | null
+          status?: string | null
+          table_name: string
+        }
+        Update: {
+          action_data?: Json
+          action_type?: string
+          created_at?: string
+          executed_at?: string | null
+          executed_by?: string | null
+          id?: string
+          message_id?: string | null
+          status?: string | null
+          table_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_actions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "ai_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_conversations: {
+        Row: {
+          company_id: string | null
+          context_type: string | null
+          conversation_title: string | null
+          created_at: string
+          id: string
+          is_active: boolean | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          context_type?: string | null
+          conversation_title?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string | null
+          context_type?: string | null
+          conversation_title?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_conversations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          reasoning_content: string | null
+          role: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          reasoning_content?: string | null
+          role: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          reasoning_content?: string | null
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_activity_logs: {
         Row: {
           activity_description: string
