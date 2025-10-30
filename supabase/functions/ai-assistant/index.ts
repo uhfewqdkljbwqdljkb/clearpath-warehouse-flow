@@ -134,6 +134,20 @@ Be helpful, clear, and focused on ${company?.name}'s needs.`;
     if (!response.ok) {
       const errorText = await response.text();
       console.error('DeepSeek API error:', response.status, errorText);
+      
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Insufficient Balance',
+            message: 'Your DeepSeek account needs to be topped up. Please add credits at https://platform.deepseek.com'
+          }),
+          {
+            status: 402,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+      
       throw new Error(`DeepSeek API error: ${response.status}`);
     }
 

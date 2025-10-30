@@ -130,8 +130,18 @@ export function useAIChat({ conversationId: initialConversationId, context = 'ge
         }
       );
 
-      if (!response.ok || !response.body) {
-        throw new Error('Failed to get AI response');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        
+        if (response.status === 402) {
+          throw new Error(errorData.message || 'DeepSeek API account needs to be topped up with credits. Please add funds at https://platform.deepseek.com');
+        }
+        
+        throw new Error(errorData.error || 'Failed to get AI response');
+      }
+      
+      if (!response.body) {
+        throw new Error('No response body from AI');
       }
 
       // Stream response
