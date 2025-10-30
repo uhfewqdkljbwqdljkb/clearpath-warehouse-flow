@@ -18,10 +18,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Package, TrendingUp, Box, Plus } from 'lucide-react';
+import { Search, Package, TrendingUp, Box, Plus, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ProductForm } from '@/components/ProductForm';
+import { useParams, useNavigate } from 'react-router-dom';
 
 interface Product {
   id: string;
@@ -45,10 +46,19 @@ export const Products: React.FC = () => {
   const [selectedClient, setSelectedClient] = useState<string>('all');
   const [showAddForm, setShowAddForm] = useState(false);
   const { toast } = useToast();
+  const { clientId } = useParams();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    // Auto-select client if clientId is in URL
+    if (clientId) {
+      setSelectedClient(clientId);
+    }
+  }, [clientId]);
 
   const fetchData = async () => {
     try {
@@ -107,6 +117,8 @@ export const Products: React.FC = () => {
     return matchesSearch && matchesClient;
   });
 
+  const selectedClientInfo = clients.find(c => c.id === clientId);
+
   return (
     <div className="space-y-6">
       {showAddForm ? (
@@ -123,10 +135,31 @@ export const Products: React.FC = () => {
           {/* Header */}
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">Product Catalog</h1>
-              <p className="text-muted-foreground">
-                Manage products across all clients
-              </p>
+              <div className="flex items-center gap-2">
+                {clientId && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => navigate('/dashboard/clients')}
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                )}
+                <div>
+                  <h1 className="text-2xl font-bold tracking-tight">
+                    {clientId && selectedClientInfo 
+                      ? `${selectedClientInfo.name} - Products`
+                      : 'Product Catalog'
+                    }
+                  </h1>
+                  <p className="text-muted-foreground">
+                    {clientId && selectedClientInfo
+                      ? `Viewing products for ${selectedClientInfo.client_code}`
+                      : 'Manage products across all clients'
+                    }
+                  </p>
+                </div>
+              </div>
             </div>
             <Button onClick={() => setShowAddForm(true)}>
               <Plus className="h-4 w-4 mr-2" />
