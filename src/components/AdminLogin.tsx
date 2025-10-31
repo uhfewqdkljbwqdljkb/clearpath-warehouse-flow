@@ -10,11 +10,8 @@ export const AdminLogin: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [fullName, setFullName] = useState('');
   const {
     signIn,
-    signUp,
     isLoading
   } = useAuth();
   const {
@@ -23,35 +20,17 @@ export const AdminLogin: React.FC = () => {
   const navigate = useNavigate();
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSignUp) {
-      const {
-        error
-      } = await signUp(email, password, fullName, 'admin');
-      if (error) {
-        toast({
-          title: 'Sign Up Failed',
-          description: error,
-          variant: 'destructive'
-        });
-      } else {
-        toast({
-          title: 'Account Created',
-          description: 'Please check your email to verify your account.'
-        });
-      }
+    const {
+      error
+    } = await signIn(email, password);
+    if (error) {
+      toast({
+        title: 'Login Failed',
+        description: error,
+        variant: 'destructive'
+      });
     } else {
-      const {
-        error
-      } = await signIn(email, password);
-      if (error) {
-        toast({
-          title: 'Login Failed',
-          description: error,
-          variant: 'destructive'
-        });
-      } else {
-        navigate('/dashboard');
-      }
+      navigate('/dashboard');
     }
   };
   const fillDemoCredentials = () => {
@@ -77,21 +56,14 @@ export const AdminLogin: React.FC = () => {
         <div className="text-center">
           <Shield className="h-12 w-12 text-blue-600 mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Admin {isSignUp ? 'Sign Up' : 'Login'}
+            Admin Login
           </h1>
           <p className="text-gray-600">
-            {isSignUp ? 'Create an admin account' : 'Access the warehouse management system'}
+            Access the warehouse management system
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {isSignUp && <div>
-              <Label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-2">
-                Full Name
-              </Label>
-              <Input id="fullName" type="text" placeholder="Enter your full name" value={fullName} onChange={e => setFullName(e.target.value)} className="w-full" required />
-            </div>}
-          
           <div>
             <Label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
               Email address
@@ -112,17 +84,11 @@ export const AdminLogin: React.FC = () => {
           </div>
 
           <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
-            {isLoading ? 'Please wait...' : isSignUp ? 'Create Account' : 'Sign In'}
+            {isLoading ? 'Please wait...' : 'Sign In'}
           </Button>
         </form>
 
         <div className="text-center space-y-4">
-          <button type="button" onClick={() => setIsSignUp(!isSignUp)} className="text-blue-600 hover:text-blue-800 text-sm">
-            {isSignUp ? 'Already have an account? Sign in' : 'Need an account? Sign up'}
-          </button>
-
-          {!isSignUp}
-
           <div className="pt-4 border-t border-gray-200">
             <Link to="/client/login" className="text-sm text-gray-600 hover:text-gray-800">
               Are you a client? Access Client Portal →
