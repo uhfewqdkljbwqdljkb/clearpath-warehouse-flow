@@ -37,7 +37,7 @@ export const AdminLogin: React.FC = () => {
   return <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="w-full max-w-md space-y-8 bg-white p-8 rounded-lg shadow-lg">
         <div className="text-center">
-          <img src={clearpathLogo} alt="ClearPath Logistics" className="h-24 mx-auto mb-6" />
+          <img src={clearpathLogo} alt="ClearPath Logistics" className="h-16 mx-auto mb-6" />
           
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Admin Login
