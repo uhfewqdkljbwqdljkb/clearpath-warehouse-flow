@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Mail, Lock, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import clearpathLogo from '@/assets/clearpath-logo-client.png';
 export const ClientLogin: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -46,7 +47,7 @@ export const ClientLogin: React.FC = () => {
   return <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          
+          <img src={clearpathLogo} alt="ClearPath Logistics" className="h-16 mx-auto mb-6" />
           <CardTitle className="text-2xl text-center">Client Portal</CardTitle>
           <CardDescription className="text-center">
             Access your warehouse management dashboard
