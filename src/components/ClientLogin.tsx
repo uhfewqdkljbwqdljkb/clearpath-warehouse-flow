@@ -102,26 +102,10 @@ export const ClientLogin: React.FC = () => {
           </form>
         </CardContent>
 
-        <CardFooter className="flex flex-col space-y-4">
-          {/* Demo Account Buttons */}
-          <div className="w-full space-y-2">
-            <p className="text-xs text-center text-muted-foreground">Try with demo account:</p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={() => {
-                setEmail('client@techshop.com');
-                setPassword('password123');
-              }}
-            >
-              Fill Demo Credentials
-            </Button>
-          </div>
-          
+        <CardFooter>
           <Link 
             to="/dashboard/login" 
-            className="text-sm text-muted-foreground hover:text-primary"
+            className="text-sm text-muted-foreground hover:text-primary mx-auto"
           >
             Admin Login →
           </Link>

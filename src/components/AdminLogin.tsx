@@ -33,24 +33,6 @@ export const AdminLogin: React.FC = () => {
       navigate('/dashboard');
     }
   };
-  const fillDemoCredentials = () => {
-    setEmail('admin@clearpath.com');
-    setPassword('password123');
-  };
-  const loginAsDemo = async () => {
-    const {
-      error
-    } = await signIn('admin@clearpath.com', 'password123');
-    if (error) {
-      toast({
-        title: 'Demo Login Failed',
-        description: error,
-        variant: 'destructive'
-      });
-    } else {
-      navigate('/dashboard');
-    }
-  };
   return <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="w-full max-w-md space-y-8 bg-white p-8 rounded-lg shadow-lg">
         <div className="text-center">
