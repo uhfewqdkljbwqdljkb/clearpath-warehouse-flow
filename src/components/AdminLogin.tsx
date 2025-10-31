@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Shield } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 export const AdminLogin: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -36,7 +36,7 @@ export const AdminLogin: React.FC = () => {
   return <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="w-full max-w-md space-y-8 bg-white p-8 rounded-lg shadow-lg">
         <div className="text-center">
-          <Shield className="h-12 w-12 text-blue-600 mx-auto mb-4" />
+          
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Admin Login
           </h1>
