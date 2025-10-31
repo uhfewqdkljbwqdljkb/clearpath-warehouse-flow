@@ -86,8 +86,8 @@ export function ProductImportDialog({
     const wsInstructions = XLSX.utils.aoa_to_sheet(instructions);
     XLSX.utils.book_append_sheet(wb, wsInstructions, 'Instructions');
 
-    // Products sheet with sample data
-    const products = [
+    // Examples sheet with sample data
+    const examples = [
       ['product_name', 'variant_attribute', 'variant_value', 'quantity', 'notes'],
       ['T-Shirt', 'Size', 'Small', 100, 'Cotton blend, spring collection'],
       ['T-Shirt', 'Size', 'Medium', 150, 'Cotton blend, spring collection'],
@@ -111,6 +111,13 @@ export function ProductImportDialog({
       ['Notebook', 'Pages', '200', 100, 'Ruled paper'],
       ['Desk Lamp', 'Style', 'Modern', 40, 'LED, adjustable'],
       ['Desk Lamp', 'Style', 'Classic', 35, 'LED, adjustable'],
+    ];
+    const wsExamples = XLSX.utils.aoa_to_sheet(examples);
+    XLSX.utils.book_append_sheet(wb, wsExamples, 'Examples');
+
+    // Empty Products sheet for user to fill in
+    const products = [
+      ['product_name', 'variant_attribute', 'variant_value', 'quantity', 'notes'],
     ];
     const wsProducts = XLSX.utils.aoa_to_sheet(products);
     XLSX.utils.book_append_sheet(wb, wsProducts, 'Products');
