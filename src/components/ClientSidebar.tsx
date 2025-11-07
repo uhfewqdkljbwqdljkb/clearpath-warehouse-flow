@@ -35,11 +35,6 @@ export const ClientSidebar: React.FC<ClientSidebarProps> = ({ isCollapsed, onTog
       icon: Package
     },
     {
-      name: 'Inventory',
-      path: '/client/inventory',
-      icon: Warehouse
-    },
-    {
       name: 'Orders',
       path: '/client/orders',
       icon: ClipboardList

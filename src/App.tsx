@@ -20,7 +20,6 @@ import { Products } from "@/pages/Products";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ClientDashboard } from "@/pages/client/ClientDashboard";
 import { ClientProducts } from "@/pages/client/ClientProducts";
-import { ClientInventory } from "@/pages/client/ClientInventory";
 import { ClientOrders } from "@/pages/client/ClientOrders";
 import { ClientAnalytics } from "@/pages/client/ClientAnalytics";
 import { ClientMessages } from "@/pages/client/ClientMessages";
@@ -134,10 +133,9 @@ const App = () => {
                   <ClientLayout />
                 </ProtectedRoute>
               }>
-                <Route index element={<ClientDashboard />} />
+              <Route index element={<ClientDashboard />} />
                 <Route path="products" element={<ClientProducts />} />
-                <Route path="inventory" element={<ClientInventory />} />
-              <Route path="orders" element={<ClientOrders />} />
+                <Route path="orders" element={<ClientOrders />} />
               <Route path="analytics" element={<ClientAnalytics />} />
               <Route path="messages" element={<ClientMessages />} />
               <Route path="profile" element={<ClientProfile />} />
