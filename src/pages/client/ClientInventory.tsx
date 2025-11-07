@@ -12,12 +12,11 @@ import { useInventorySync } from '@/hooks/useRealTimeSync';
 interface InventoryItem {
   id: string;
   quantity: number;
-  location_code?: string;
-  location_zone?: string;
-  location_row?: string;
-  location_bin?: string;
-  last_movement_date?: string;
-  movement_type?: string;
+  location_id?: string;
+  batch_number?: string;
+  received_date?: string;
+  last_updated?: string;
+  expiry_date?: string;
   client_products: {
     name: string;
   };
@@ -59,7 +58,7 @@ export const ClientInventory: React.FC = () => {
         `)
         .eq('company_id', profile.company_id)
         .gt('quantity', 0)
-        .order('last_movement_date', { ascending: false });
+        .order('last_updated', { ascending: false });
 
       if (error) throw error;
       setInventory(data || []);
@@ -72,7 +71,7 @@ export const ClientInventory: React.FC = () => {
 
   const filteredInventory = inventory.filter(item =>
     item.client_products.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (item.location_code && item.location_code.toLowerCase().includes(searchTerm.toLowerCase()))
+    (item.batch_number && item.batch_number.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   // Calculate summary stats
@@ -158,24 +157,19 @@ export const ClientInventory: React.FC = () => {
                       <Badge variant="secondary">{item.quantity}</Badge>
                     </TableCell>
                     <TableCell>
-                      {item.location_zone && item.location_row && item.location_bin ? (
-                        <span className="text-sm">
-                          {item.location_zone}-{item.location_row}-{item.location_bin}
-                        </span>
+                      {item.location_id ? (
+                        <span className="text-sm">{item.location_id}</span>
                       ) : (
-                        <span className="text-muted-foreground">Not specified</span>
+                        <span className="text-muted-foreground">Not assigned</span>
                       )}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {item.last_movement_date 
-                        ? new Date(item.last_movement_date).toLocaleDateString()
-                        : 'No movement'
+                      {item.last_updated 
+                        ? new Date(item.last_updated).toLocaleDateString()
+                        : item.received_date
+                        ? new Date(item.received_date).toLocaleDateString()
+                        : 'N/A'
                       }
-                      {item.movement_type && (
-                        <Badge variant="outline" className="ml-2 text-xs">
-                          {item.movement_type}
-                        </Badge>
-                      )}
                     </TableCell>
                   </TableRow>
                 ))}
