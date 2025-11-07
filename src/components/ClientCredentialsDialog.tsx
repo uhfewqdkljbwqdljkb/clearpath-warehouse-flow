@@ -24,7 +24,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Key, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Key, CheckCircle, XCircle, AlertCircle, RotateCcw } from 'lucide-react';
 import { Client } from '@/types';
 
 const credentialsSchema = z.object({
@@ -46,6 +46,7 @@ export const ClientCredentialsDialog: React.FC<ClientCredentialsDialogProps> = (
   onOpenChange,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [existingUser, setExistingUser] = useState<{ email: string; created_at: string } | null>(null);
   const [checkingUser, setCheckingUser] = useState(false);
   const { toast } = useToast();
@@ -150,6 +151,35 @@ export const ClientCredentialsDialog: React.FC<ClientCredentialsDialogProps> = (
     }
   };
 
+  const handleResetPassword = async () => {
+    if (!existingUser) return;
+
+    setIsResetting(true);
+    try {
+      const redirectUrl = `${window.location.origin}/client/login`;
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(existingUser.email, {
+        redirectTo: redirectUrl,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Password Reset Email Sent',
+        description: `A password reset link has been sent to ${existingUser.email}`,
+      });
+    } catch (error: any) {
+      console.error('Error sending reset email:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to send password reset email',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   if (!client) return null;
 
   return (
@@ -174,13 +204,28 @@ export const ClientCredentialsDialog: React.FC<ClientCredentialsDialogProps> = (
             <div className="flex items-start gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
               <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
               <div className="flex-1">
-                <p className="font-medium text-green-900">Portal Access Active</p>
-                <p className="text-sm text-green-700 mt-1">
-                  Email: <span className="font-mono">{existingUser.email}</span>
-                </p>
-                <p className="text-xs text-green-600 mt-1">
-                  Created: {new Date(existingUser.created_at).toLocaleDateString()}
-                </p>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-medium text-green-900">Portal Access Active</p>
+                    <p className="text-sm text-green-700 mt-1">
+                      Email: <span className="font-mono">{existingUser.email}</span>
+                    </p>
+                    <p className="text-xs text-green-600 mt-1">
+                      Created: {new Date(existingUser.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleResetPassword}
+                    disabled={isResetting}
+                    className="ml-2"
+                  >
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    {isResetting ? 'Sending...' : 'Reset Password'}
+                  </Button>
+                </div>
               </div>
             </div>
 
