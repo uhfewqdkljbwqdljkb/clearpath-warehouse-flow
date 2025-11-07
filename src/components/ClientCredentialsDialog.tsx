@@ -47,7 +47,8 @@ export const ClientCredentialsDialog: React.FC<ClientCredentialsDialogProps> = (
 }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
-  const [existingUser, setExistingUser] = useState<{ email: string; created_at: string } | null>(null);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [existingUser, setExistingUser] = useState<{ email: string; created_at: string; id: string } | null>(null);
   const [checkingUser, setCheckingUser] = useState(false);
   const { toast } = useToast();
 
@@ -77,7 +78,7 @@ export const ClientCredentialsDialog: React.FC<ClientCredentialsDialogProps> = (
       // Check if a user exists with this company_id in profiles
       const { data: profile, error } = await supabase
         .from('profiles')
-        .select('email, created_at')
+        .select('id, email, created_at')
         .eq('company_id', client.id)
         .maybeSingle();
 
@@ -180,6 +181,47 @@ export const ClientCredentialsDialog: React.FC<ClientCredentialsDialogProps> = (
     }
   };
 
+  const handleUpdatePassword = async (data: { password: string }) => {
+    if (!existingUser) return;
+
+    setIsUpdatingPassword(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('No active session');
+      }
+
+      const { error } = await supabase.functions.invoke('update-client-password', {
+        body: {
+          user_id: existingUser.id,
+          new_password: data.password,
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Password Updated',
+        description: `Password successfully updated for ${existingUser.email}`,
+      });
+
+      form.reset();
+    } catch (error: any) {
+      console.error('Error updating password:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update password',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
   if (!client) return null;
 
   return (
@@ -258,70 +300,82 @@ export const ClientCredentialsDialog: React.FC<ClientCredentialsDialogProps> = (
         )}
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Portal Email</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      type="email"
-                      placeholder="client@company.com"
-                      disabled={isLoading}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Email address for client portal login
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <form onSubmit={form.handleSubmit(existingUser ? handleUpdatePassword : handleSubmit)} className="space-y-4">
+            {!existingUser && (
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Portal Email</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type="email"
+                        placeholder="client@company.com"
+                        disabled={isLoading}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Email address for client portal login
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <FormField
               control={form.control}
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Portal Password</FormLabel>
+                  <FormLabel>{existingUser ? 'New Password' : 'Portal Password'}</FormLabel>
                   <FormControl>
                     <Input
                       {...field}
                       type="password"
                       placeholder="Minimum 8 characters"
-                      disabled={isLoading}
+                      disabled={isLoading || isUpdatingPassword}
                     />
                   </FormControl>
                   <FormDescription>
-                    Password for client portal access (min. 8 characters)
+                    {existingUser 
+                      ? 'Enter a new password to update the client account'
+                      : 'Password for client portal access (min. 8 characters)'
+                    }
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <div className="bg-muted p-3 rounded-md">
-              <p className="text-sm text-muted-foreground">
-                ℹ️ The client will be able to login at{' '}
-                <span className="font-semibold text-foreground">/client/login</span> with
-                these credentials to view their inventory, orders, and products.
-              </p>
-            </div>
+            {!existingUser && (
+              <div className="bg-muted p-3 rounded-md">
+                <p className="text-sm text-muted-foreground">
+                  ℹ️ The client will be able to login at{' '}
+                  <span className="font-semibold text-foreground">/client/login</span> with
+                  these credentials to view their inventory, orders, and products.
+                </p>
+              </div>
+            )}
 
             <DialogFooter>
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                disabled={isLoading}
+                disabled={isLoading || isUpdatingPassword}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? 'Creating...' : existingUser ? 'Create Additional Access' : 'Create Credentials'}
+              <Button type="submit" disabled={isLoading || isUpdatingPassword}>
+                {isLoading || isUpdatingPassword 
+                  ? 'Processing...' 
+                  : existingUser 
+                    ? 'Update Password' 
+                    : 'Create Credentials'
+                }
               </Button>
             </DialogFooter>
           </form>
