@@ -1,0 +1,315 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import { ArrowLeft, Upload, Plus, X } from 'lucide-react';
+import { ProductImportDialog } from '@/components/ProductImportDialog';
+
+interface ProductEntry {
+  name: string;
+  variants: Array<{
+    attribute: string;
+    values: Array<{
+      value: string;
+      quantity: number;
+    }>;
+  }>;
+}
+
+export const ClientCheckIn: React.FC = () => {
+  const navigate = useNavigate();
+  const { profile } = useAuth();
+  const { toast } = useToast();
+  const [notes, setNotes] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [products, setProducts] = useState<ProductEntry[]>([]);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+
+  const addProduct = () => {
+    setProducts([...products, { 
+      name: '', 
+      variants: [{ attribute: '', values: [{ value: '', quantity: 0 }] }] 
+    }]);
+  };
+
+  const removeProduct = (index: number) => {
+    setProducts(products.filter((_, i) => i !== index));
+  };
+
+  const updateProduct = (index: number, field: string, value: any) => {
+    const updated = [...products];
+    updated[index] = { ...updated[index], [field]: value };
+    setProducts(updated);
+  };
+
+  const addVariant = (productIndex: number) => {
+    const updated = [...products];
+    updated[productIndex].variants.push({ 
+      attribute: '', 
+      values: [{ value: '', quantity: 0 }] 
+    });
+    setProducts(updated);
+  };
+
+  const removeVariant = (productIndex: number, variantIndex: number) => {
+    const updated = [...products];
+    updated[productIndex].variants = updated[productIndex].variants.filter((_, i) => i !== variantIndex);
+    setProducts(updated);
+  };
+
+  const updateVariant = (productIndex: number, variantIndex: number, field: string, value: any) => {
+    const updated = [...products];
+    updated[productIndex].variants[variantIndex] = {
+      ...updated[productIndex].variants[variantIndex],
+      [field]: value
+    };
+    setProducts(updated);
+  };
+
+  const addVariantValue = (productIndex: number, variantIndex: number) => {
+    const updated = [...products];
+    updated[productIndex].variants[variantIndex].values.push({ value: '', quantity: 0 });
+    setProducts(updated);
+  };
+
+  const removeVariantValue = (productIndex: number, variantIndex: number, valueIndex: number) => {
+    const updated = [...products];
+    updated[productIndex].variants[variantIndex].values = 
+      updated[productIndex].variants[variantIndex].values.filter((_, i) => i !== valueIndex);
+    setProducts(updated);
+  };
+
+  const updateVariantValue = (
+    productIndex: number, 
+    variantIndex: number, 
+    valueIndex: number, 
+    field: string, 
+    value: any
+  ) => {
+    const updated = [...products];
+    updated[productIndex].variants[variantIndex].values[valueIndex] = {
+      ...updated[productIndex].variants[variantIndex].values[valueIndex],
+      [field]: value
+    };
+    setProducts(updated);
+  };
+
+  const handleImportComplete = () => {
+    setShowImportDialog(false);
+    toast({
+      title: "Success",
+      description: "Products imported successfully. They will be added after approval.",
+    });
+  };
+
+  const handleSubmit = async () => {
+    if (products.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please add at least one product",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!profile?.company_id) return;
+
+    setIsSubmitting(true);
+    try {
+      // Generate request number
+      const { data: requestNumber, error: fnError } = await supabase
+        .rpc('generate_check_in_request_number');
+
+      if (fnError) throw fnError;
+
+      // Create check-in request
+      const { error } = await supabase
+        .from('check_in_requests')
+        .insert([{
+          company_id: profile.company_id,
+          request_number: requestNumber,
+          requested_products: products as any,
+          notes: notes || null,
+          requested_by: profile.id,
+          status: 'pending'
+        }]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Check-in request submitted successfully",
+      });
+
+      navigate('/client/requests');
+    } catch (error) {
+      console.error('Error submitting check-in request:', error);
+      toast({
+        title: "Error",
+        description: "Failed to submit check-in request",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" onClick={() => navigate('/client/products')}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Products
+        </Button>
+      </div>
+
+      <div>
+        <h1 className="text-3xl font-bold text-foreground">Check In Products</h1>
+        <p className="text-muted-foreground">Submit a request to add new products to your inventory</p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Product Details</CardTitle>
+          <CardDescription>Add products manually or import from Excel</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowImportDialog(true)}>
+              <Upload className="h-4 w-4 mr-2" />
+              Import from Excel
+            </Button>
+            <Button onClick={addProduct}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Product Manually
+            </Button>
+          </div>
+
+          {products.map((product, productIndex) => (
+            <Card key={productIndex} className="border-2">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <CardTitle className="text-base">Product {productIndex + 1}</CardTitle>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => removeProduct(productIndex)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Product Name *</Label>
+                  <Input
+                    placeholder="Enter product name"
+                    value={product.name}
+                    onChange={(e) => updateProduct(productIndex, 'name', e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <Label>Variants</Label>
+                  {product.variants.map((variant, variantIndex) => (
+                    <Card key={variantIndex} className="p-4">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm">Variant {variantIndex + 1}</Label>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeVariant(productIndex, variantIndex)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <Input
+                          placeholder="Attribute (e.g., Size, Color)"
+                          value={variant.attribute}
+                          onChange={(e) => updateVariant(productIndex, variantIndex, 'attribute', e.target.value)}
+                        />
+                        {variant.values.map((val, valueIndex) => (
+                          <div key={valueIndex} className="flex gap-2">
+                            <Input
+                              placeholder="Value"
+                              value={val.value}
+                              onChange={(e) => updateVariantValue(productIndex, variantIndex, valueIndex, 'value', e.target.value)}
+                            />
+                            <Input
+                              type="number"
+                              placeholder="Qty"
+                              value={val.quantity}
+                              onChange={(e) => updateVariantValue(productIndex, variantIndex, valueIndex, 'quantity', parseInt(e.target.value) || 0)}
+                              className="w-24"
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeVariantValue(productIndex, variantIndex, valueIndex)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => addVariantValue(productIndex, variantIndex)}
+                        >
+                          Add Value
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addVariant(productIndex)}
+                  >
+                    Add Variant
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+
+          <div className="space-y-2">
+            <Label htmlFor="notes">Notes (Optional)</Label>
+            <Textarea
+              id="notes"
+              placeholder="Add any additional notes or special instructions..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={4}
+            />
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => navigate('/client/products')}>
+              Cancel
+            </Button>
+            <Button onClick={handleSubmit} disabled={isSubmitting}>
+              {isSubmitting ? 'Submitting...' : 'Submit Check-In Request'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {showImportDialog && profile?.company_id && (
+        <ProductImportDialog
+          open={showImportDialog}
+          onOpenChange={setShowImportDialog}
+          clientId={profile.company_id}
+          clientName=""
+          clientCode=""
+          onImportComplete={handleImportComplete}
+        />
+      )}
+    </div>
+  );
+};

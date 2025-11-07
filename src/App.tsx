@@ -24,6 +24,11 @@ import { ClientOrders } from "@/pages/client/ClientOrders";
 import { ClientAnalytics } from "@/pages/client/ClientAnalytics";
 import { ClientMessages } from "@/pages/client/ClientMessages";
 import { ClientProfile } from "@/pages/client/ClientProfile";
+import { ClientCheckIn } from "@/pages/client/ClientCheckIn";
+import { ClientCheckOut } from "@/pages/client/ClientCheckOut";
+import { ClientRequests } from "@/pages/client/ClientRequests";
+import { CheckInRequests } from "@/pages/CheckInRequests";
+import { CheckOutRequests } from "@/pages/CheckOutRequests";
 import { RealTimeNotifications } from "@/components/RealTimeNotifications";
 import AIAssistant from "@/pages/AIAssistant";
 import ClientAIAssistant from "@/pages/client/ClientAIAssistant";
@@ -121,6 +126,8 @@ const App = () => {
                 } />
                 <Route path="clients/:clientId/products" element={<Products />} />
                 <Route path="products" element={<Products />} />
+                <Route path="check-in-requests" element={<CheckInRequests />} />
+                <Route path="check-out-requests" element={<CheckOutRequests />} />
                 <Route path="ai-assistant" element={<AIAssistant />} />
               </Route>
 
@@ -135,6 +142,9 @@ const App = () => {
               }>
               <Route index element={<ClientDashboard />} />
                 <Route path="products" element={<ClientProducts />} />
+                <Route path="check-in" element={<ClientCheckIn />} />
+                <Route path="check-out" element={<ClientCheckOut />} />
+                <Route path="requests" element={<ClientRequests />} />
                 <Route path="orders" element={<ClientOrders />} />
               <Route path="analytics" element={<ClientAnalytics />} />
               <Route path="messages" element={<ClientMessages />} />

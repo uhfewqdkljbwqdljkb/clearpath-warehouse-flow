@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, Plus, Package, MoreVertical, X, Upload } from 'lucide-react';
+import { Search, Plus, Package, MoreVertical, X, Upload, PackageOpen } from 'lucide-react';
 import { ProductImportDialog } from '@/components/ProductImportDialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
@@ -336,16 +336,16 @@ export const ClientProducts: React.FC = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Products</h1>
-          <p className="text-muted-foreground">Manage your product catalog</p>
+          <p className="text-muted-foreground">View your product catalog and manage check-in/check-out requests</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowImportDialog(true)}>
-            <Upload className="h-4 w-4 mr-2" />
-            Import Products
+          <Button variant="outline" onClick={() => window.location.href = '/client/check-out'}>
+            <PackageOpen className="h-4 w-4 mr-2" />
+            Check Out Products
           </Button>
-          <Button onClick={() => setIsDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Product
+          <Button onClick={() => window.location.href = '/client/check-in'}>
+            <Package className="h-4 w-4 mr-2" />
+            Check In Products
           </Button>
         </div>
       </div>
@@ -443,11 +443,11 @@ export const ClientProducts: React.FC = () => {
               <Package className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-medium mb-2">No Products Found</h3>
               <p className="text-muted-foreground mb-4">
-                {searchTerm ? 'No products match your search criteria.' : 'You haven\'t added any products yet.'}
+                {searchTerm ? 'No products match your search criteria.' : 'Submit a check-in request to add products to your inventory.'}
               </p>
-              <Button onClick={() => setIsDialogOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Your First Product
+              <Button onClick={() => window.location.href = '/client/check-in'}>
+                <Package className="h-4 w-4 mr-2" />
+                Check In Products
               </Button>
             </div>
           )}

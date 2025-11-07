@@ -172,6 +172,112 @@ export type Database = {
           },
         ]
       }
+      check_in_requests: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          rejection_reason: string | null
+          request_number: string
+          requested_by: string
+          requested_products: Json
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          rejection_reason?: string | null
+          request_number: string
+          requested_by: string
+          requested_products?: Json
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          rejection_reason?: string | null
+          request_number?: string
+          requested_by?: string
+          requested_products?: Json
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "check_in_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      check_out_requests: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          rejection_reason: string | null
+          request_number: string
+          requested_by: string
+          requested_items: Json
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          rejection_reason?: string | null
+          request_number: string
+          requested_by: string
+          requested_items?: Json
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          rejection_reason?: string | null
+          request_number?: string
+          requested_by?: string
+          requested_items?: Json
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "check_out_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_activity_logs: {
         Row: {
           activity_description: string
@@ -735,6 +841,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_check_in_request_number: { Args: never; Returns: string }
+      generate_check_out_request_number: { Args: never; Returns: string }
       generate_client_code: { Args: never; Returns: string }
       has_role: {
         Args: {
