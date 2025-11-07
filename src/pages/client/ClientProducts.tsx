@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, Plus, Package, MoreVertical, X } from 'lucide-react';
+import { Search, Plus, Package, MoreVertical, X, Upload } from 'lucide-react';
+import { ProductImportDialog } from '@/components/ProductImportDialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -60,15 +61,35 @@ export const ClientProducts: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [companyInfo, setCompanyInfo] = useState<{ name: string; client_code: string } | null>(null);
 
   useEffect(() => {
     if (profile?.company_id) {
       fetchProducts();
+      fetchCompanyInfo();
       logActivity('products_access', 'User accessed products page', {
         timestamp: new Date().toISOString()
       });
     }
   }, [profile?.company_id]);
+
+  const fetchCompanyInfo = async () => {
+    if (!profile?.company_id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('name, client_code')
+        .eq('id', profile.company_id)
+        .single();
+
+      if (error) throw error;
+      setCompanyInfo(data);
+    } catch (error) {
+      console.error('Error fetching company info:', error);
+    }
+  };
 
   const fetchProducts = async () => {
     if (!profile?.company_id) return;
@@ -317,10 +338,16 @@ export const ClientProducts: React.FC = () => {
           <h1 className="text-3xl font-bold text-foreground">Products</h1>
           <p className="text-muted-foreground">Manage your product catalog</p>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Product
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowImportDialog(true)}>
+            <Upload className="h-4 w-4 mr-2" />
+            Import Products
+          </Button>
+          <Button onClick={() => setIsDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Product
+          </Button>
+        </div>
       </div>
 
       {/* Search */}
@@ -801,6 +828,18 @@ export const ClientProducts: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Import Products Dialog */}
+      {profile?.company_id && companyInfo && (
+        <ProductImportDialog
+          open={showImportDialog}
+          onOpenChange={setShowImportDialog}
+          clientId={profile.company_id}
+          clientName={companyInfo.name}
+          clientCode={companyInfo.client_code || ''}
+          onImportComplete={fetchProducts}
+        />
+      )}
     </div>
   );
 };
