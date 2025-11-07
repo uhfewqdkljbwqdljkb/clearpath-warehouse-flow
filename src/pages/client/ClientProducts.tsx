@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIntegration } from '@/contexts/IntegrationContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -46,6 +47,7 @@ interface Variant {
 }
 
 export const ClientProducts: React.FC = () => {
+  const navigate = useNavigate();
   const { profile } = useAuth();
   const { logActivity } = useIntegration();
   const { toast } = useToast();
@@ -339,11 +341,11 @@ export const ClientProducts: React.FC = () => {
           <p className="text-muted-foreground">View your product catalog and manage check-in/check-out requests</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => window.location.href = '/client/check-out'}>
+          <Button variant="outline" onClick={() => navigate('/client/check-out')}>
             <PackageOpen className="h-4 w-4 mr-2" />
             Check Out Products
           </Button>
-          <Button onClick={() => window.location.href = '/client/check-in'}>
+          <Button onClick={() => navigate('/client/check-in')}>
             <Package className="h-4 w-4 mr-2" />
             Check In Products
           </Button>
@@ -445,7 +447,7 @@ export const ClientProducts: React.FC = () => {
               <p className="text-muted-foreground mb-4">
                 {searchTerm ? 'No products match your search criteria.' : 'Submit a check-in request to add products to your inventory.'}
               </p>
-              <Button onClick={() => window.location.href = '/client/check-in'}>
+              <Button onClick={() => navigate('/client/check-in')}>
                 <Package className="h-4 w-4 mr-2" />
                 Check In Products
               </Button>
