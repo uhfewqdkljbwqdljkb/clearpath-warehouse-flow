@@ -3,5 +3,8 @@ project_id = "dmmmwrqtbwtmqtvoxdxc"
 [functions.create-client-user]
 verify_jwt = true
 
+[functions.update-client-user]
+verify_jwt = true
+
 [functions.ai-assistant]
 verify_jwt = true
