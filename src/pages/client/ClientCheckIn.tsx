@@ -13,6 +13,7 @@ import { ProductImportDialog } from '@/components/ProductImportDialog';
 
 interface ProductEntry {
   name: string;
+  quantity: number;
   variants: Array<{
     attribute: string;
     values: Array<{
@@ -34,7 +35,8 @@ export const ClientCheckIn: React.FC = () => {
   const addProduct = () => {
     setProducts([...products, { 
       name: '', 
-      variants: [{ attribute: '', values: [{ value: '', quantity: 0 }] }] 
+      quantity: 0,
+      variants: []
     }]);
   };
 
@@ -97,7 +99,26 @@ export const ClientCheckIn: React.FC = () => {
       ...updated[productIndex].variants[variantIndex].values[valueIndex],
       [field]: value
     };
+    
+    // Auto-update total quantity when variants exist
+    if (updated[productIndex].variants.length > 0) {
+      const totalQty = updated[productIndex].variants.reduce((sum, variant) => 
+        sum + variant.values.reduce((vSum, val) => vSum + (val.quantity || 0), 0), 0
+      );
+      updated[productIndex].quantity = totalQty;
+    }
+    
     setProducts(updated);
+  };
+
+  const calculateTotalQuantity = (productIndex: number) => {
+    const product = products[productIndex];
+    if (product.variants.length > 0) {
+      return product.variants.reduce((sum, variant) => 
+        sum + variant.values.reduce((vSum, val) => vSum + (val.quantity || 0), 0), 0
+      );
+    }
+    return product.quantity || 0;
   };
 
   const handleImportComplete = () => {
@@ -213,8 +234,19 @@ export const ClientCheckIn: React.FC = () => {
                   />
                 </div>
 
+                <div className="space-y-2">
+                  <Label>Quantity {product.variants.length > 0 && '(Auto-calculated from variants)'}</Label>
+                  <Input
+                    type="number"
+                    placeholder="Enter quantity"
+                    value={calculateTotalQuantity(productIndex)}
+                    onChange={(e) => updateProduct(productIndex, 'quantity', parseInt(e.target.value) || 0)}
+                    disabled={product.variants.length > 0}
+                  />
+                </div>
+
                 <div className="space-y-3">
-                  <Label>Variants</Label>
+                  <Label>Variants (Optional)</Label>
                   {product.variants.map((variant, variantIndex) => (
                     <Card key={variantIndex} className="p-4">
                       <div className="space-y-3">
