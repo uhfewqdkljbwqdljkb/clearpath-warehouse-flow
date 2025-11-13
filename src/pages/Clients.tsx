@@ -373,39 +373,78 @@ export const Clients: React.FC = () => {
           .eq('company_id', editingClient.id);
       }
 
-      // Create portal user on edit if requested
+      // Handle portal user creation/update if requested
       if (clientData.create_portal_access && clientData.client_user_email && clientData.client_user_password) {
         try {
           const { data: { session } } = await supabase.auth.getSession();
 
-          const { data: userData, error: authError } = await supabase.functions.invoke('create-client-user', {
-            body: {
-              email: clientData.client_user_email,
-              password: clientData.client_user_password,
-              company_name: clientData.company_name,
-              company_id: editingClient.id,
-            },
-            headers: {
-              Authorization: `Bearer ${session?.access_token}`,
-            },
-          });
+          // Check if a user already exists for this company
+          const { data: existingProfile, error: profileError } = await supabase
+            .from('profiles')
+            .select('id, email')
+            .eq('company_id', editingClient.id)
+            .maybeSingle();
 
-          if (authError) {
-            console.error('Error creating user:', authError);
-            toast({
-              title: 'Warning',
-              description:
-                'Client updated but portal user creation failed: ' + authError.message,
-              variant: 'destructive',
+          if (profileError) {
+            console.error('Error checking for existing profile:', profileError);
+          }
+
+          if (existingProfile) {
+            // User exists, update their credentials
+            const { data: userData, error: authError } = await supabase.functions.invoke('update-client-user', {
+              body: {
+                user_id: existingProfile.id,
+                new_email: clientData.client_user_email,
+                new_password: clientData.client_user_password,
+              },
+              headers: {
+                Authorization: `Bearer ${session?.access_token}`,
+              },
             });
+
+            if (authError) {
+              console.error('Error updating user:', authError);
+              toast({
+                title: 'Warning',
+                description: 'Client updated but portal user update failed: ' + authError.message,
+                variant: 'destructive',
+              });
+            } else {
+              toast({
+                title: 'Success',
+                description: `Client and portal credentials updated successfully. Login: ${clientData.client_user_email}`,
+              });
+            }
           } else {
-            toast({
-              title: 'Success',
-              description: `Client updated and portal access created. Login: ${clientData.client_user_email}`,
+            // No user exists, create new one
+            const { data: userData, error: authError } = await supabase.functions.invoke('create-client-user', {
+              body: {
+                email: clientData.client_user_email,
+                password: clientData.client_user_password,
+                company_name: clientData.company_name,
+                company_id: editingClient.id,
+              },
+              headers: {
+                Authorization: `Bearer ${session?.access_token}`,
+              },
             });
+
+            if (authError) {
+              console.error('Error creating user:', authError);
+              toast({
+                title: 'Warning',
+                description: 'Client updated but portal user creation failed: ' + authError.message,
+                variant: 'destructive',
+              });
+            } else {
+              toast({
+                title: 'Success',
+                description: `Client updated and portal access created. Login: ${clientData.client_user_email}`,
+              });
+            }
           }
         } catch (error: any) {
-          console.error('Error in user creation:', error);
+          console.error('Error in portal user management:', error);
           toast({
             title: 'Warning',
             description: 'Client updated but portal setup encountered an error.',

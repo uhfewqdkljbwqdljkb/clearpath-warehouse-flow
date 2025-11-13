@@ -107,44 +107,60 @@ export const ClientCredentialsDialog: React.FC<ClientCredentialsDialogProps> = (
         throw new Error('No active session');
       }
 
-      const { data: userData, error: authError } = await supabase.functions.invoke('create-client-user', {
-        body: {
-          email: data.email,
-          password: data.password,
-          company_name: client.company_name,
-          company_id: client.id,
-        },
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
+      if (existingUser) {
+        // Update existing user
+        const { data: userData, error: authError } = await supabase.functions.invoke('update-client-user', {
+          body: {
+            user_id: existingUser.id,
+            new_email: data.email,
+            new_password: data.password,
+          },
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
 
-      if (authError) {
-        throw authError;
+        if (authError) {
+          throw authError;
+        }
+
+        toast({
+          title: 'Success',
+          description: `Portal credentials updated successfully for ${data.email}`,
+        });
+      } else {
+        // Create new user
+        const { data: userData, error: authError } = await supabase.functions.invoke('create-client-user', {
+          body: {
+            email: data.email,
+            password: data.password,
+            company_name: client.company_name,
+            company_id: client.id,
+          },
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
+
+        if (authError) {
+          throw authError;
+        }
+
+        toast({
+          title: 'Success',
+          description: `Portal credentials created successfully for ${data.email}`,
+        });
       }
-
-      toast({
-        title: 'Success',
-        description: `Portal credentials created successfully for ${data.email}`,
-      });
 
       // Refresh user status
       await checkExistingUser();
       form.reset();
       onOpenChange(false);
     } catch (error: any) {
-      console.error('Error creating credentials:', error);
-      
-      let errorMessage = 'Failed to create portal credentials';
-      if (error.message?.includes('already been registered')) {
-        errorMessage = 'A user with this email already exists';
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
+      console.error('Error managing portal credentials:', error);
       toast({
         title: 'Error',
-        description: errorMessage,
+        description: error.message || 'Failed to manage portal credentials',
         variant: 'destructive',
       });
     } finally {
@@ -192,7 +208,7 @@ export const ClientCredentialsDialog: React.FC<ClientCredentialsDialogProps> = (
         throw new Error('No active session');
       }
 
-      const { error } = await supabase.functions.invoke('update-client-password', {
+      const { error } = await supabase.functions.invoke('update-client-user', {
         body: {
           user_id: existingUser.id,
           new_password: data.password,
