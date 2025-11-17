@@ -174,6 +174,8 @@ export type Database = {
       }
       check_in_requests: {
         Row: {
+          amended_products: Json | null
+          amendment_notes: string | null
           company_id: string
           created_at: string
           id: string
@@ -186,8 +188,11 @@ export type Database = {
           reviewed_by: string | null
           status: string
           updated_at: string
+          was_amended: boolean | null
         }
         Insert: {
+          amended_products?: Json | null
+          amendment_notes?: string | null
           company_id: string
           created_at?: string
           id?: string
@@ -200,8 +205,11 @@ export type Database = {
           reviewed_by?: string | null
           status?: string
           updated_at?: string
+          was_amended?: boolean | null
         }
         Update: {
+          amended_products?: Json | null
+          amendment_notes?: string | null
           company_id?: string
           created_at?: string
           id?: string
@@ -214,6 +222,7 @@ export type Database = {
           reviewed_by?: string | null
           status?: string
           updated_at?: string
+          was_amended?: boolean | null
         }
         Relationships: [
           {
