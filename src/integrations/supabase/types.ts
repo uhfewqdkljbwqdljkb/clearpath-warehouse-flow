@@ -749,6 +749,127 @@ export type Database = {
           },
         ]
       }
+      shipment_items: {
+        Row: {
+          created_at: string | null
+          id: string
+          product_id: string
+          quantity: number
+          shipment_id: string
+          variant_attribute: string | null
+          variant_value: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          product_id: string
+          quantity: number
+          shipment_id: string
+          variant_attribute?: string | null
+          variant_value?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          product_id?: string
+          quantity?: number
+          shipment_id?: string
+          variant_attribute?: string | null
+          variant_value?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipment_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "client_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shipment_items_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "shipments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shipments: {
+        Row: {
+          carrier: string | null
+          company_id: string
+          created_at: string | null
+          destination_address: string
+          destination_contact: string | null
+          destination_phone: string | null
+          id: string
+          notes: string | null
+          order_id: string | null
+          shipment_date: string
+          shipment_number: string
+          shipped_by: string | null
+          status: string
+          tracking_number: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          carrier?: string | null
+          company_id: string
+          created_at?: string | null
+          destination_address: string
+          destination_contact?: string | null
+          destination_phone?: string | null
+          id?: string
+          notes?: string | null
+          order_id?: string | null
+          shipment_date?: string
+          shipment_number: string
+          shipped_by?: string | null
+          status?: string
+          tracking_number?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          carrier?: string | null
+          company_id?: string
+          created_at?: string | null
+          destination_address?: string
+          destination_contact?: string | null
+          destination_phone?: string | null
+          id?: string
+          notes?: string | null
+          order_id?: string | null
+          shipment_date?: string
+          shipment_number?: string
+          shipped_by?: string | null
+          status?: string
+          tracking_number?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shipments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "client_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shipments_shipped_by_fkey"
+            columns: ["shipped_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -853,6 +974,7 @@ export type Database = {
       generate_check_in_request_number: { Args: never; Returns: string }
       generate_check_out_request_number: { Args: never; Returns: string }
       generate_client_code: { Args: never; Returns: string }
+      generate_shipment_number: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

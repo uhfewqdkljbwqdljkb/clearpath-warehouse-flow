@@ -29,6 +29,7 @@ import { ClientCheckOut } from "@/pages/client/ClientCheckOut";
 import { ClientRequests } from "@/pages/client/ClientRequests";
 import { CheckInRequests } from "@/pages/CheckInRequests";
 import { CheckOutRequests } from "@/pages/CheckOutRequests";
+import { ShipProducts } from "@/pages/ShipProducts";
 import { RealTimeNotifications } from "@/components/RealTimeNotifications";
 import AIAssistant from "@/pages/AIAssistant";
 import ClientAIAssistant from "@/pages/client/ClientAIAssistant";
@@ -128,6 +129,7 @@ const App = () => {
                 <Route path="products" element={<Products />} />
                 <Route path="check-in-requests" element={<CheckInRequests />} />
                 <Route path="check-out-requests" element={<CheckOutRequests />} />
+                <Route path="ship-products" element={<ShipProducts />} />
                 <Route path="ai-assistant" element={<AIAssistant />} />
               </Route>
 

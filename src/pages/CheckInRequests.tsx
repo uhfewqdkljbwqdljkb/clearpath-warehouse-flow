@@ -83,11 +83,92 @@ export const CheckInRequests: React.FC = () => {
         is_active: true,
       }));
 
-      const { error: insertError } = await supabase
+      const { data: insertedProducts, error: insertError } = await supabase
         .from('client_products')
-        .insert(productsToInsert);
+        .insert(productsToInsert)
+        .select();
 
       if (insertError) throw insertError;
+
+      // Get or create products and update inventory
+      const productsToProcess = request.was_amended && request.amended_products 
+        ? request.amended_products 
+        : request.requested_products;
+
+      for (let i = 0; i < productsToProcess.length; i++) {
+        const product = productsToProcess[i];
+        const insertedProduct = insertedProducts?.[i];
+
+        if (insertedProduct) {
+          // Update or create inventory items
+          if (product.variants && product.variants.length > 0) {
+            // Handle products with variants
+            for (const variant of product.variants) {
+              for (const value of variant.values) {
+                // Check if inventory item exists
+                const { data: existingInventory } = await supabase
+                  .from('inventory_items')
+                  .select('id, quantity')
+                  .eq('product_id', insertedProduct.id)
+                  .eq('company_id', request.company_id)
+                  .is('location_id', null)
+                  .maybeSingle();
+
+                if (existingInventory) {
+                  // Update existing inventory
+                  await supabase
+                    .from('inventory_items')
+                    .update({ 
+                      quantity: existingInventory.quantity + (value.quantity || 0),
+                      last_updated: new Date().toISOString()
+                    })
+                    .eq('id', existingInventory.id);
+                } else {
+                  // Create new inventory item
+                  await supabase
+                    .from('inventory_items')
+                    .insert({
+                      product_id: insertedProduct.id,
+                      company_id: request.company_id,
+                      quantity: value.quantity || 0,
+                      received_date: new Date().toISOString()
+                    });
+                }
+              }
+            }
+          } else {
+            // Handle products without variants
+            const { data: existingInventory } = await supabase
+              .from('inventory_items')
+              .select('id, quantity')
+              .eq('product_id', insertedProduct.id)
+              .eq('company_id', request.company_id)
+              .is('location_id', null)
+              .maybeSingle();
+
+            if (existingInventory) {
+              // Update existing inventory
+              await supabase
+                .from('inventory_items')
+                .update({ 
+                  quantity: existingInventory.quantity + product.quantity,
+                  last_updated: new Date().toISOString()
+                })
+                .eq('id', existingInventory.id);
+            } else {
+              // Create new inventory item
+              await supabase
+                .from('inventory_items')
+                .insert({
+                  product_id: insertedProduct.id,
+                  company_id: request.company_id,
+                  quantity: product.quantity,
+                  received_date: new Date().toISOString()
+                });
+            }
+          }
+        }
+      }
 
       // Update request status
       const { error: updateError } = await supabase
@@ -102,7 +183,7 @@ export const CheckInRequests: React.FC = () => {
 
       toast({
         title: "Success",
-        description: "Check-in request approved and products added",
+        description: "Check-in request approved and products added to inventory",
       });
 
       fetchRequests();
