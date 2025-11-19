@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { LayoutDashboard, Warehouse, MessageSquare, User, Package, Settings, Menu, Sparkles, PackageCheck, PackageOpen } from 'lucide-react';
+import { LayoutDashboard, Warehouse, MessageSquare, User, Package, Settings, Menu, Sparkles, PackageCheck, PackageOpen, Truck } from 'lucide-react';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -42,6 +42,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     name: 'Check-Out Requests',
     path: '/dashboard/check-out-requests',
     icon: PackageOpen
+  }, {
+    name: 'Ship Products',
+    path: '/dashboard/ship-products',
+    icon: Truck
   }, {
     name: 'AI Assistant',
     path: '/dashboard/ai-assistant',
