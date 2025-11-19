@@ -8,8 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Upload, Plus, X } from 'lucide-react';
+import { ArrowLeft, Upload, Plus, X, Package } from 'lucide-react';
 import { ProductImportDialog } from '@/components/ProductImportDialog';
+import { ExistingProductsDialog } from '@/components/ExistingProductsDialog';
 
 interface ProductEntry {
   name: string;
@@ -31,6 +32,7 @@ export const ClientCheckIn: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [products, setProducts] = useState<ProductEntry[]>([]);
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showExistingProductsDialog, setShowExistingProductsDialog] = useState(false);
 
   const addProduct = () => {
     setProducts([...products, { 
@@ -129,6 +131,10 @@ export const ClientCheckIn: React.FC = () => {
     });
   };
 
+  const handleExistingProductsSelected = (newProducts: ProductEntry[]) => {
+    setProducts([...products, ...newProducts]);
+  };
+
   const handleSubmit = async () => {
     if (products.length === 0) {
       toast({
@@ -201,10 +207,14 @@ export const ClientCheckIn: React.FC = () => {
           <CardDescription>Add products manually or import from Excel</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button variant="outline" onClick={() => setShowImportDialog(true)}>
               <Upload className="h-4 w-4 mr-2" />
               Import from Excel
+            </Button>
+            <Button variant="outline" onClick={() => setShowExistingProductsDialog(true)}>
+              <Package className="h-4 w-4 mr-2" />
+              Check In Existing Products
             </Button>
             <Button onClick={addProduct}>
               <Plus className="h-4 w-4 mr-2" />
@@ -340,6 +350,15 @@ export const ClientCheckIn: React.FC = () => {
           clientName=""
           clientCode=""
           onImportComplete={handleImportComplete}
+        />
+      )}
+
+      {showExistingProductsDialog && profile?.company_id && (
+        <ExistingProductsDialog
+          open={showExistingProductsDialog}
+          onOpenChange={setShowExistingProductsDialog}
+          companyId={profile.company_id}
+          onProductsSelected={handleExistingProductsSelected}
         />
       )}
     </div>
