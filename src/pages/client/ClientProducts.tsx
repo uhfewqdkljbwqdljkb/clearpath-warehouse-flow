@@ -150,23 +150,31 @@ export const ClientProducts: React.FC = () => {
   };
 
   const getProductQuantity = (product: Product) => {
-    const totalInventory = inventoryData[product.id] || 0;
-    
-    // If product has variants, show breakdown from product definition
+    const inventoryTotal = inventoryData[product.id] ?? 0;
+
+    let variantsTotal = 0;
+    let variantQuantities: { [key: string]: number } | null = null;
+
     if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
-      const variantQuantities: { [key: string]: number } = {};
-      
+      variantQuantities = {};
+
       product.variants.forEach((variant: any) => {
         variant.values?.forEach((val: any) => {
+          const qty = val.quantity || 0;
           const key = `${variant.attribute}: ${val.value}`;
-          variantQuantities[key] = val.quantity || 0;
+          variantQuantities![key] = qty;
+          variantsTotal += qty;
         });
       });
-
-      return { total: totalInventory, variants: variantQuantities, hasVariants: true };
     }
 
-    return { total: totalInventory, variants: null, hasVariants: false };
+    const total = inventoryTotal > 0 ? inventoryTotal : variantsTotal;
+
+    return {
+      total,
+      variants: variantQuantities,
+      hasVariants: !!variantQuantities && Object.keys(variantQuantities).length > 0,
+    };
   };
 
   const filteredProducts = products.filter(product =>
