@@ -100,72 +100,44 @@ export const CheckInRequests: React.FC = () => {
         const insertedProduct = insertedProducts?.[i];
 
         if (insertedProduct) {
-          // Update or create inventory items
+          // Calculate total quantity for products with variants
+          let totalQuantity = product.quantity || 0;
           if (product.variants && product.variants.length > 0) {
-            // Handle products with variants
-            for (const variant of product.variants) {
-              for (const value of variant.values) {
-                // Check if inventory item exists
-                const { data: existingInventory } = await supabase
-                  .from('inventory_items')
-                  .select('id, quantity')
-                  .eq('product_id', insertedProduct.id)
-                  .eq('company_id', request.company_id)
-                  .is('location_id', null)
-                  .maybeSingle();
+            totalQuantity = product.variants.reduce((sum: number, variant: any) => 
+              sum + variant.values.reduce((vSum: number, val: any) => 
+                vSum + (val.quantity || 0), 0
+              ), 0
+            );
+          }
 
-                if (existingInventory) {
-                  // Update existing inventory
-                  await supabase
-                    .from('inventory_items')
-                    .update({ 
-                      quantity: existingInventory.quantity + (value.quantity || 0),
-                      last_updated: new Date().toISOString()
-                    })
-                    .eq('id', existingInventory.id);
-                } else {
-                  // Create new inventory item
-                  await supabase
-                    .from('inventory_items')
-                    .insert({
-                      product_id: insertedProduct.id,
-                      company_id: request.company_id,
-                      quantity: value.quantity || 0,
-                      received_date: new Date().toISOString()
-                    });
-                }
-              }
-            }
-          } else {
-            // Handle products without variants
-            const { data: existingInventory } = await supabase
+          // Check if inventory item exists for this product
+          const { data: existingInventory } = await supabase
+            .from('inventory_items')
+            .select('id, quantity')
+            .eq('product_id', insertedProduct.id)
+            .eq('company_id', request.company_id)
+            .is('location_id', null)
+            .maybeSingle();
+
+          if (existingInventory) {
+            // Update existing inventory
+            await supabase
               .from('inventory_items')
-              .select('id, quantity')
-              .eq('product_id', insertedProduct.id)
-              .eq('company_id', request.company_id)
-              .is('location_id', null)
-              .maybeSingle();
-
-            if (existingInventory) {
-              // Update existing inventory
-              await supabase
-                .from('inventory_items')
-                .update({ 
-                  quantity: existingInventory.quantity + product.quantity,
-                  last_updated: new Date().toISOString()
-                })
-                .eq('id', existingInventory.id);
-            } else {
-              // Create new inventory item
-              await supabase
-                .from('inventory_items')
-                .insert({
-                  product_id: insertedProduct.id,
-                  company_id: request.company_id,
-                  quantity: product.quantity,
-                  received_date: new Date().toISOString()
-                });
-            }
+              .update({ 
+                quantity: existingInventory.quantity + totalQuantity,
+                last_updated: new Date().toISOString()
+              })
+              .eq('id', existingInventory.id);
+          } else {
+            // Create new inventory item
+            await supabase
+              .from('inventory_items')
+              .insert({
+                product_id: insertedProduct.id,
+                company_id: request.company_id,
+                quantity: totalQuantity,
+                received_date: new Date().toISOString()
+              });
           }
         }
       }
