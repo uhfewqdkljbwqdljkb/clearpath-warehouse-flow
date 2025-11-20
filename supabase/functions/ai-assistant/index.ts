@@ -841,15 +841,40 @@ Your goal is to be a complete business partner, helping with both warehouse oper
                 result = { error: 'No company associated with user' };
                 break;
               }
-              const [products, inventory, orders] = await Promise.all([
-                supabase.from('client_products').select('*', { count: 'exact', head: true }).eq('company_id', companyId),
-                supabase.from('inventory_items').select('quantity').eq('company_id', companyId),
-                supabase.from('client_orders').select('*', { count: 'exact', head: true }).eq('company_id', companyId)
+              const [{ data: productsData, count: productsCount }, orders] = await Promise.all([
+                supabase
+                  .from('client_products')
+                  .select('id, variants, inventory_items(quantity)', { count: 'exact' })
+                  .eq('company_id', companyId),
+                supabase
+                  .from('client_orders')
+                  .select('*', { count: 'exact', head: true })
+                  .eq('company_id', companyId)
               ]);
-              const totalInventory = inventory.data?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+
+              let totalInventoryUnits = 0;
+              (productsData || []).forEach((p: any) => {
+                const inventoryTotal = (p.inventory_items || []).reduce(
+                  (sum: number, item: any) => sum + (item.quantity || 0),
+                  0
+                );
+
+                let variantsTotal = 0;
+                if (p.variants && Array.isArray(p.variants)) {
+                  p.variants.forEach((variant: any) => {
+                    variant.values?.forEach((val: any) => {
+                      variantsTotal += val.quantity || 0;
+                    });
+                  });
+                }
+
+                const totalForProduct = inventoryTotal || variantsTotal;
+                totalInventoryUnits += totalForProduct;
+              });
+
               result = {
-                total_products: products.count || 0,
-                total_inventory_units: totalInventory,
+                total_products: productsCount || 0,
+                total_inventory_units: totalInventoryUnits,
                 total_orders: orders.count || 0
               };
               break;
