@@ -104,6 +104,27 @@ serve(async (req) => {
             required: []
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "get_product_inventory",
+          description: "Get current inventory quantities for the current company's products, optionally filtered by name or SKU, including variant breakdown where available",
+          parameters: {
+            type: "object",
+            properties: {
+              product_name: {
+                type: "string",
+                description: "Optional product name or partial name to filter by"
+              },
+              sku: {
+                type: "string",
+                description: "Optional exact SKU to filter by"
+              }
+            },
+            required: []
+          }
+        }
       }
     ];
 
@@ -142,7 +163,7 @@ Your goal is to be a valuable business partner, whether helping with warehouse o
       const company = profile?.companies;
 
       systemPrompt = `You are Clearpath AI, a versatile business assistant for ${company?.name || 'your company'}.
-
+ 
 You are here to help with:
 - Business strategy and growth (marketing, sales, customer acquisition)
 - General business advice and planning
@@ -151,11 +172,12 @@ You are here to help with:
 - Industry trends and best practices
 
 You also have access to tools for your warehouse data:
-- Product catalog and inventory
+- Product catalog and inventory (including total units per product)
 - Order history and status
 - Warehouse allocation details
 
 When discussing your warehouse operations, use the provided tools to fetch real-time data.
+Use the get_product_inventory tool whenever the user asks about stock levels, units, or quantities for specific products.
 
 Current context:
 - Company: ${company?.name || 'N/A'}
@@ -166,6 +188,7 @@ Current context:
 Guidelines:
 - Discuss any business topic freely - marketing, strategy, operations, etc.
 - When warehouse data is needed, use the tools to access ${company?.name}'s information
+- When asked about quantities or units of products, call get_product_inventory and base your answer on its results
 - Provide strategic advice for business growth and success
 - Be conversational, insightful, and supportive
 
@@ -231,6 +254,69 @@ Your goal is to be a complete business partner, helping with both warehouse oper
                 total_inventory_units: totalInventory,
                 total_orders: orders.count || 0
               };
+              break;
+            }
+            case 'get_product_inventory': {
+              const companyId = profile?.companies?.id;
+              if (!companyId) {
+                result = { error: 'No company associated with user' };
+                break;
+              }
+
+              let parsedArgs: any = {};
+              try {
+                parsedArgs = args ? JSON.parse(args) : {};
+              } catch {
+                parsedArgs = {};
+              }
+
+              const { product_name, sku } = parsedArgs;
+
+              let query = supabase
+                .from('client_products')
+                .select('id, name, sku, variants, inventory_items(quantity)')
+                .eq('company_id', companyId);
+
+              if (product_name) {
+                query = query.ilike('name', `%${product_name}%`);
+              }
+
+              if (sku) {
+                query = query.eq('sku', sku);
+              }
+
+              const { data, error } = await query;
+              if (error) throw error;
+
+              const productsWithInventory = (data || []).map((p: any) => {
+                const inventoryTotal = (p.inventory_items || []).reduce(
+                  (sum: number, item: any) => sum + (item.quantity || 0),
+                  0
+                );
+
+                let variantsTotal = 0;
+                if (p.variants && Array.isArray(p.variants)) {
+                  p.variants.forEach((variant: any) => {
+                    variant.values?.forEach((val: any) => {
+                      variantsTotal += val.quantity || 0;
+                    });
+                  });
+                }
+
+                const totalQuantity = inventoryTotal || variantsTotal;
+
+                return {
+                  id: p.id,
+                  name: p.name,
+                  sku: p.sku,
+                  total_quantity: totalQuantity,
+                  inventory_quantity: inventoryTotal,
+                  variant_quantity_from_definition: variantsTotal,
+                  variants: p.variants || []
+                };
+              });
+
+              result = { products: productsWithInventory };
               break;
             }
             default:
