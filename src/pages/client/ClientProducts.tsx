@@ -67,7 +67,6 @@ export const ClientProducts: React.FC = () => {
   const [quantity, setQuantity] = useState(0);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [companyInfo, setCompanyInfo] = useState<{ name: string; client_code: string } | null>(null);
 
@@ -290,63 +289,6 @@ export const ClientProducts: React.FC = () => {
     setIsViewDialogOpen(true);
   };
 
-  const handleEdit = (product: Product) => {
-    setSelectedProduct(product);
-    setProductName(product.name);
-    setIsActive(product.is_active);
-    setVariants(product.variants || []);
-    setIsEditDialogOpen(true);
-  };
-
-  const handleUpdateProduct = async () => {
-    if (!productName.trim() || !selectedProduct) {
-      toast({
-        title: "Error",
-        description: "Product name is required",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      const { error } = await supabase
-        .from('client_products')
-        .update({
-          name: productName,
-          is_active: isActive,
-          variants: variants as any,
-        })
-        .eq('id', selectedProduct.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Product updated successfully",
-      });
-
-      setIsEditDialogOpen(false);
-      resetForm();
-      setSelectedProduct(null);
-      fetchProducts();
-
-      logActivity('product_updated', 'User updated a product', {
-        product_id: selectedProduct.id,
-        product_name: productName,
-      });
-    } catch (error) {
-      console.error('Error updating product:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update product",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const handleDelete = async (product: Product) => {
     if (!confirm(`Are you sure you want to delete "${product.name}"?`)) {
       return;
@@ -493,9 +435,6 @@ export const ClientProducts: React.FC = () => {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => handleViewDetails(product)}>
                             View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleEdit(product)}>
-                            Edit
                           </DropdownMenuItem>
                           <DropdownMenuItem 
                             className="text-destructive"
@@ -677,159 +616,6 @@ export const ClientProducts: React.FC = () => {
             </Button>
             <Button onClick={handleAddProduct} disabled={isSaving}>
               {isSaving ? 'Adding...' : 'Add Product'}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Product Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit Product</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-6 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="editProductName">Product Name *</Label>
-              <Input
-                id="editProductName"
-                placeholder="Enter product name"
-                value={productName}
-                onChange={(e) => setProductName(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="editQuantity">
-                Total Quantity
-                {variants.length > 0 && (
-                  <span className="text-xs text-muted-foreground ml-2">(Auto-calculated from variants)</span>
-                )}
-              </Label>
-              <Input
-                id="editQuantity"
-                type="number"
-                min="0"
-                value={variants.length > 0 ? calculateTotalQuantity() : quantity}
-                onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
-                placeholder="Enter quantity"
-                disabled={variants.length > 0}
-                className={variants.length > 0 ? 'bg-muted cursor-not-allowed' : ''}
-              />
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label>Variants</Label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addVariant}
-                >
-                  Add Variant
-                </Button>
-              </div>
-
-              {variants.map((variant, variantIndex) => (
-                <div key={variantIndex} className="border rounded-lg p-4 space-y-3 bg-muted/30">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex-1">
-                      <Label className="text-xs text-muted-foreground block mb-1">
-                        Attribute Name
-                      </Label>
-                      <Input
-                        value={variant.attribute}
-                        onChange={(e) => updateVariant(variantIndex, 'attribute', e.target.value)}
-                        placeholder="e.g., Color, Size, Material"
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeVariant(variantIndex)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <div className="space-y-2 pl-3 border-l-2">
-                    <Label className="text-xs text-muted-foreground">Values</Label>
-                    {variant.values.map((val, valueIndex) => (
-                      <div key={valueIndex} className="flex gap-2 items-center">
-                        <Input
-                          value={val.value}
-                          onChange={(e) => updateVariantValue(variantIndex, valueIndex, 'value', e.target.value)}
-                          placeholder="e.g., Red, Large"
-                          className="flex-1"
-                        />
-                        <Input
-                          type="number"
-                          min="0"
-                          value={val.quantity}
-                          onChange={(e) => updateVariantValue(variantIndex, valueIndex, 'quantity', parseInt(e.target.value) || 0)}
-                          placeholder="Qty"
-                          className="w-24"
-                        />
-                        {variant.values.length > 1 && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeValueFromVariant(variantIndex, valueIndex)}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        )}
-                      </div>
-                    ))}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => addValueToVariant(variantIndex)}
-                      className="w-full"
-                    >
-                      + Add Value
-                    </Button>
-                  </div>
-                </div>
-              ))}
-
-              {variants.length === 0 && (
-                <p className="text-xs text-muted-foreground pl-4">
-                  No variants added. Add variants to group values by attribute.
-                </p>
-              )}
-            </div>
-
-            <div className="flex items-center justify-between rounded-lg border p-4">
-              <div className="space-y-0.5">
-                <Label className="text-base">Active Product</Label>
-                <div className="text-sm text-muted-foreground">
-                  Product is available for use
-                </div>
-              </div>
-              <Switch
-                checked={isActive}
-                onCheckedChange={setIsActive}
-              />
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsEditDialogOpen(false);
-                resetForm();
-                setSelectedProduct(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleUpdateProduct} disabled={isSaving}>
-              {isSaving ? 'Updating...' : 'Update Product'}
             </Button>
           </div>
         </DialogContent>
