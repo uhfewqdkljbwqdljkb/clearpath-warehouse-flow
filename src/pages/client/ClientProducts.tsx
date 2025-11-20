@@ -152,7 +152,7 @@ export const ClientProducts: React.FC = () => {
   const getProductQuantity = (product: Product) => {
     const totalInventory = inventoryData[product.id] || 0;
     
-    // If product has variants, show breakdown
+    // If product has variants, show breakdown from product definition
     if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
       const variantQuantities: { [key: string]: number } = {};
       
@@ -163,10 +163,10 @@ export const ClientProducts: React.FC = () => {
         });
       });
 
-      return { total: totalInventory, variants: variantQuantities };
+      return { total: totalInventory, variants: variantQuantities, hasVariants: true };
     }
 
-    return { total: totalInventory, variants: null };
+    return { total: totalInventory, variants: null, hasVariants: false };
   };
 
   const filteredProducts = products.filter(product =>
@@ -390,17 +390,13 @@ export const ClientProducts: React.FC = () => {
                         </code>
                       </TableCell>
                       <TableCell>
-                        {quantityInfo.variants ? (
-                          <div className="space-y-1">
-                            <div className="font-medium text-sm">{quantityInfo.total} total</div>
-                            <div className="text-xs text-muted-foreground space-y-0.5">
-                              {Object.entries(quantityInfo.variants).map(([key, qty]) => (
-                                <div key={key}>{key}: {qty}</div>
-                              ))}
-                            </div>
+                        <div className="font-medium">{quantityInfo.total}</div>
+                        {quantityInfo.hasVariants && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {Object.entries(quantityInfo.variants || {}).map(([key, qty]) => (
+                              <div key={key}>{key}: {qty}</div>
+                            ))}
                           </div>
-                        ) : (
-                          <span className="font-medium">{quantityInfo.total}</span>
                         )}
                       </TableCell>
                       <TableCell>
