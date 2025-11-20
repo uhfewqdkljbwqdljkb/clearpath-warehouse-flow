@@ -36,6 +36,10 @@ interface Product {
   created_at: string;
 }
 
+interface InventoryData {
+  [productId: string]: number;
+}
+
 interface VariantValue {
   value: string;
   quantity: number;
@@ -54,6 +58,7 @@ export const ClientProducts: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [inventoryData, setInventoryData] = useState<InventoryData>({});
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [productName, setProductName] = useState('');
   const [isActive, setIsActive] = useState(true);
@@ -70,6 +75,7 @@ export const ClientProducts: React.FC = () => {
     if (profile?.company_id) {
       fetchProducts();
       fetchCompanyInfo();
+      fetchInventory();
       logActivity('products_access', 'User accessed products page', {
         timestamp: new Date().toISOString()
       });
@@ -115,6 +121,53 @@ export const ClientProducts: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const fetchInventory = async () => {
+    if (!profile?.company_id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('inventory_items')
+        .select('product_id, quantity')
+        .eq('company_id', profile.company_id);
+
+      if (error) throw error;
+
+      // Aggregate quantities by product_id
+      const inventoryMap: InventoryData = {};
+      data?.forEach((item) => {
+        if (inventoryMap[item.product_id]) {
+          inventoryMap[item.product_id] += item.quantity;
+        } else {
+          inventoryMap[item.product_id] = item.quantity;
+        }
+      });
+
+      setInventoryData(inventoryMap);
+    } catch (error) {
+      console.error('Error fetching inventory:', error);
+    }
+  };
+
+  const getProductQuantity = (product: Product) => {
+    const totalInventory = inventoryData[product.id] || 0;
+    
+    // If product has variants, show breakdown
+    if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
+      const variantQuantities: { [key: string]: number } = {};
+      
+      product.variants.forEach((variant: any) => {
+        variant.values?.forEach((val: any) => {
+          const key = `${variant.attribute}: ${val.value}`;
+          variantQuantities[key] = val.quantity || 0;
+        });
+      });
+
+      return { total: totalInventory, variants: variantQuantities };
+    }
+
+    return { total: totalInventory, variants: null };
   };
 
   const filteredProducts = products.filter(product =>
@@ -376,6 +429,7 @@ export const ClientProducts: React.FC = () => {
                 <TableRow>
                   <TableHead>Product Name</TableHead>
                   <TableHead>SKU</TableHead>
+                  <TableHead>Quantity</TableHead>
                   <TableHead>Variants</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Created</TableHead>
@@ -383,36 +437,52 @@ export const ClientProducts: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredProducts.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell className="font-medium">{product.name}</TableCell>
-                    <TableCell>
-                      <code className="text-sm bg-muted px-2 py-1 rounded">
-                        {product.sku || 'N/A'}
-                      </code>
-                    </TableCell>
-                    <TableCell>
-                      {getVariantCount(product.variants) > 0 ? (
-                        <Badge variant="secondary">
-                          {getVariantCount(product.variants)} variants
+                {filteredProducts.map((product) => {
+                  const quantityInfo = getProductQuantity(product);
+                  return (
+                    <TableRow key={product.id}>
+                      <TableCell className="font-medium">{product.name}</TableCell>
+                      <TableCell>
+                        <code className="text-sm bg-muted px-2 py-1 rounded">
+                          {product.sku || 'N/A'}
+                        </code>
+                      </TableCell>
+                      <TableCell>
+                        {quantityInfo.variants ? (
+                          <div className="space-y-1">
+                            <div className="font-medium text-sm">{quantityInfo.total} total</div>
+                            <div className="text-xs text-muted-foreground space-y-0.5">
+                              {Object.entries(quantityInfo.variants).map(([key, qty]) => (
+                                <div key={key}>{key}: {qty}</div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="font-medium">{quantityInfo.total}</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {getVariantCount(product.variants) > 0 ? (
+                          <Badge variant="secondary">
+                            {getVariantCount(product.variants)} variants
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">No variants</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge 
+                          className={product.is_active 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-gray-100 text-gray-800'
+                          }
+                        >
+                          {product.is_active ? 'Active' : 'Inactive'}
                         </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">No variants</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge 
-                        className={product.is_active 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-gray-100 text-gray-800'
-                        }
-                      >
-                        {product.is_active ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {new Date(product.created_at).toLocaleDateString()}
-                    </TableCell>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {new Date(product.created_at).toLocaleDateString()}
+                      </TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -435,9 +505,10 @@ export const ClientProducts: React.FC = () => {
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           ) : (
