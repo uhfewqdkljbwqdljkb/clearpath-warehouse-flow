@@ -682,7 +682,17 @@ export const ClientProducts: React.FC = () => {
               )}
             </div>
           )}
-          <div className="flex justify-end">
+          <div className="flex justify-between gap-3">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsViewDialogOpen(false);
+                navigate('/client/check-in');
+              }}
+            >
+              <Package className="h-4 w-4 mr-2" />
+              Check In More
+            </Button>
             <Button onClick={() => setIsViewDialogOpen(false)}>Close</Button>
           </div>
         </DialogContent>
