@@ -15,6 +15,7 @@ import { useNavigate } from 'react-router-dom';
 export const ClientDashboard: React.FC = () => {
   const { profile, company } = useAuth();
   const { logActivity } = useIntegration();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [metrics, setMetrics] = useState({
     totalProducts: 0,
@@ -88,8 +89,6 @@ export const ClientDashboard: React.FC = () => {
       </div>
     );
   }
-
-  const navigate = useNavigate();
 
   return (
     <div className="space-y-8">
