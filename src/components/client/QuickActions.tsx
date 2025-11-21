@@ -1,7 +1,7 @@
 import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, FileText, Truck, MessageSquare, BarChart3, Package } from 'lucide-react';
+import { Plus, FileText, Truck, MessageSquare, BarChart3, Package, Bot, CheckCircle, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const QuickActions: React.FC = () => {
@@ -9,71 +9,67 @@ export const QuickActions: React.FC = () => {
 
   const actions = [
     {
-      icon: <Plus className="h-5 w-5" />,
-      title: 'Place New Order',
-      description: 'Quick order entry',
-      onClick: () => navigate('/client/orders'),
-      color: 'bg-blue-50 hover:bg-blue-100 text-blue-700'
+      icon: Plus,
+      title: 'Place Order',
+      description: 'Create new order',
+      path: '/client/orders',
     },
     {
-      icon: <Package className="h-5 w-5" />,
-      title: 'Check Stock Levels',
-      description: 'Inventory overview',
-      onClick: () => navigate('/client/inventory'),
-      color: 'bg-green-50 hover:bg-green-100 text-green-700'
+      icon: Package,
+      title: 'Check Stock',
+      description: 'View inventory',
+      path: '/client/products',
     },
     {
-      icon: <Truck className="h-5 w-5" />,
-      title: 'Track Shipments',
-      description: 'Order tracking',
-      onClick: () => navigate('/client/orders'),
-      color: 'bg-purple-50 hover:bg-purple-100 text-purple-700'
+      icon: CheckCircle,
+      title: 'Check In',
+      description: 'Receive inventory',
+      path: '/client/check-in',
     },
     {
-      icon: <FileText className="h-5 w-5" />,
-      title: 'Request Restock',
-      description: 'Inventory replenishment',
-      onClick: () => navigate('/client/products'),
-      color: 'bg-orange-50 hover:bg-orange-100 text-orange-700'
+      icon: XCircle,
+      title: 'Check Out',
+      description: 'Ship products',
+      path: '/client/check-out',
     },
     {
-      icon: <BarChart3 className="h-5 w-5" />,
-      title: 'View Analytics',
-      description: 'Performance insights',
-      onClick: () => navigate('/client/analytics'),
-      color: 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700'
+      icon: BarChart3,
+      title: 'Analytics',
+      description: 'View insights',
+      path: '/client/analytics',
     },
     {
-      icon: <MessageSquare className="h-5 w-5" />,
-      title: 'Contact Warehouse',
-      description: 'Direct communication',
-      onClick: () => navigate('/client/messages'),
-      color: 'bg-teal-50 hover:bg-teal-100 text-teal-700'
+      icon: Bot,
+      title: 'AI Assistant',
+      description: 'Get help',
+      path: '/client/ai-assistant',
     }
   ];
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Quick Actions</CardTitle>
-        <CardDescription>Common tasks to get you started</CardDescription>
+        <CardTitle className="text-xl">Quick Actions</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {actions.map((action, index) => (
-            <Button
-              key={index}
-              onClick={action.onClick}
-              variant="outline"
-              className={`h-20 flex-col gap-2 border-2 hover:border-current transition-colors ${action.color}`}
-            >
-              {action.icon}
-              <div className="text-center">
-                <div className="font-medium text-sm">{action.title}</div>
-                <div className="text-xs opacity-80">{action.description}</div>
-              </div>
-            </Button>
-          ))}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {actions.map((action, index) => {
+            const Icon = action.icon;
+            return (
+              <Button
+                key={index}
+                onClick={() => navigate(action.path)}
+                variant="outline"
+                className="h-24 flex flex-col items-center justify-center gap-2 hover:bg-muted/50 hover:border-primary/50 transition-all group"
+              >
+                <Icon className="h-6 w-6 text-muted-foreground group-hover:text-primary transition-colors" />
+                <div className="text-center">
+                  <div className="font-medium text-sm">{action.title}</div>
+                  <div className="text-xs text-muted-foreground">{action.description}</div>
+                </div>
+              </Button>
+            );
+          })}
         </div>
       </CardContent>
     </Card>
