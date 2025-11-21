@@ -4,13 +4,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Clock, CheckCircle, XCircle, Eye, FileText, Plus, Trash2 } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Eye, FileText, Plus, Trash2, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format } from 'date-fns';
+import { CalendarIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface CheckInRequest {
   id: string;
@@ -43,6 +50,10 @@ export const CheckInRequests: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [amendedProducts, setAmendedProducts] = useState<any[]>([]);
   const [amendmentNotes, setAmendmentNotes] = useState('');
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [exportStartDate, setExportStartDate] = useState<Date | undefined>(undefined);
+  const [exportEndDate, setExportEndDate] = useState<Date | undefined>(undefined);
+  const [selectedRequestsForExport, setSelectedRequestsForExport] = useState<string[]>([]);
 
   useEffect(() => {
     fetchRequests();
@@ -554,11 +565,169 @@ export const CheckInRequests: React.FC = () => {
     )
   );
 
+  const generatePDF = (requestsToExport: CheckInRequest[]) => {
+    const doc = new jsPDF();
+    
+    // Title
+    doc.setFontSize(18);
+    doc.text('Check-In Requests Report', 14, 20);
+    
+    // Date range
+    doc.setFontSize(10);
+    if (exportStartDate && exportEndDate) {
+      doc.text(
+        `Period: ${format(exportStartDate, 'PPP')} - ${format(exportEndDate, 'PPP')}`,
+        14,
+        28
+      );
+    }
+    doc.text(`Generated: ${format(new Date(), 'PPP HH:mm')}`, 14, 34);
+    doc.text(`Total Requests: ${requestsToExport.length}`, 14, 40);
+    
+    let yPosition = 50;
+    
+    // Process each request
+    requestsToExport.forEach((request, index) => {
+      // Check if we need a new page
+      if (yPosition > 250) {
+        doc.addPage();
+        yPosition = 20;
+      }
+      
+      // Request header
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Request #${request.request_number}`, 14, yPosition);
+      yPosition += 6;
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Client: ${request.companies?.name || 'N/A'}`, 14, yPosition);
+      doc.text(`Status: ${request.status.toUpperCase()}`, 120, yPosition);
+      yPosition += 6;
+      
+      doc.text(`Submitted: ${format(new Date(request.created_at), 'PPP')}`, 14, yPosition);
+      if (request.reviewed_at) {
+        doc.text(`Reviewed: ${format(new Date(request.reviewed_at), 'PPP')}`, 120, yPosition);
+      }
+      yPosition += 8;
+      
+      // Products table
+      const productsToShow = request.was_amended && request.amended_products 
+        ? request.amended_products 
+        : request.requested_products;
+      
+      const tableData = productsToShow.map((product: any) => {
+        let quantity = product.quantity || 0;
+        if (product.variants && product.variants.length > 0) {
+          quantity = product.variants.reduce((sum: number, variant: any) => 
+            sum + variant.values.reduce((vSum: number, val: any) => 
+              vSum + (val.quantity || 0), 0
+            ), 0
+          );
+        }
+        return [product.name, quantity.toString()];
+      });
+      
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Product Name', 'Quantity']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [59, 130, 246] },
+        margin: { left: 14 },
+      });
+      
+      yPosition = (doc as any).lastAutoTable.finalY + 6;
+      
+      // Amendment info
+      if (request.was_amended && request.amendment_notes) {
+        doc.setFont('helvetica', 'bold');
+        doc.text('Amendment Notes:', 14, yPosition);
+        yPosition += 5;
+        doc.setFont('helvetica', 'normal');
+        const splitNotes = doc.splitTextToSize(request.amendment_notes, 180);
+        doc.text(splitNotes, 14, yPosition);
+        yPosition += splitNotes.length * 5 + 4;
+      }
+      
+      // Rejection reason
+      if (request.status === 'rejected' && request.rejection_reason) {
+        doc.setFont('helvetica', 'bold');
+        doc.text('Rejection Reason:', 14, yPosition);
+        yPosition += 5;
+        doc.setFont('helvetica', 'normal');
+        const splitReason = doc.splitTextToSize(request.rejection_reason, 180);
+        doc.text(splitReason, 14, yPosition);
+        yPosition += splitReason.length * 5 + 4;
+      }
+      
+      // Notes
+      if (request.notes) {
+        doc.setFont('helvetica', 'bold');
+        doc.text('Notes:', 14, yPosition);
+        yPosition += 5;
+        doc.setFont('helvetica', 'normal');
+        const splitText = doc.splitTextToSize(request.notes, 180);
+        doc.text(splitText, 14, yPosition);
+        yPosition += splitText.length * 5 + 4;
+      }
+      
+      // Separator line
+      if (index < requestsToExport.length - 1) {
+        doc.setDrawColor(200, 200, 200);
+        doc.line(14, yPosition, 196, yPosition);
+        yPosition += 10;
+      }
+    });
+    
+    // Save the PDF
+    const fileName = `check-in-requests-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+    doc.save(fileName);
+    
+    toast({
+      title: "Export Successful",
+      description: `Exported ${requestsToExport.length} check-in request(s)`,
+    });
+  };
+
+  const handleExport = () => {
+    let filteredRequests = requests;
+    
+    // Filter by date range if provided
+    if (exportStartDate && exportEndDate) {
+      filteredRequests = requests.filter((req) => {
+        const reqDate = new Date(req.created_at);
+        return reqDate >= exportStartDate && reqDate <= exportEndDate;
+      });
+    }
+    
+    if (filteredRequests.length === 0) {
+      toast({
+        title: "No Data",
+        description: "No check-in requests found for the selected date range",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    generatePDF(filteredRequests);
+    setIsExportDialogOpen(false);
+    setExportStartDate(undefined);
+    setExportEndDate(undefined);
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Check-In Requests</h1>
-        <p className="text-muted-foreground">Review and approve client product check-in requests</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Check-In Requests</h1>
+          <p className="text-muted-foreground">Review and approve client product check-in requests</p>
+        </div>
+        <Button onClick={() => setIsExportDialogOpen(true)} variant="outline">
+          <Download className="h-4 w-4 mr-2" />
+          Export Report
+        </Button>
       </div>
 
       <Tabs defaultValue="pending" className="w-full">
@@ -1005,6 +1174,91 @@ export const CheckInRequests: React.FC = () => {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Export Dialog */}
+      <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Export Check-In Requests</DialogTitle>
+            <DialogDescription>
+              Select a date range to export check-in requests as PDF
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Start Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !exportStartDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {exportStartDate ? format(exportStartDate, "PPP") : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={exportStartDate}
+                    onSelect={setExportStartDate}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-2">
+              <Label>End Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !exportEndDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {exportEndDate ? format(exportEndDate, "PPP") : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={exportEndDate}
+                    onSelect={setExportEndDate}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsExportDialogOpen(false);
+                  setExportStartDate(undefined);
+                  setExportEndDate(undefined);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleExport}>
+                <Download className="h-4 w-4 mr-2" />
+                Export PDF
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
