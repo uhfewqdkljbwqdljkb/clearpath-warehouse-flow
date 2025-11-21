@@ -290,11 +290,60 @@ export const CheckInRequests: React.FC = () => {
         is_active: true,
       }));
 
-      const { error: insertError } = await supabase
+      const { data: insertedProducts, error: insertError } = await supabase
         .from('client_products')
-        .insert(productsToInsert);
+        .insert(productsToInsert)
+        .select();
 
       if (insertError) throw insertError;
+
+      // Create/update inventory with amended quantities
+      for (let i = 0; i < amendedProducts.length; i++) {
+        const product = amendedProducts[i];
+        const insertedProduct = insertedProducts?.[i];
+
+        if (insertedProduct) {
+          // Calculate total quantity for products with variants
+          let totalQuantity = product.quantity || 0;
+          if (product.variants && product.variants.length > 0) {
+            totalQuantity = product.variants.reduce((sum: number, variant: any) => 
+              sum + variant.values.reduce((vSum: number, val: any) => 
+                vSum + (val.quantity || 0), 0
+              ), 0
+            );
+          }
+
+          // Check if inventory item exists for this product
+          const { data: existingInventory } = await supabase
+            .from('inventory_items')
+            .select('id, quantity')
+            .eq('product_id', insertedProduct.id)
+            .eq('company_id', selectedRequest.company_id)
+            .is('location_id', null)
+            .maybeSingle();
+
+          if (existingInventory) {
+            // Update existing inventory
+            await supabase
+              .from('inventory_items')
+              .update({ 
+                quantity: existingInventory.quantity + totalQuantity,
+                last_updated: new Date().toISOString()
+              })
+              .eq('id', existingInventory.id);
+          } else {
+            // Create new inventory item
+            await supabase
+              .from('inventory_items')
+              .insert({
+                product_id: insertedProduct.id,
+                company_id: selectedRequest.company_id,
+                quantity: totalQuantity,
+                received_date: new Date().toISOString()
+              });
+          }
+        }
+      }
 
       // Update request with amended information
       const { error: updateError } = await supabase
@@ -312,7 +361,7 @@ export const CheckInRequests: React.FC = () => {
 
       toast({
         title: 'Success',
-        description: 'Request amended and approved successfully',
+        description: 'Request amended and approved - inventory updated with amended quantities',
       });
 
       setIsAmendDialogOpen(false);
