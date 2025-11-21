@@ -54,6 +54,7 @@ export const CheckInRequests: React.FC = () => {
   const [exportStartDate, setExportStartDate] = useState<Date | undefined>(undefined);
   const [exportEndDate, setExportEndDate] = useState<Date | undefined>(undefined);
   const [selectedRequestsForExport, setSelectedRequestsForExport] = useState<string[]>([]);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     fetchRequests();
@@ -565,133 +566,153 @@ export const CheckInRequests: React.FC = () => {
     )
   );
 
-  const generatePDF = (requestsToExport: CheckInRequest[]) => {
-    const doc = new jsPDF();
-    
-    // Title
-    doc.setFontSize(18);
-    doc.text('Check-In Requests Report', 14, 20);
-    
-    // Date range
-    doc.setFontSize(10);
-    if (exportStartDate && exportEndDate) {
-      doc.text(
-        `Period: ${format(exportStartDate, 'PPP')} - ${format(exportEndDate, 'PPP')}`,
-        14,
-        28
-      );
-    }
-    doc.text(`Generated: ${format(new Date(), 'PPP HH:mm')}`, 14, 34);
-    doc.text(`Total Requests: ${requestsToExport.length}`, 14, 40);
-    
-    let yPosition = 50;
-    
-    // Process each request
-    requestsToExport.forEach((request, index) => {
-      // Check if we need a new page
-      if (yPosition > 250) {
-        doc.addPage();
-        yPosition = 20;
-      }
+  const generatePDF = async (requestsToExport: CheckInRequest[]) => {
+    try {
+      setIsExporting(true);
       
-      // Request header
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`Request #${request.request_number}`, 14, yPosition);
-      yPosition += 6;
+      // Small delay to ensure loading state shows
+      await new Promise(resolve => setTimeout(resolve, 100));
       
+      const doc = new jsPDF();
+      
+      // Title
+      doc.setFontSize(18);
+      doc.text('Check-In Requests Report', 14, 20);
+      
+      // Date range
       doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Client: ${request.companies?.name || 'N/A'}`, 14, yPosition);
-      doc.text(`Status: ${request.status.toUpperCase()}`, 120, yPosition);
-      yPosition += 6;
-      
-      doc.text(`Submitted: ${format(new Date(request.created_at), 'PPP')}`, 14, yPosition);
-      if (request.reviewed_at) {
-        doc.text(`Reviewed: ${format(new Date(request.reviewed_at), 'PPP')}`, 120, yPosition);
+      if (exportStartDate && exportEndDate) {
+        doc.text(
+          `Period: ${format(exportStartDate, 'PPP')} - ${format(exportEndDate, 'PPP')}`,
+          14,
+          28
+        );
       }
-      yPosition += 8;
+      doc.text(`Generated: ${format(new Date(), 'PPP HH:mm')}`, 14, 34);
+      doc.text(`Total Requests: ${requestsToExport.length}`, 14, 40);
       
-      // Products table
-      const productsToShow = request.was_amended && request.amended_products 
-        ? request.amended_products 
-        : request.requested_products;
+      let yPosition = 50;
       
-      const tableData = productsToShow.map((product: any) => {
-        let quantity = product.quantity || 0;
-        if (product.variants && product.variants.length > 0) {
-          quantity = product.variants.reduce((sum: number, variant: any) => 
-            sum + variant.values.reduce((vSum: number, val: any) => 
-              vSum + (val.quantity || 0), 0
-            ), 0
-          );
+      // Process each request
+      requestsToExport.forEach((request, index) => {
+        // Check if we need a new page
+        if (yPosition > 250) {
+          doc.addPage();
+          yPosition = 20;
         }
-        return [product.name, quantity.toString()];
+        
+        // Request header
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Request #${request.request_number}`, 14, yPosition);
+        yPosition += 6;
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Client: ${request.companies?.name || 'N/A'}`, 14, yPosition);
+        doc.text(`Status: ${request.status.toUpperCase()}`, 120, yPosition);
+        yPosition += 6;
+        
+        doc.text(`Submitted: ${format(new Date(request.created_at), 'PPP')}`, 14, yPosition);
+        if (request.reviewed_at) {
+          doc.text(`Reviewed: ${format(new Date(request.reviewed_at), 'PPP')}`, 120, yPosition);
+        }
+        yPosition += 8;
+        
+        // Products table
+        const productsToShow = request.was_amended && request.amended_products 
+          ? request.amended_products 
+          : request.requested_products;
+        
+        const tableData = productsToShow.map((product: any) => {
+          let quantity = product.quantity || 0;
+          if (product.variants && product.variants.length > 0) {
+            quantity = product.variants.reduce((sum: number, variant: any) => 
+              sum + variant.values.reduce((vSum: number, val: any) => 
+                vSum + (val.quantity || 0), 0
+              ), 0
+            );
+          }
+          return [product.name, quantity.toString()];
+        });
+        
+        autoTable(doc, {
+          startY: yPosition,
+          head: [['Product Name', 'Quantity']],
+          body: tableData,
+          theme: 'grid',
+          headStyles: { fillColor: [59, 130, 246] },
+          margin: { left: 14 },
+        });
+        
+        yPosition = (doc as any).lastAutoTable.finalY + 6;
+        
+        // Amendment info
+        if (request.was_amended && request.amendment_notes) {
+          doc.setFont('helvetica', 'bold');
+          doc.text('Amendment Notes:', 14, yPosition);
+          yPosition += 5;
+          doc.setFont('helvetica', 'normal');
+          const splitNotes = doc.splitTextToSize(request.amendment_notes, 180);
+          doc.text(splitNotes, 14, yPosition);
+          yPosition += splitNotes.length * 5 + 4;
+        }
+        
+        // Rejection reason
+        if (request.status === 'rejected' && request.rejection_reason) {
+          doc.setFont('helvetica', 'bold');
+          doc.text('Rejection Reason:', 14, yPosition);
+          yPosition += 5;
+          doc.setFont('helvetica', 'normal');
+          const splitReason = doc.splitTextToSize(request.rejection_reason, 180);
+          doc.text(splitReason, 14, yPosition);
+          yPosition += splitReason.length * 5 + 4;
+        }
+        
+        // Notes
+        if (request.notes) {
+          doc.setFont('helvetica', 'bold');
+          doc.text('Notes:', 14, yPosition);
+          yPosition += 5;
+          doc.setFont('helvetica', 'normal');
+          const splitText = doc.splitTextToSize(request.notes, 180);
+          doc.text(splitText, 14, yPosition);
+          yPosition += splitText.length * 5 + 4;
+        }
+        
+        // Separator line
+        if (index < requestsToExport.length - 1) {
+          doc.setDrawColor(200, 200, 200);
+          doc.line(14, yPosition, 196, yPosition);
+          yPosition += 10;
+        }
       });
       
-      autoTable(doc, {
-        startY: yPosition,
-        head: [['Product Name', 'Quantity']],
-        body: tableData,
-        theme: 'grid',
-        headStyles: { fillColor: [59, 130, 246] },
-        margin: { left: 14 },
+      // Save the PDF
+      const fileName = `check-in-requests-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+      doc.save(fileName);
+      
+      toast({
+        title: "Export Successful",
+        description: `Exported ${requestsToExport.length} check-in request(s)`,
       });
       
-      yPosition = (doc as any).lastAutoTable.finalY + 6;
-      
-      // Amendment info
-      if (request.was_amended && request.amendment_notes) {
-        doc.setFont('helvetica', 'bold');
-        doc.text('Amendment Notes:', 14, yPosition);
-        yPosition += 5;
-        doc.setFont('helvetica', 'normal');
-        const splitNotes = doc.splitTextToSize(request.amendment_notes, 180);
-        doc.text(splitNotes, 14, yPosition);
-        yPosition += splitNotes.length * 5 + 4;
-      }
-      
-      // Rejection reason
-      if (request.status === 'rejected' && request.rejection_reason) {
-        doc.setFont('helvetica', 'bold');
-        doc.text('Rejection Reason:', 14, yPosition);
-        yPosition += 5;
-        doc.setFont('helvetica', 'normal');
-        const splitReason = doc.splitTextToSize(request.rejection_reason, 180);
-        doc.text(splitReason, 14, yPosition);
-        yPosition += splitReason.length * 5 + 4;
-      }
-      
-      // Notes
-      if (request.notes) {
-        doc.setFont('helvetica', 'bold');
-        doc.text('Notes:', 14, yPosition);
-        yPosition += 5;
-        doc.setFont('helvetica', 'normal');
-        const splitText = doc.splitTextToSize(request.notes, 180);
-        doc.text(splitText, 14, yPosition);
-        yPosition += splitText.length * 5 + 4;
-      }
-      
-      // Separator line
-      if (index < requestsToExport.length - 1) {
-        doc.setDrawColor(200, 200, 200);
-        doc.line(14, yPosition, 196, yPosition);
-        yPosition += 10;
-      }
-    });
-    
-    // Save the PDF
-    const fileName = `check-in-requests-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
-    doc.save(fileName);
-    
-    toast({
-      title: "Export Successful",
-      description: `Exported ${requestsToExport.length} check-in request(s)`,
-    });
+      setIsExportDialogOpen(false);
+      setExportStartDate(undefined);
+      setExportEndDate(undefined);
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to generate PDF. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     let filteredRequests = requests;
     
     // Filter by date range if provided
@@ -711,10 +732,7 @@ export const CheckInRequests: React.FC = () => {
       return;
     }
     
-    generatePDF(filteredRequests);
-    setIsExportDialogOpen(false);
-    setExportStartDate(undefined);
-    setExportEndDate(undefined);
+    await generatePDF(filteredRequests);
   };
 
   return (
@@ -1250,12 +1268,13 @@ export const CheckInRequests: React.FC = () => {
                   setExportStartDate(undefined);
                   setExportEndDate(undefined);
                 }}
+                disabled={isExporting}
               >
                 Cancel
               </Button>
-              <Button onClick={handleExport}>
+              <Button onClick={handleExport} disabled={isExporting}>
                 <Download className="h-4 w-4 mr-2" />
-                Export PDF
+                {isExporting ? 'Generating PDF...' : 'Export PDF'}
               </Button>
             </div>
           </div>
