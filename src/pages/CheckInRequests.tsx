@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Clock, CheckCircle, XCircle, Eye, FileText, Plus, Trash2, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -497,25 +498,61 @@ export const CheckInRequests: React.FC = () => {
   const approvedRequests = requests.filter(r => r.status === 'approved');
   const rejectedRequests = requests.filter(r => r.status === 'rejected');
 
-  const renderRequestsTable = (requestsList: CheckInRequest[], showActions: boolean = true) => (
-    requestsList.length > 0 ? (
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Request #</TableHead>
-            <TableHead>Client</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Products</TableHead>
-            <TableHead>Submitted</TableHead>
-            {showActions && <TableHead>Actions</TableHead>}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {requestsList.map((request) => (
-            <TableRow key={request.id}>
-              <TableCell className="font-mono text-sm">
-                {request.request_number}
-              </TableCell>
+  const handleSelectAll = (requestsList: CheckInRequest[], checked: boolean) => {
+    if (checked) {
+      const requestIds = requestsList.map(r => r.id);
+      setSelectedRequestsForExport(prev => [...new Set([...prev, ...requestIds])]);
+    } else {
+      const requestIds = new Set(requestsList.map(r => r.id));
+      setSelectedRequestsForExport(prev => prev.filter(id => !requestIds.has(id)));
+    }
+  };
+
+  const handleSelectRequest = (requestId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedRequestsForExport(prev => [...prev, requestId]);
+    } else {
+      setSelectedRequestsForExport(prev => prev.filter(id => id !== requestId));
+    }
+  };
+
+  const renderRequestsTable = (requestsList: CheckInRequest[], showActions: boolean = true) => {
+    const allSelected = requestsList.length > 0 && requestsList.every(r => selectedRequestsForExport.includes(r.id));
+    const someSelected = requestsList.some(r => selectedRequestsForExport.includes(r.id));
+    
+    return (
+      requestsList.length > 0 ? (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-12">
+                <Checkbox
+                  checked={allSelected}
+                  onCheckedChange={(checked) => handleSelectAll(requestsList, checked as boolean)}
+                  aria-label="Select all"
+                />
+              </TableHead>
+              <TableHead>Request #</TableHead>
+              <TableHead>Client</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Products</TableHead>
+              <TableHead>Submitted</TableHead>
+              {showActions && <TableHead>Actions</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {requestsList.map((request) => (
+              <TableRow key={request.id}>
+                <TableCell>
+                  <Checkbox
+                    checked={selectedRequestsForExport.includes(request.id)}
+                    onCheckedChange={(checked) => handleSelectRequest(request.id, checked as boolean)}
+                    aria-label={`Select ${request.request_number}`}
+                  />
+                </TableCell>
+                <TableCell className="font-mono text-sm">
+                  {request.request_number}
+                </TableCell>
               <TableCell>
                 <div>
                   <div className="font-medium">{request.companies?.name}</div>
@@ -556,15 +593,16 @@ export const CheckInRequests: React.FC = () => {
                 </TableCell>
               )}
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    ) : (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">No requests found</p>
-      </div>
-    )
-  );
+            ))}
+          </TableBody>
+        </Table>
+      ) : (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">No requests found</p>
+        </div>
+      )
+    );
+  };
 
   const generatePDF = async (requestsToExport: CheckInRequest[]) => {
     try {
@@ -703,6 +741,7 @@ export const CheckInRequests: React.FC = () => {
       setIsExportDialogOpen(false);
       setExportStartDate(undefined);
       setExportEndDate(undefined);
+      setSelectedRequestsForExport([]);
     } catch (error) {
       console.error('PDF generation error:', error);
       toast({
@@ -716,11 +755,22 @@ export const CheckInRequests: React.FC = () => {
   };
 
   const handleExport = async () => {
-    let filteredRequests = requests;
+    // If no requests are selected, show error
+    if (selectedRequestsForExport.length === 0) {
+      toast({
+        title: "No Requests Selected",
+        description: "Please select at least one request to export",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Get only selected requests
+    let filteredRequests = requests.filter(req => selectedRequestsForExport.includes(req.id));
     
-    // Filter by date range if provided
+    // Further filter by date range if provided
     if (exportStartDate && exportEndDate) {
-      filteredRequests = requests.filter((req) => {
+      filteredRequests = filteredRequests.filter((req) => {
         const reqDate = new Date(req.created_at);
         return reqDate >= exportStartDate && reqDate <= exportEndDate;
       });
@@ -729,7 +779,7 @@ export const CheckInRequests: React.FC = () => {
     if (filteredRequests.length === 0) {
       toast({
         title: "No Data",
-        description: "No check-in requests found for the selected date range",
+        description: "No selected check-in requests found for the specified date range",
         variant: "destructive",
       });
       return;
@@ -745,10 +795,21 @@ export const CheckInRequests: React.FC = () => {
           <h1 className="text-3xl font-bold text-foreground">Check-In Requests</h1>
           <p className="text-muted-foreground">Review and approve client product check-in requests</p>
         </div>
-        <Button onClick={() => setIsExportDialogOpen(true)} variant="outline">
-          <Download className="h-4 w-4 mr-2" />
-          Export Report
-        </Button>
+        <div className="flex items-center gap-3">
+          {selectedRequestsForExport.length > 0 && (
+            <span className="text-sm text-muted-foreground">
+              {selectedRequestsForExport.length} selected
+            </span>
+          )}
+          <Button 
+            onClick={() => setIsExportDialogOpen(true)} 
+            variant="outline"
+            disabled={selectedRequestsForExport.length === 0}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export Report
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="pending" className="w-full">
@@ -1204,7 +1265,7 @@ export const CheckInRequests: React.FC = () => {
           <DialogHeader>
             <DialogTitle>Export Check-In Requests</DialogTitle>
             <DialogDescription>
-              Select a date range to export check-in requests as PDF
+              Exporting {selectedRequestsForExport.length} selected request(s). Optionally filter by date range.
             </DialogDescription>
           </DialogHeader>
           
@@ -1270,6 +1331,7 @@ export const CheckInRequests: React.FC = () => {
                   setIsExportDialogOpen(false);
                   setExportStartDate(undefined);
                   setExportEndDate(undefined);
+                  setSelectedRequestsForExport([]);
                 }}
                 disabled={isExporting}
               >
