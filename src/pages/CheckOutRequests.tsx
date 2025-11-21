@@ -4,11 +4,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Clock, CheckCircle, XCircle, Eye } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Eye, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format } from 'date-fns';
+import { CalendarIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface CheckOutRequest {
   id: string;
@@ -33,6 +40,10 @@ export const CheckOutRequests: React.FC = () => {
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [exportStartDate, setExportStartDate] = useState<Date>();
+  const [exportEndDate, setExportEndDate] = useState<Date>();
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     fetchRequests();
@@ -177,15 +188,179 @@ export const CheckOutRequests: React.FC = () => {
     }
   };
 
+  const generatePDF = async (requestsToExport: CheckOutRequest[]) => {
+    const doc = new jsPDF();
+    
+    // Add title
+    doc.setFontSize(18);
+    doc.text('Check-Out Requests Report', 14, 20);
+    
+    // Add date range if specified
+    if (exportStartDate || exportEndDate) {
+      doc.setFontSize(10);
+      const dateRangeText = `Date Range: ${exportStartDate ? format(exportStartDate, 'PP') : 'All'} - ${exportEndDate ? format(exportEndDate, 'PP') : 'All'}`;
+      doc.text(dateRangeText, 14, 28);
+    }
+    
+    let yPosition = exportStartDate || exportEndDate ? 35 : 30;
+    
+    // Process each request
+    for (let i = 0; i < requestsToExport.length; i++) {
+      const request = requestsToExport[i];
+      
+      // Add page break if needed (except for first request)
+      if (i > 0) {
+        doc.addPage();
+        yPosition = 20;
+      }
+      
+      // Request header
+      doc.setFontSize(14);
+      doc.text(`Request #${request.request_number}`, 14, yPosition);
+      yPosition += 7;
+      
+      // Request details
+      doc.setFontSize(10);
+      doc.text(`Client: ${request.companies?.name || 'N/A'}`, 14, yPosition);
+      yPosition += 5;
+      doc.text(`Client Code: ${request.companies?.client_code || 'N/A'}`, 14, yPosition);
+      yPosition += 5;
+      doc.text(`Status: ${request.status.toUpperCase()}`, 14, yPosition);
+      yPosition += 5;
+      doc.text(`Submitted: ${new Date(request.created_at).toLocaleDateString()}`, 14, yPosition);
+      yPosition += 10;
+      
+      // Items table
+      doc.setFontSize(12);
+      doc.text('Requested Items:', 14, yPosition);
+      yPosition += 5;
+      
+      const items = Array.isArray(request.requested_items) ? request.requested_items : [];
+      const tableData = items.map((item: any) => {
+        const variantInfo = item.variant_attribute && item.variant_value 
+          ? `${item.variant_attribute}: ${item.variant_value}`
+          : 'N/A';
+        return [
+          item.product_name || 'Unnamed Item',
+          variantInfo,
+          (item.quantity || 0).toString()
+        ];
+      });
+      
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Product', 'Variant', 'Quantity']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [59, 130, 246] },
+      });
+      
+      yPosition = (doc as any).lastAutoTable.finalY + 10;
+      
+      // Add notes if present
+      if (request.notes) {
+        doc.setFontSize(10);
+        doc.text('Notes:', 14, yPosition);
+        yPosition += 5;
+        const splitNotes = doc.splitTextToSize(request.notes, 180);
+        doc.text(splitNotes, 14, yPosition);
+        yPosition += splitNotes.length * 5 + 5;
+      }
+      
+      // Add rejection reason if present
+      if (request.status === 'rejected' && (request as any).rejection_reason) {
+        doc.setFontSize(10);
+        doc.setTextColor(220, 38, 38);
+        doc.text('Rejection Reason:', 14, yPosition);
+        yPosition += 5;
+        const splitReason = doc.splitTextToSize((request as any).rejection_reason, 180);
+        doc.text(splitReason, 14, yPosition);
+        doc.setTextColor(0, 0, 0);
+      }
+    }
+    
+    // Save the PDF
+    const fileName = `checkout-requests-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+    doc.save(fileName);
+  };
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    
+    try {
+      // Add a small delay to show loading state
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      let requestsToExport = [...requests];
+      
+      // Filter by date range if specified
+      if (exportStartDate || exportEndDate) {
+        requestsToExport = requestsToExport.filter(request => {
+          const requestDate = new Date(request.created_at);
+          
+          if (exportStartDate && requestDate < exportStartDate) {
+            return false;
+          }
+          
+          if (exportEndDate) {
+            const endOfDay = new Date(exportEndDate);
+            endOfDay.setHours(23, 59, 59, 999);
+            if (requestDate > endOfDay) {
+              return false;
+            }
+          }
+          
+          return true;
+        });
+      }
+      
+      if (requestsToExport.length === 0) {
+        toast({
+          title: "No requests to export",
+          description: "No check-out requests found in the selected date range",
+          variant: "destructive",
+        });
+        setIsExporting(false);
+        return;
+      }
+      
+      await generatePDF(requestsToExport);
+      
+      toast({
+        title: "Success",
+        description: `Exported ${requestsToExport.length} check-out request(s) to PDF`,
+      });
+      
+      setIsExportDialogOpen(false);
+      setExportStartDate(undefined);
+      setExportEndDate(undefined);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   if (isLoading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Check-Out Requests</h1>
-        <p className="text-muted-foreground">Review and approve client product check-out requests</p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Check-Out Requests</h1>
+          <p className="text-muted-foreground">Review and approve client product check-out requests</p>
+        </div>
+        <Button onClick={() => setIsExportDialogOpen(true)} className="gap-2">
+          <FileText className="h-4 w-4" />
+          Export Report
+        </Button>
       </div>
 
       <Card>
@@ -333,6 +508,90 @@ export const CheckOutRequests: React.FC = () => {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Export Dialog */}
+      <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Export Check-Out Requests</DialogTitle>
+            <DialogDescription>
+              Select a date range to export check-out requests as PDF
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Start Date (Optional)</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !exportStartDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {exportStartDate ? format(exportStartDate, "PPP") : "Pick a start date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={exportStartDate}
+                    onSelect={setExportStartDate}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-2">
+              <Label>End Date (Optional)</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !exportEndDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {exportEndDate ? format(exportEndDate, "PPP") : "Pick an end date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={exportEndDate}
+                    onSelect={setExportEndDate}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsExportDialogOpen(false);
+                  setExportStartDate(undefined);
+                  setExportEndDate(undefined);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleExport} disabled={isExporting}>
+                {isExporting ? "Generating PDF..." : "Export PDF"}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
