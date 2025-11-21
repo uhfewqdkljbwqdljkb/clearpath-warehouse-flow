@@ -4,12 +4,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Clock, CheckCircle, XCircle, Eye } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Eye, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface CheckInRequest {
   id: string;
@@ -23,6 +24,8 @@ interface CheckInRequest {
   amended_products?: any;
   amendment_notes?: string | null;
   was_amended?: boolean;
+  rejection_reason?: string | null;
+  reviewed_at?: string | null;
   companies?: {
     name: string;
     client_code: string;
@@ -359,6 +362,79 @@ export const CheckInRequests: React.FC = () => {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
   }
 
+  const pendingRequests = requests.filter(r => r.status === 'pending');
+  const approvedRequests = requests.filter(r => r.status === 'approved');
+  const rejectedRequests = requests.filter(r => r.status === 'rejected');
+
+  const renderRequestsTable = (requestsList: CheckInRequest[], showActions: boolean = true) => (
+    requestsList.length > 0 ? (
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Request #</TableHead>
+            <TableHead>Client</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Products</TableHead>
+            <TableHead>Submitted</TableHead>
+            {showActions && <TableHead>Actions</TableHead>}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {requestsList.map((request) => (
+            <TableRow key={request.id}>
+              <TableCell className="font-mono text-sm">
+                {request.request_number}
+              </TableCell>
+              <TableCell>
+                <div>
+                  <div className="font-medium">{request.companies?.name}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {request.companies?.client_code}
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="flex flex-col gap-1">
+                  {getStatusBadge(request.status)}
+                  {request.was_amended && (
+                    <Badge variant="outline" className="text-xs">
+                      <FileText className="h-3 w-3 mr-1" />
+                      Amended
+                    </Badge>
+                  )}
+                </div>
+              </TableCell>
+              <TableCell>
+                {Array.isArray(request.requested_products)
+                  ? `${request.requested_products.length} product(s)`
+                  : 'N/A'}
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {new Date(request.created_at).toLocaleDateString()}
+              </TableCell>
+              {showActions && (
+                <TableCell>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openReviewDialog(request)}
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    {request.status === 'pending' ? 'Review' : 'View Details'}
+                  </Button>
+                </TableCell>
+              )}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    ) : (
+      <div className="text-center py-12">
+        <p className="text-muted-foreground">No requests found</p>
+      </div>
+    )
+  );
+
   return (
     <div className="space-y-6">
       <div>
@@ -366,75 +442,63 @@ export const CheckInRequests: React.FC = () => {
         <p className="text-muted-foreground">Review and approve client product check-in requests</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Pending & Recent Requests</CardTitle>
-          <CardDescription>Manage client check-in requests</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {requests.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Request #</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Products</TableHead>
-                  <TableHead>Submitted</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {requests.map((request) => (
-                  <TableRow key={request.id}>
-                    <TableCell className="font-mono text-sm">
-                      {request.request_number}
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{request.companies?.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {request.companies?.client_code}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{getStatusBadge(request.status)}</TableCell>
-                    <TableCell>
-                      {Array.isArray(request.requested_products)
-                        ? `${request.requested_products.length} product(s)`
-                        : 'N/A'}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {new Date(request.created_at).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openReviewDialog(request)}
-                        disabled={request.status !== 'pending'}
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        Review
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">No check-in requests found</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="pending" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="pending">
+            Pending ({pendingRequests.length})
+          </TabsTrigger>
+          <TabsTrigger value="approved">
+            Approved ({approvedRequests.length})
+          </TabsTrigger>
+          <TabsTrigger value="rejected">
+            Rejected ({rejectedRequests.length})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="pending" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Pending Requests</CardTitle>
+              <CardDescription>Requests awaiting review</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {renderRequestsTable(pendingRequests)}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="approved" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Approved Requests</CardTitle>
+              <CardDescription>Previously approved check-in requests</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {renderRequestsTable(approvedRequests)}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="rejected" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Rejected Requests</CardTitle>
+              <CardDescription>Previously rejected check-in requests</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {renderRequestsTable(rejectedRequests)}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Review Dialog */}
       <Dialog open={isReviewDialogOpen} onOpenChange={setIsReviewDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Review Check-In Request</DialogTitle>
+            <DialogTitle>
+              {selectedRequest?.status === 'pending' ? 'Review' : 'View'} Check-In Request
+            </DialogTitle>
             <DialogDescription>
               {selectedRequest?.request_number} - {selectedRequest?.companies?.name}
             </DialogDescription>
@@ -442,31 +506,59 @@ export const CheckInRequests: React.FC = () => {
           
           {selectedRequest && (
             <div className="space-y-6">
+              {/* Request Info */}
+              <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+                <div>
+                  <div className="text-sm text-muted-foreground">Status</div>
+                  <div className="mt-1">{getStatusBadge(selectedRequest.status)}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Submitted</div>
+                  <div className="mt-1">{new Date(selectedRequest.created_at).toLocaleString()}</div>
+                </div>
+                {selectedRequest.reviewed_at && (
+                  <>
+                    <div>
+                      <div className="text-sm text-muted-foreground">Reviewed</div>
+                      <div className="mt-1">{new Date(selectedRequest.reviewed_at).toLocaleString()}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-muted-foreground">Was Amended</div>
+                      <div className="mt-1">{selectedRequest.was_amended ? 'Yes' : 'No'}</div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Original Products */}
               <div>
-                <h3 className="font-semibold mb-2">
-                  {selectedRequest.was_amended ? 'Original ' : ''}Requested Products
+                <h3 className="font-semibold mb-3 text-lg">
+                  {selectedRequest.was_amended ? 'Original Requested Products' : 'Requested Products'}
                 </h3>
                 <div className="space-y-2">
                   {Array.isArray(selectedRequest.requested_products) &&
                     selectedRequest.requested_products.map((product: any, index: number) => (
                       <Card key={index} className="p-4">
-                        <div className="font-medium">{product.name}</div>
+                        <div className="font-medium text-lg">{product.name}</div>
                         {product.quantity && !product.variants?.length && (
-                          <div className="text-sm text-muted-foreground">
-                            Quantity: {product.quantity}
+                          <div className="text-sm text-muted-foreground mt-1">
+                            Quantity: <span className="font-semibold">{product.quantity}</span>
                           </div>
                         )}
                         {product.variants && Array.isArray(product.variants) && product.variants.length > 0 && (
-                          <div className="mt-2 text-sm text-muted-foreground">
-                            <div className="font-medium">Variants:</div>
+                          <div className="mt-3 space-y-2">
+                            <div className="font-medium text-sm">Variants:</div>
                             {product.variants.map((variant: any, vIndex: number) => (
-                              <div key={vIndex} className="ml-4">
-                                <div>{variant.attribute}:</div>
-                                {variant.values?.map((val: any, valIndex: number) => (
-                                  <div key={valIndex} className="ml-4">
-                                    {val.value} - Qty: {val.quantity}
-                                  </div>
-                                ))}
+                              <div key={vIndex} className="ml-4 border-l-2 border-muted pl-3">
+                                <div className="font-medium text-sm">{variant.attribute}:</div>
+                                <div className="ml-3 mt-1 space-y-1">
+                                  {variant.values?.map((val: any, valIndex: number) => (
+                                    <div key={valIndex} className="text-sm">
+                                      <span className="text-muted-foreground">{val.value}:</span>{' '}
+                                      <span className="font-semibold">{val.quantity}</span>
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -476,32 +568,37 @@ export const CheckInRequests: React.FC = () => {
                 </div>
               </div>
 
+              {/* Amended Products */}
               {selectedRequest.was_amended && selectedRequest.amended_products && (
-                <div>
-                  <h3 className="font-semibold mb-2 text-primary">
+                <div className="border-t pt-6">
+                  <h3 className="font-semibold mb-3 text-lg text-primary flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
                     Amended Products (Actually Checked In)
                   </h3>
                   <div className="space-y-2">
                     {Array.isArray(selectedRequest.amended_products) &&
                       selectedRequest.amended_products.map((product: any, index: number) => (
                         <Card key={index} className="p-4 border-primary/50 bg-primary/5">
-                          <div className="font-medium">{product.name}</div>
+                          <div className="font-medium text-lg">{product.name}</div>
                           {product.quantity && !product.variants?.length && (
-                            <div className="text-sm text-muted-foreground">
-                              Quantity: {product.quantity}
+                            <div className="text-sm text-muted-foreground mt-1">
+                              Quantity: <span className="font-semibold text-primary">{product.quantity}</span>
                             </div>
                           )}
                           {product.variants && Array.isArray(product.variants) && product.variants.length > 0 && (
-                            <div className="mt-2 text-sm text-muted-foreground">
-                              <div className="font-medium">Variants:</div>
+                            <div className="mt-3 space-y-2">
+                              <div className="font-medium text-sm">Variants:</div>
                               {product.variants.map((variant: any, vIndex: number) => (
-                                <div key={vIndex} className="ml-4">
-                                  <div>{variant.attribute}:</div>
-                                  {variant.values?.map((val: any, valIndex: number) => (
-                                    <div key={valIndex} className="ml-4">
-                                      {val.value} - Qty: {val.quantity}
-                                    </div>
-                                  ))}
+                                <div key={vIndex} className="ml-4 border-l-2 border-primary/30 pl-3">
+                                  <div className="font-medium text-sm">{variant.attribute}:</div>
+                                  <div className="ml-3 mt-1 space-y-1">
+                                    {variant.values?.map((val: any, valIndex: number) => (
+                                      <div key={valIndex} className="text-sm">
+                                        <span className="text-muted-foreground">{val.value}:</span>{' '}
+                                        <span className="font-semibold text-primary">{val.quantity}</span>
+                                      </div>
+                                    ))}
+                                  </div>
                                 </div>
                               ))}
                             </div>
@@ -510,69 +607,78 @@ export const CheckInRequests: React.FC = () => {
                       ))}
                   </div>
                   {selectedRequest.amendment_notes && (
-                    <div className="mt-2 p-3 bg-accent rounded-lg">
-                      <p className="text-sm font-medium">Amendment Notes:</p>
-                      <p className="text-sm text-muted-foreground">
-                        {selectedRequest.amendment_notes}
-                      </p>
+                    <div className="mt-4 p-4 bg-muted/50 rounded-lg">
+                      <div className="text-sm font-medium mb-1">Amendment Notes:</div>
+                      <div className="text-sm text-muted-foreground">{selectedRequest.amendment_notes}</div>
                     </div>
                   )}
                 </div>
               )}
 
-              {selectedRequest.notes && (
-                <div>
-                  <h3 className="font-semibold mb-2">Notes</h3>
-                  <p className="text-sm text-muted-foreground">{selectedRequest.notes}</p>
+              {/* Rejection Reason */}
+              {selectedRequest.status === 'rejected' && selectedRequest.rejection_reason && (
+                <div className="border-t pt-6">
+                  <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+                    <div className="text-sm font-medium text-destructive mb-2">Rejection Reason:</div>
+                    <div className="text-sm">{selectedRequest.rejection_reason}</div>
+                  </div>
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="rejectionReason">Rejection Reason (if rejecting)</Label>
-                <Textarea
-                  id="rejectionReason"
-                  placeholder="Provide a reason for rejection..."
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                  rows={3}
-                />
-              </div>
+              {/* Notes */}
+              {selectedRequest.notes && (
+                <div>
+                  <h3 className="font-semibold mb-2">Client Notes:</h3>
+                  <div className="p-3 bg-muted/50 rounded-lg text-sm">
+                    {selectedRequest.notes}
+                  </div>
+                </div>
+              )}
 
+              {/* Action Buttons - Only for Pending */}
               {selectedRequest.status === 'pending' && (
-                <div className="flex justify-end gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setIsReviewDialogOpen(false);
-                      setSelectedRequest(null);
-                      setRejectionReason('');
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={() => handleReject(selectedRequest)}
-                    disabled={isProcessing}
-                  >
-                    Reject
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      openAmendDialog(selectedRequest);
-                      setIsReviewDialogOpen(false);
-                    }}
-                    disabled={isProcessing}
-                  >
-                    Amend
-                  </Button>
-                  <Button
-                    onClick={() => handleApprove(selectedRequest)}
-                    disabled={isProcessing}
-                  >
-                    {isProcessing ? 'Processing...' : 'Approve'}
-                  </Button>
+                <div className="border-t pt-6">
+                  <div className="space-y-4">
+                    <div className="flex gap-3">
+                      <Button
+                        onClick={() => handleApprove(selectedRequest)}
+                        disabled={isProcessing}
+                        className="flex-1"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Approve
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => openAmendDialog(selectedRequest)}
+                        disabled={isProcessing}
+                        className="flex-1"
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        Amend
+                      </Button>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="rejection-reason">Rejection Reason</Label>
+                      <Textarea
+                        id="rejection-reason"
+                        placeholder="Enter reason for rejection..."
+                        value={rejectionReason}
+                        onChange={(e) => setRejectionReason(e.target.value)}
+                        rows={3}
+                      />
+                      <Button
+                        variant="destructive"
+                        onClick={() => handleReject(selectedRequest)}
+                        disabled={isProcessing || !rejectionReason.trim()}
+                        className="w-full"
+                      >
+                        <XCircle className="h-4 w-4 mr-2" />
+                        Reject Request
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
