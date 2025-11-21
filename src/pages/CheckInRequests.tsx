@@ -52,10 +52,12 @@ export const CheckInRequests: React.FC = () => {
   const [amendedProducts, setAmendedProducts] = useState<any[]>([]);
   const [amendmentNotes, setAmendmentNotes] = useState('');
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [isExportMethodDialogOpen, setIsExportMethodDialogOpen] = useState(false);
   const [exportStartDate, setExportStartDate] = useState<Date | undefined>(undefined);
   const [exportEndDate, setExportEndDate] = useState<Date | undefined>(undefined);
   const [selectedRequestsForExport, setSelectedRequestsForExport] = useState<string[]>([]);
   const [isExporting, setIsExporting] = useState(false);
+  const [selectionModeActive, setSelectionModeActive] = useState(false);
 
   useEffect(() => {
     fetchRequests();
@@ -525,13 +527,15 @@ export const CheckInRequests: React.FC = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-12">
-                <Checkbox
-                  checked={allSelected}
-                  onCheckedChange={(checked) => handleSelectAll(requestsList, checked as boolean)}
-                  aria-label="Select all"
-                />
-              </TableHead>
+              {selectionModeActive && (
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={allSelected}
+                    onCheckedChange={(checked) => handleSelectAll(requestsList, checked as boolean)}
+                    aria-label="Select all"
+                  />
+                </TableHead>
+              )}
               <TableHead>Request #</TableHead>
               <TableHead>Client</TableHead>
               <TableHead>Status</TableHead>
@@ -543,13 +547,15 @@ export const CheckInRequests: React.FC = () => {
           <TableBody>
             {requestsList.map((request) => (
               <TableRow key={request.id}>
-                <TableCell>
-                  <Checkbox
-                    checked={selectedRequestsForExport.includes(request.id)}
-                    onCheckedChange={(checked) => handleSelectRequest(request.id, checked as boolean)}
-                    aria-label={`Select ${request.request_number}`}
-                  />
-                </TableCell>
+                {selectionModeActive && (
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedRequestsForExport.includes(request.id)}
+                      onCheckedChange={(checked) => handleSelectRequest(request.id, checked as boolean)}
+                      aria-label={`Select ${request.request_number}`}
+                    />
+                  </TableCell>
+                )}
                 <TableCell className="font-mono text-sm">
                   {request.request_number}
                 </TableCell>
@@ -742,6 +748,7 @@ export const CheckInRequests: React.FC = () => {
       setExportStartDate(undefined);
       setExportEndDate(undefined);
       setSelectedRequestsForExport([]);
+      setSelectionModeActive(false);
     } catch (error) {
       console.error('PDF generation error:', error);
       toast({
@@ -754,8 +761,46 @@ export const CheckInRequests: React.FC = () => {
     }
   };
 
-  const handleExport = async () => {
-    // If no requests are selected, show error
+  const handleExportButtonClick = () => {
+    // If selection mode is active and requests are selected, proceed to export
+    if (selectionModeActive && selectedRequestsForExport.length > 0) {
+      setIsExportDialogOpen(true);
+    } else if (selectionModeActive && selectedRequestsForExport.length === 0) {
+      toast({
+        title: "No Requests Selected",
+        description: "Please select at least one request to export",
+        variant: "destructive",
+      });
+    } else {
+      // Show method selection dialog
+      setIsExportMethodDialogOpen(true);
+    }
+  };
+
+  const handleExportByDateRange = async () => {
+    let filteredRequests = requests;
+    
+    // Filter by date range if provided
+    if (exportStartDate && exportEndDate) {
+      filteredRequests = requests.filter((req) => {
+        const reqDate = new Date(req.created_at);
+        return reqDate >= exportStartDate && reqDate <= exportEndDate;
+      });
+    }
+    
+    if (filteredRequests.length === 0) {
+      toast({
+        title: "No Data",
+        description: "No check-in requests found for the selected date range",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    await generatePDF(filteredRequests);
+  };
+
+  const handleExportBySelection = async () => {
     if (selectedRequestsForExport.length === 0) {
       toast({
         title: "No Requests Selected",
@@ -766,26 +811,24 @@ export const CheckInRequests: React.FC = () => {
     }
 
     // Get only selected requests
-    let filteredRequests = requests.filter(req => selectedRequestsForExport.includes(req.id));
-    
-    // Further filter by date range if provided
-    if (exportStartDate && exportEndDate) {
-      filteredRequests = filteredRequests.filter((req) => {
-        const reqDate = new Date(req.created_at);
-        return reqDate >= exportStartDate && reqDate <= exportEndDate;
-      });
-    }
-    
-    if (filteredRequests.length === 0) {
-      toast({
-        title: "No Data",
-        description: "No selected check-in requests found for the specified date range",
-        variant: "destructive",
-      });
-      return;
-    }
+    const filteredRequests = requests.filter(req => selectedRequestsForExport.includes(req.id));
     
     await generatePDF(filteredRequests);
+  };
+
+  const enableSelectionMode = () => {
+    setSelectionModeActive(true);
+    setSelectedRequestsForExport([]);
+    setIsExportMethodDialogOpen(false);
+    toast({
+      title: "Selection Mode Enabled",
+      description: "Select the requests you want to export, then click Export Report again",
+    });
+  };
+
+  const cancelSelectionMode = () => {
+    setSelectionModeActive(false);
+    setSelectedRequestsForExport([]);
   };
 
   return (
@@ -796,15 +839,25 @@ export const CheckInRequests: React.FC = () => {
           <p className="text-muted-foreground">Review and approve client product check-in requests</p>
         </div>
         <div className="flex items-center gap-3">
-          {selectedRequestsForExport.length > 0 && (
-            <span className="text-sm text-muted-foreground">
-              {selectedRequestsForExport.length} selected
-            </span>
+          {selectionModeActive && (
+            <>
+              {selectedRequestsForExport.length > 0 && (
+                <span className="text-sm text-muted-foreground">
+                  {selectedRequestsForExport.length} selected
+                </span>
+              )}
+              <Button 
+                onClick={cancelSelectionMode} 
+                variant="ghost"
+                size="sm"
+              >
+                Cancel Selection
+              </Button>
+            </>
           )}
           <Button 
-            onClick={() => setIsExportDialogOpen(true)} 
+            onClick={handleExportButtonClick} 
             variant="outline"
-            disabled={selectedRequestsForExport.length === 0}
           >
             <Download className="h-4 w-4 mr-2" />
             Export Report
@@ -1259,70 +1312,117 @@ export const CheckInRequests: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Export Dialog */}
+      {/* Export Method Selection Dialog */}
+      <Dialog open={isExportMethodDialogOpen} onOpenChange={setIsExportMethodDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Choose Export Method</DialogTitle>
+            <DialogDescription>
+              How would you like to select requests to export?
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-3">
+            <Button
+              variant="outline"
+              className="w-full h-auto py-4 flex-col items-start"
+              onClick={() => {
+                setIsExportMethodDialogOpen(false);
+                setIsExportDialogOpen(true);
+              }}
+            >
+              <div className="font-semibold text-base mb-1">Export by Date Range</div>
+              <div className="text-sm text-muted-foreground font-normal">
+                Export all requests within a specific date range
+              </div>
+            </Button>
+            
+            <Button
+              variant="outline"
+              className="w-full h-auto py-4 flex-col items-start"
+              onClick={enableSelectionMode}
+            >
+              <div className="font-semibold text-base mb-1">Export Selected Requests</div>
+              <div className="text-sm text-muted-foreground font-normal">
+                Manually pick which requests to export
+              </div>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Export Dialog (for date range or selected) */}
       <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Export Check-In Requests</DialogTitle>
+            <DialogTitle>
+              {selectionModeActive ? 'Export Selected Requests' : 'Export by Date Range'}
+            </DialogTitle>
             <DialogDescription>
-              Exporting {selectedRequestsForExport.length} selected request(s). Optionally filter by date range.
+              {selectionModeActive 
+                ? `Exporting ${selectedRequestsForExport.length} selected request(s)` 
+                : 'Select a date range to filter requests (optional)'}
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Start Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !exportStartDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {exportStartDate ? format(exportStartDate, "PPP") : "Pick a date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={exportStartDate}
-                    onSelect={setExportStartDate}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
+            {!selectionModeActive && (
+              <>
+                <div className="space-y-2">
+                  <Label>Start Date (Optional)</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !exportStartDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {exportStartDate ? format(exportStartDate, "PPP") : "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={exportStartDate}
+                        onSelect={setExportStartDate}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
 
-            <div className="space-y-2">
-              <Label>End Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !exportEndDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {exportEndDate ? format(exportEndDate, "PPP") : "Pick a date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={exportEndDate}
-                    onSelect={setExportEndDate}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
+                <div className="space-y-2">
+                  <Label>End Date (Optional)</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !exportEndDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {exportEndDate ? format(exportEndDate, "PPP") : "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={exportEndDate}
+                        onSelect={setExportEndDate}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </>
+            )}
 
             <div className="flex justify-end gap-2 pt-4">
               <Button
@@ -1331,13 +1431,15 @@ export const CheckInRequests: React.FC = () => {
                   setIsExportDialogOpen(false);
                   setExportStartDate(undefined);
                   setExportEndDate(undefined);
-                  setSelectedRequestsForExport([]);
                 }}
                 disabled={isExporting}
               >
                 Cancel
               </Button>
-              <Button onClick={handleExport} disabled={isExporting}>
+              <Button 
+                onClick={selectionModeActive ? handleExportBySelection : handleExportByDateRange} 
+                disabled={isExporting}
+              >
                 <Download className="h-4 w-4 mr-2" />
                 {isExporting ? 'Generating PDF...' : 'Export PDF'}
               </Button>
