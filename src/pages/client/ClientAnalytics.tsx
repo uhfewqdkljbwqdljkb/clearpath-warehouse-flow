@@ -45,37 +45,42 @@ export const ClientAnalytics: React.FC = () => {
     if (!profile?.company_id) return;
 
     try {
-      // Fetch inventory with product details
-      const { data: inventoryData, error } = await supabase
-        .from('inventory_items')
+      // Fetch all products with their inventory
+      const { data: productsData, error } = await supabase
+        .from('client_products')
         .select(`
-          *,
-          client_products!inner (
-            id,
-            name
+          id,
+          name,
+          sku,
+          inventory_items (
+            quantity
           )
         `)
         .eq('company_id', profile.company_id)
-        .gt('quantity', 0);
+        .eq('is_active', true);
 
       if (error) throw error;
 
       // Process analytics data
-      const processedAnalytics: ProductAnalytics[] = (inventoryData || []).map(item => {
-        // Total value calculation removed since unit_value field was removed
-        const totalValue = 0;
+      const processedAnalytics: ProductAnalytics[] = (productsData || []).map(product => {
+        // Sum up all inventory quantities for this product
+        const totalQuantity = Array.isArray(product.inventory_items) 
+          ? product.inventory_items.reduce((sum, inv) => sum + (inv.quantity || 0), 0)
+          : 0;
+        
+        const totalValue = 0; // Value calculation removed since unit_value field was removed
         
         // Simple stock status calculation
         let stockStatus: 'healthy' | 'low' | 'critical' | 'out' = 'healthy';
-        if (item.quantity === 0) stockStatus = 'out';
-        else if (item.quantity <= 10) stockStatus = 'critical';
-        else if (item.quantity <= 50) stockStatus = 'low';
+        if (totalQuantity === 0) stockStatus = 'out';
+        else if (totalQuantity <= 10) stockStatus = 'critical';
+        else if (totalQuantity <= 50) stockStatus = 'low';
 
         return {
-          id: item.client_products?.id || '',
-          sku: `PROD-${item.client_products?.id?.substring(0, 8) || 'UNKNOWN'}`,
-          name: item.client_products?.name || '',
-          totalQuantity: item.quantity,
+          id: product.id,
+          sku: product.sku || `PROD-${product.id.substring(0, 8)}`,
+          name: product.name,
+          totalQuantity,
           totalValue,
           averageMovement: Math.floor(Math.random() * 20) + 1, // Mock data
           stockStatus,
