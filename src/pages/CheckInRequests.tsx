@@ -626,14 +626,17 @@ export const CheckInRequests: React.FC = () => {
         
         const tableData = productsToShow.map((product: any) => {
           let quantity = product.quantity || 0;
-          if (product.variants && product.variants.length > 0) {
-            quantity = product.variants.reduce((sum: number, variant: any) => 
-              sum + variant.values.reduce((vSum: number, val: any) => 
-                vSum + (val.quantity || 0), 0
-              ), 0
-            );
+          if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
+            quantity = product.variants.reduce((sum: number, variant: any) => {
+              if (variant && variant.values && Array.isArray(variant.values)) {
+                return sum + variant.values.reduce((vSum: number, val: any) => 
+                  vSum + (val?.quantity || 0), 0
+                );
+              }
+              return sum;
+            }, 0);
           }
-          return [product.name, quantity.toString()];
+          return [product.name || 'Unnamed Product', quantity.toString()];
         });
         
         autoTable(doc, {
