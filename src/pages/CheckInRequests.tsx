@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Clock, CheckCircle, XCircle, Eye, FileText } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Eye, FileText, Plus, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -273,6 +273,76 @@ export const CheckInRequests: React.FC = () => {
       updated[productIndex].quantity = totalQty;
     }
 
+    setAmendedProducts(updated);
+  };
+
+  const addVariantToProduct = (productIndex: number) => {
+    const updated = [...amendedProducts];
+    if (!updated[productIndex].variants) {
+      updated[productIndex].variants = [];
+    }
+    updated[productIndex].variants.push({
+      attribute: '',
+      values: [{ value: '', quantity: 0 }]
+    });
+    setAmendedProducts(updated);
+  };
+
+  const addVariantValue = (productIndex: number, variantIndex: number) => {
+    const updated = [...amendedProducts];
+    updated[productIndex].variants[variantIndex].values.push({
+      value: '',
+      quantity: 0
+    });
+    setAmendedProducts(updated);
+  };
+
+  const updateVariantAttribute = (productIndex: number, variantIndex: number, attribute: string) => {
+    const updated = [...amendedProducts];
+    updated[productIndex].variants[variantIndex].attribute = attribute;
+    setAmendedProducts(updated);
+  };
+
+  const removeVariant = (productIndex: number, variantIndex: number) => {
+    const updated = [...amendedProducts];
+    updated[productIndex].variants.splice(variantIndex, 1);
+    
+    // Recalculate total quantity
+    if (updated[productIndex].variants.length > 0) {
+      const totalQty = updated[productIndex].variants.reduce(
+        (sum: number, variant: any) =>
+          sum +
+          variant.values.reduce(
+            (vSum: number, val: any) => vSum + (val.quantity || 0),
+            0
+          ),
+        0
+      );
+      updated[productIndex].quantity = totalQty;
+    } else {
+      // If no variants remain, set quantity to 0
+      updated[productIndex].quantity = 0;
+    }
+    
+    setAmendedProducts(updated);
+  };
+
+  const removeVariantValue = (productIndex: number, variantIndex: number, valueIndex: number) => {
+    const updated = [...amendedProducts];
+    updated[productIndex].variants[variantIndex].values.splice(valueIndex, 1);
+    
+    // Recalculate total quantity
+    const totalQty = updated[productIndex].variants.reduce(
+      (sum: number, variant: any) =>
+        sum +
+        variant.values.reduce(
+          (vSum: number, val: any) => vSum + (val.quantity || 0),
+          0
+        ),
+      0
+    );
+    updated[productIndex].quantity = totalQty;
+    
     setAmendedProducts(updated);
   };
 
@@ -792,15 +862,43 @@ export const CheckInRequests: React.FC = () => {
 
                       {product.variants && product.variants.length > 0 && (
                         <div className="space-y-3">
-                          <Label>Variants</Label>
+                          <div className="flex items-center justify-between">
+                            <Label>Variants</Label>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => addVariantToProduct(productIdx)}
+                            >
+                              <Plus className="h-4 w-4 mr-1" />
+                              Add Variant
+                            </Button>
+                          </div>
                           {product.variants.map((variant: any, variantIdx: number) => (
                             <div
                               key={variantIdx}
                               className="pl-4 space-y-2 border-l-2 border-primary/20"
                             >
-                              <p className="text-sm font-medium">{variant.attribute}</p>
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  value={variant.attribute}
+                                  onChange={(e) =>
+                                    updateVariantAttribute(productIdx, variantIdx, e.target.value)
+                                  }
+                                  placeholder="Variant name (e.g., Size, Color)"
+                                  className="flex-1"
+                                />
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => removeVariant(productIdx, variantIdx)}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </div>
                               {variant.values.map((value: any, valueIdx: number) => (
-                                <div key={valueIdx} className="flex gap-2 items-center">
+                                <div key={valueIdx} className="flex gap-2 items-center ml-4">
                                   <Input
                                     value={value.value}
                                     onChange={(e) =>
@@ -830,8 +928,28 @@ export const CheckInRequests: React.FC = () => {
                                     placeholder="Qty"
                                     className="w-24"
                                   />
+                                  {variant.values.length > 1 && (
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => removeVariantValue(productIdx, variantIdx, valueIdx)}
+                                    >
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  )}
                                 </div>
                               ))}
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => addVariantValue(productIdx, variantIdx)}
+                                className="ml-4"
+                              >
+                                <Plus className="h-4 w-4 mr-1" />
+                                Add Value
+                              </Button>
                             </div>
                           ))}
                           <div className="mt-2 p-2 bg-accent rounded">
@@ -841,6 +959,19 @@ export const CheckInRequests: React.FC = () => {
                             </p>
                           </div>
                         </div>
+                      )}
+
+                      {(!product.variants || product.variants.length === 0) && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => addVariantToProduct(productIdx)}
+                          className="w-full"
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Add Variants
+                        </Button>
                       )}
                     </div>
                   </Card>
