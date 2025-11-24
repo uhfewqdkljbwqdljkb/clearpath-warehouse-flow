@@ -145,15 +145,83 @@ export const ClientCheckIn: React.FC = () => {
       return;
     }
 
+    // Validate all products
+    for (let i = 0; i < products.length; i++) {
+      const product = products[i];
+      
+      if (!product.name || product.name.trim() === '') {
+        toast({
+          title: "Error",
+          description: `Product ${i + 1}: Please enter a product name`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const totalQty = calculateTotalQuantity(i);
+      if (totalQty <= 0) {
+        toast({
+          title: "Error",
+          description: `Product "${product.name}": Quantity must be greater than 0. ${product.variants.length > 0 ? 'Please add quantities to variant values.' : ''}`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Validate variants if they exist
+      if (product.variants.length > 0) {
+        for (let j = 0; j < product.variants.length; j++) {
+          const variant = product.variants[j];
+          
+          if (!variant.attribute || variant.attribute.trim() === '') {
+            toast({
+              title: "Error",
+              description: `Product "${product.name}": Variant ${j + 1} must have an attribute name`,
+              variant: "destructive",
+            });
+            return;
+          }
+
+          if (variant.values.length === 0) {
+            toast({
+              title: "Error",
+              description: `Product "${product.name}": Variant "${variant.attribute}" must have at least one value`,
+              variant: "destructive",
+            });
+            return;
+          }
+
+          for (let k = 0; k < variant.values.length; k++) {
+            const value = variant.values[k];
+            if (!value.value || value.value.trim() === '') {
+              toast({
+                title: "Error",
+                description: `Product "${product.name}": Variant "${variant.attribute}" has an empty value at position ${k + 1}`,
+                variant: "destructive",
+              });
+              return;
+            }
+          }
+        }
+      }
+    }
+
     if (!profile?.company_id) return;
 
     setIsSubmitting(true);
     try {
+      console.log('Submitting check-in request with products:', products);
+      
       // Generate request number
       const { data: requestNumber, error: fnError } = await supabase
         .rpc('generate_check_in_request_number');
 
-      if (fnError) throw fnError;
+      if (fnError) {
+        console.error('Error generating request number:', fnError);
+        throw fnError;
+      }
+
+      console.log('Generated request number:', requestNumber);
 
       // Create check-in request
       const { error } = await supabase
@@ -167,7 +235,12 @@ export const ClientCheckIn: React.FC = () => {
           status: 'pending'
         }]);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error inserting check-in request:', error);
+        throw error;
+      }
+
+      console.log('Check-in request submitted successfully');
 
       toast({
         title: "Success",
@@ -179,7 +252,7 @@ export const ClientCheckIn: React.FC = () => {
       console.error('Error submitting check-in request:', error);
       toast({
         title: "Error",
-        description: "Failed to submit check-in request",
+        description: error instanceof Error ? error.message : "Failed to submit check-in request",
         variant: "destructive",
       });
     } finally {
