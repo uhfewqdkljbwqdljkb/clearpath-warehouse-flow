@@ -93,70 +93,84 @@ export const CheckInRequests: React.FC = () => {
   const handleApprove = async (request: CheckInRequest) => {
     setIsProcessing(true);
     try {
-      // Insert products into client_products table
-      const productsToInsert = request.requested_products.map((product: any) => ({
-        company_id: request.company_id,
-        name: product.name,
-        variants: product.variants || [],
-        is_active: true,
-      }));
-
-      const { data: insertedProducts, error: insertError } = await supabase
-        .from('client_products')
-        .insert(productsToInsert)
-        .select();
-
-      if (insertError) throw insertError;
-
       // Get or create products and update inventory
       const productsToProcess = request.was_amended && request.amended_products 
         ? request.amended_products 
         : request.requested_products;
 
-      for (let i = 0; i < productsToProcess.length; i++) {
-        const product = productsToProcess[i];
-        const insertedProduct = insertedProducts?.[i];
+      for (const product of productsToProcess) {
+        // Check if product already exists for this company
+        const { data: existingProduct } = await supabase
+          .from('client_products')
+          .select('id')
+          .eq('company_id', request.company_id)
+          .eq('name', product.name)
+          .maybeSingle();
 
-        if (insertedProduct) {
-          // Calculate total quantity for products with variants
-          let totalQuantity = product.quantity || 0;
-          if (product.variants && product.variants.length > 0) {
-            totalQuantity = product.variants.reduce((sum: number, variant: any) => 
-              sum + variant.values.reduce((vSum: number, val: any) => 
-                vSum + (val.quantity || 0), 0
-              ), 0
-            );
-          }
+        let productId: string;
 
-          // Check if inventory item exists for this product
-          const { data: existingInventory } = await supabase
+        if (existingProduct) {
+          // Use existing product
+          productId = existingProduct.id;
+        } else {
+          // Create new product
+          const { data: newProduct, error: insertError } = await supabase
+            .from('client_products')
+            .insert({
+              company_id: request.company_id,
+              name: product.name,
+              variants: product.variants || [],
+              is_active: true,
+            })
+            .select('id')
+            .single();
+
+          if (insertError) throw insertError;
+          productId = newProduct.id;
+        }
+
+        // Calculate total quantity for products with variants
+        let totalQuantity = product.quantity || 0;
+        if (product.variants && product.variants.length > 0) {
+          totalQuantity = product.variants.reduce((sum: number, variant: any) => 
+            sum + variant.values.reduce((vSum: number, val: any) => 
+              vSum + (val.quantity || 0), 0
+            ), 0
+          );
+        }
+
+        // Check if inventory item exists for this product
+        const { data: existingInventory } = await supabase
+          .from('inventory_items')
+          .select('id, quantity')
+          .eq('product_id', productId)
+          .eq('company_id', request.company_id)
+          .is('location_id', null)
+          .maybeSingle();
+
+        if (existingInventory) {
+          // Update existing inventory
+          const { error: updateError } = await supabase
             .from('inventory_items')
-            .select('id, quantity')
-            .eq('product_id', insertedProduct.id)
-            .eq('company_id', request.company_id)
-            .is('location_id', null)
-            .maybeSingle();
+            .update({ 
+              quantity: existingInventory.quantity + totalQuantity,
+              last_updated: new Date().toISOString()
+            })
+            .eq('id', existingInventory.id);
 
-          if (existingInventory) {
-            // Update existing inventory
-            await supabase
-              .from('inventory_items')
-              .update({ 
-                quantity: existingInventory.quantity + totalQuantity,
-                last_updated: new Date().toISOString()
-              })
-              .eq('id', existingInventory.id);
-          } else {
-            // Create new inventory item
-            await supabase
-              .from('inventory_items')
-              .insert({
-                product_id: insertedProduct.id,
-                company_id: request.company_id,
-                quantity: totalQuantity,
-                received_date: new Date().toISOString()
-              });
-          }
+          if (updateError) throw updateError;
+        } else {
+          // Create new inventory item
+          const { error: insertError } = await supabase
+            .from('inventory_items')
+            .insert({
+              product_id: productId,
+              company_id: request.company_id,
+              quantity: totalQuantity,
+              received_date: new Date().toISOString()
+            });
+
+          if (insertError) throw insertError;
         }
       }
 
@@ -367,66 +381,88 @@ export const CheckInRequests: React.FC = () => {
     try {
       setIsProcessing(true);
 
-      // Insert amended products into client_products
-      const productsToInsert = amendedProducts.map((product) => ({
-        company_id: selectedRequest.company_id,
-        name: product.name,
-        variants: product.variants || [],
-        is_active: true,
-      }));
-
-      const { data: insertedProducts, error: insertError } = await supabase
-        .from('client_products')
-        .insert(productsToInsert)
-        .select();
-
-      if (insertError) throw insertError;
-
       // Create/update inventory with amended quantities
-      for (let i = 0; i < amendedProducts.length; i++) {
-        const product = amendedProducts[i];
-        const insertedProduct = insertedProducts?.[i];
+      for (const product of amendedProducts) {
+        // Check if product already exists for this company
+        const { data: existingProduct } = await supabase
+          .from('client_products')
+          .select('id')
+          .eq('company_id', selectedRequest.company_id)
+          .eq('name', product.name)
+          .maybeSingle();
 
-        if (insertedProduct) {
-          // Calculate total quantity for products with variants
-          let totalQuantity = product.quantity || 0;
-          if (product.variants && product.variants.length > 0) {
-            totalQuantity = product.variants.reduce((sum: number, variant: any) => 
-              sum + variant.values.reduce((vSum: number, val: any) => 
-                vSum + (val.quantity || 0), 0
-              ), 0
-            );
-          }
+        let productId: string;
 
-          // Check if inventory item exists for this product
-          const { data: existingInventory } = await supabase
+        if (existingProduct) {
+          // Use existing product, optionally update variants
+          productId = existingProduct.id;
+          
+          // Update variants if they changed
+          await supabase
+            .from('client_products')
+            .update({
+              variants: product.variants || [],
+            })
+            .eq('id', productId);
+        } else {
+          // Create new product
+          const { data: newProduct, error: insertError } = await supabase
+            .from('client_products')
+            .insert({
+              company_id: selectedRequest.company_id,
+              name: product.name,
+              variants: product.variants || [],
+              is_active: true,
+            })
+            .select('id')
+            .single();
+
+          if (insertError) throw insertError;
+          productId = newProduct.id;
+        }
+
+        // Calculate total quantity for products with variants
+        let totalQuantity = product.quantity || 0;
+        if (product.variants && product.variants.length > 0) {
+          totalQuantity = product.variants.reduce((sum: number, variant: any) => 
+            sum + variant.values.reduce((vSum: number, val: any) => 
+              vSum + (val.quantity || 0), 0
+            ), 0
+          );
+        }
+
+        // Check if inventory item exists for this product
+        const { data: existingInventory } = await supabase
+          .from('inventory_items')
+          .select('id, quantity')
+          .eq('product_id', productId)
+          .eq('company_id', selectedRequest.company_id)
+          .is('location_id', null)
+          .maybeSingle();
+
+        if (existingInventory) {
+          // Update existing inventory
+          const { error: updateError } = await supabase
             .from('inventory_items')
-            .select('id, quantity')
-            .eq('product_id', insertedProduct.id)
-            .eq('company_id', selectedRequest.company_id)
-            .is('location_id', null)
-            .maybeSingle();
+            .update({ 
+              quantity: existingInventory.quantity + totalQuantity,
+              last_updated: new Date().toISOString()
+            })
+            .eq('id', existingInventory.id);
 
-          if (existingInventory) {
-            // Update existing inventory
-            await supabase
-              .from('inventory_items')
-              .update({ 
-                quantity: existingInventory.quantity + totalQuantity,
-                last_updated: new Date().toISOString()
-              })
-              .eq('id', existingInventory.id);
-          } else {
-            // Create new inventory item
-            await supabase
-              .from('inventory_items')
-              .insert({
-                product_id: insertedProduct.id,
-                company_id: selectedRequest.company_id,
-                quantity: totalQuantity,
-                received_date: new Date().toISOString()
-              });
-          }
+          if (updateError) throw updateError;
+        } else {
+          // Create new inventory item
+          const { error: insertError } = await supabase
+            .from('inventory_items')
+            .insert({
+              product_id: productId,
+              company_id: selectedRequest.company_id,
+              quantity: totalQuantity,
+              received_date: new Date().toISOString()
+            });
+
+          if (insertError) throw insertError;
         }
       }
 
