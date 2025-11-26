@@ -125,3 +125,29 @@ export const useMessageSync = (onMessageChange?: (payload: any) => void) => {
     onDelete: onMessageChange
   });
 };
+
+// Specific hook for check-in request synchronization
+export const useCheckInRequestSync = (onRequestChange?: (payload: any) => void) => {
+  const { profile } = useAuth();
+  
+  return useRealTimeSync({
+    table: 'check_in_requests',
+    filter: profile?.company_id ? `company_id=eq.${profile.company_id}` : undefined,
+    onInsert: onRequestChange,
+    onUpdate: onRequestChange,
+    onDelete: onRequestChange
+  });
+};
+
+// Specific hook for check-out request synchronization
+export const useCheckOutRequestSync = (onRequestChange?: (payload: any) => void) => {
+  const { profile } = useAuth();
+  
+  return useRealTimeSync({
+    table: 'check_out_requests',
+    filter: profile?.company_id ? `company_id=eq.${profile.company_id}` : undefined,
+    onInsert: onRequestChange,
+    onUpdate: onRequestChange,
+    onDelete: onRequestChange
+  });
+};
