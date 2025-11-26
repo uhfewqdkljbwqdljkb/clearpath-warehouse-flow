@@ -2,7 +2,8 @@ import React, { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIntegration } from '@/contexts/IntegrationContext';
 import { useToast } from '@/hooks/use-toast';
-import { useInventorySync, useOrderSync, useMessageSync } from '@/hooks/useRealTimeSync';
+import { useInventorySync, useOrderSync, useMessageSync, useCheckInRequestSync, useCheckOutRequestSync } from '@/hooks/useRealTimeSync';
+import { supabase } from '@/integrations/supabase/client';
 
 export const RealTimeNotifications: React.FC = () => {
   const { profile } = useAuth();
@@ -41,6 +42,71 @@ export const RealTimeNotifications: React.FC = () => {
         title: "Order Status Update",
         description: `Order ${payload.new.order_number} is now ${payload.new.status}`,
       });
+    }
+  });
+
+  // Check-in request notifications
+  useCheckInRequestSync(async (payload) => {
+    // Check if user is admin to show new request notifications
+    const { data: userRoles } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', profile?.user_id || '')
+      .single();
+    
+    const isAdmin = userRoles?.role === 'admin' || userRoles?.role === 'super_admin';
+
+    if (payload.eventType === 'INSERT' && isAdmin) {
+      toast({
+        title: "New Check-In Request",
+        description: `Request ${payload.new.request_number} has been submitted`,
+      });
+    } else if (payload.eventType === 'UPDATE' && payload.old?.status !== payload.new?.status) {
+      const statusMessages: Record<string, string> = {
+        approved: "Your check-in request has been approved! ✅",
+        rejected: "Your check-in request has been rejected. Please review the feedback.",
+        amended: "Your check-in request has been amended by admin."
+      };
+      
+      if (statusMessages[payload.new.status]) {
+        toast({
+          title: "Check-In Request Update",
+          description: `Request ${payload.new.request_number}: ${statusMessages[payload.new.status]}`,
+          variant: payload.new.status === 'rejected' ? 'destructive' : 'default'
+        });
+      }
+    }
+  });
+
+  // Check-out request notifications
+  useCheckOutRequestSync(async (payload) => {
+    // Check if user is admin to show new request notifications
+    const { data: userRoles } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', profile?.user_id || '')
+      .single();
+    
+    const isAdmin = userRoles?.role === 'admin' || userRoles?.role === 'super_admin';
+
+    if (payload.eventType === 'INSERT' && isAdmin) {
+      toast({
+        title: "New Check-Out Request",
+        description: `Request ${payload.new.request_number} has been submitted`,
+      });
+    } else if (payload.eventType === 'UPDATE' && payload.old?.status !== payload.new?.status) {
+      const statusMessages: Record<string, string> = {
+        approved: "Your check-out request has been approved! ✅",
+        rejected: "Your check-out request has been rejected. Please review the feedback.",
+      };
+      
+      if (statusMessages[payload.new.status]) {
+        toast({
+          title: "Check-Out Request Update",
+          description: `Request ${payload.new.request_number}: ${statusMessages[payload.new.status]}`,
+          variant: payload.new.status === 'rejected' ? 'destructive' : 'default'
+        });
+      }
     }
   });
 
