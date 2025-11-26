@@ -984,7 +984,14 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "warehouse_manager" | "client"
+      app_role:
+        | "admin"
+        | "warehouse_manager"
+        | "client"
+        | "super_admin"
+        | "logistics_coordinator"
+        | "client_admin"
+        | "client_user"
       location_type: "floor_zone" | "shelf_row"
       message_priority: "low" | "normal" | "high" | "urgent"
       message_type: "general" | "billing" | "inventory" | "support"
@@ -1122,7 +1129,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "warehouse_manager", "client"],
+      app_role: [
+        "admin",
+        "warehouse_manager",
+        "client",
+        "super_admin",
+        "logistics_coordinator",
+        "client_admin",
+        "client_user",
+      ],
       location_type: ["floor_zone", "shelf_row"],
       message_priority: ["low", "normal", "high", "urgent"],
       message_type: ["general", "billing", "inventory", "support"],
