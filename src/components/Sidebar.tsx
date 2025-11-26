@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { LayoutDashboard, Warehouse, MessageSquare, User, Package, Settings, Menu, Sparkles, PackageCheck, PackageOpen, Truck } from 'lucide-react';
@@ -14,7 +14,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { profile } = useAuth();
   
-  const navItems = [{
+  // Role-based permissions for pages
+  const pagePermissions: Record<string, string[]> = {
+    '/dashboard': ['admin', 'super_admin', 'warehouse_manager', 'logistics_coordinator'],
+    '/dashboard/warehouse': ['admin', 'super_admin', 'warehouse_manager'],
+    '/dashboard/messages': ['admin', 'super_admin', 'warehouse_manager', 'logistics_coordinator'],
+    '/dashboard/clients': ['admin', 'super_admin'],
+    '/dashboard/products': ['admin', 'super_admin', 'warehouse_manager'],
+    '/dashboard/check-in-requests': ['admin', 'super_admin', 'warehouse_manager'],
+    '/dashboard/check-out-requests': ['admin', 'super_admin', 'logistics_coordinator'],
+    '/dashboard/ship-products': ['admin', 'super_admin', 'logistics_coordinator'],
+    '/dashboard/ai-assistant': ['admin', 'super_admin', 'warehouse_manager', 'logistics_coordinator'],
+    '/dashboard/users': ['super_admin'], // Only super_admin can access
+  };
+
+  const allNavItems = [{
     name: 'Dashboard',
     path: '/dashboard',
     icon: LayoutDashboard
@@ -55,6 +69,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
     path: '/dashboard/users',
     icon: Settings
   }];
+
+  // Filter nav items based on user role
+  const navItems = useMemo(() => {
+    if (!profile?.role) return [];
+    
+    return allNavItems.filter(item => {
+      const allowedRoles = pagePermissions[item.path];
+      return allowedRoles?.includes(profile.role);
+    });
+  }, [profile?.role]);
   
   return (
     <div className={`bg-white h-screen flex flex-col border-r border-gray-200 ${isCollapsed ? 'w-16' : 'w-64'} transition-all duration-300`}>
