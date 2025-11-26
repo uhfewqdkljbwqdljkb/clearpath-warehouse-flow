@@ -5,7 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Package, PackageOpen, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Package, PackageOpen, Clock, CheckCircle, XCircle, Eye, Edit, Plus, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface CheckInRequest {
@@ -13,10 +18,13 @@ interface CheckInRequest {
   request_number: string;
   status: string;
   requested_products: any;
+  amended_products: any;
   notes: string | null;
   created_at: string;
   reviewed_at: string | null;
+  reviewed_by: string | null;
   rejection_reason: string | null;
+  was_amended: boolean | null;
 }
 
 interface CheckOutRequest {
@@ -36,6 +44,12 @@ export const ClientRequests: React.FC = () => {
   const [checkInRequests, setCheckInRequests] = useState<CheckInRequest[]>([]);
   const [checkOutRequests, setCheckOutRequests] = useState<CheckOutRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<CheckInRequest | null>(null);
+  const [productDetails, setProductDetails] = useState<any[]>([]);
+  const [editProducts, setEditProducts] = useState<any[]>([]);
+  const [editNotes, setEditNotes] = useState('');
 
   useEffect(() => {
     if (profile?.company_id) {
@@ -75,6 +89,115 @@ export const ClientRequests: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const isRequestEditable = (request: CheckInRequest) => {
+    return (
+      request.status === 'pending' &&
+      !request.reviewed_by &&
+      !request.was_amended
+    );
+  };
+
+  const handleViewDetails = async (request: CheckInRequest) => {
+    setSelectedRequest(request);
+    
+    // Fetch product details for display
+    const products = request.amended_products || request.requested_products;
+    if (Array.isArray(products) && products.length > 0) {
+      const productIds = products.map((p: any) => p.productId);
+      const { data, error } = await supabase
+        .from('client_products')
+        .select('id, name, sku')
+        .in('id', productIds);
+      
+      if (data) {
+        const enrichedProducts = products.map((p: any) => {
+          const productInfo = data.find(d => d.id === p.productId);
+          return {
+            ...p,
+            productName: productInfo?.name || 'Unknown Product',
+            sku: productInfo?.sku
+          };
+        });
+        setProductDetails(enrichedProducts);
+      }
+    }
+    
+    setViewDialogOpen(true);
+  };
+
+  const handleEditRequest = (request: CheckInRequest) => {
+    setSelectedRequest(request);
+    setEditProducts(JSON.parse(JSON.stringify(request.requested_products || [])));
+    setEditNotes(request.notes || '');
+    setEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedRequest) return;
+
+    try {
+      const { error } = await supabase
+        .from('check_in_requests')
+        .update({
+          requested_products: editProducts,
+          notes: editNotes,
+        })
+        .eq('id', selectedRequest.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Request updated successfully",
+      });
+      
+      setEditDialogOpen(false);
+      fetchRequests();
+    } catch (error) {
+      console.error('Error updating request:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update request",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const addProductToEdit = () => {
+    setEditProducts([...editProducts, { productId: '', quantity: 0, variants: [] }]);
+  };
+
+  const removeProductFromEdit = (index: number) => {
+    setEditProducts(editProducts.filter((_, i) => i !== index));
+  };
+
+  const updateEditProduct = (index: number, field: string, value: any) => {
+    const updated = [...editProducts];
+    updated[index] = { ...updated[index], [field]: value };
+    setEditProducts(updated);
+  };
+
+  const addVariantToEditProduct = (productIndex: number) => {
+    const updated = [...editProducts];
+    const variants = updated[productIndex].variants || [];
+    updated[productIndex].variants = [...variants, { attribute: '', value: '', quantity: 0 }];
+    setEditProducts(updated);
+  };
+
+  const removeVariantFromEditProduct = (productIndex: number, variantIndex: number) => {
+    const updated = [...editProducts];
+    updated[productIndex].variants = updated[productIndex].variants.filter((_: any, i: number) => i !== variantIndex);
+    setEditProducts(updated);
+  };
+
+  const updateEditVariant = (productIndex: number, variantIndex: number, field: string, value: any) => {
+    const updated = [...editProducts];
+    const variants = [...updated[productIndex].variants];
+    variants[variantIndex] = { ...variants[variantIndex], [field]: value };
+    updated[productIndex].variants = variants;
+    setEditProducts(updated);
   };
 
   const getStatusBadge = (status: string) => {
@@ -136,7 +259,7 @@ export const ClientRequests: React.FC = () => {
             </CardHeader>
             <CardContent>
               {checkInRequests.length > 0 ? (
-                <Table>
+                  <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Request #</TableHead>
@@ -144,6 +267,7 @@ export const ClientRequests: React.FC = () => {
                       <TableHead>Products</TableHead>
                       <TableHead>Submitted</TableHead>
                       <TableHead>Notes</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -167,6 +291,28 @@ export const ClientRequests: React.FC = () => {
                           ) : (
                             request.notes || '-'
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewDetails(request)}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              View
+                            </Button>
+                            {isRequestEditable(request) && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditRequest(request)}
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                Edit
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -236,6 +382,208 @@ export const ClientRequests: React.FC = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* View Details Dialog */}
+      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Request Details</DialogTitle>
+            <DialogDescription>
+              {selectedRequest?.request_number} - {selectedRequest && getStatusBadge(selectedRequest.status)}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm font-semibold">Submitted Date</Label>
+              <p className="text-sm text-muted-foreground">
+                {selectedRequest && new Date(selectedRequest.created_at).toLocaleString()}
+              </p>
+            </div>
+
+            {selectedRequest?.notes && (
+              <div>
+                <Label className="text-sm font-semibold">Notes</Label>
+                <p className="text-sm text-muted-foreground">{selectedRequest.notes}</p>
+              </div>
+            )}
+
+            {selectedRequest?.rejection_reason && (
+              <div>
+                <Label className="text-sm font-semibold text-red-600">Rejection Reason</Label>
+                <p className="text-sm text-red-600">{selectedRequest.rejection_reason}</p>
+              </div>
+            )}
+
+            <div>
+              <Label className="text-sm font-semibold mb-2 block">Products</Label>
+              <div className="space-y-3">
+                {productDetails.map((product, idx) => (
+                  <Card key={idx}>
+                    <CardContent className="pt-4">
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-medium">{product.productName}</p>
+                            {product.sku && (
+                              <p className="text-xs text-muted-foreground font-mono">{product.sku}</p>
+                            )}
+                          </div>
+                          {!product.variants?.length && (
+                            <Badge variant="secondary">Qty: {product.quantity}</Badge>
+                          )}
+                        </div>
+                        
+                        {product.variants && product.variants.length > 0 && (
+                          <div className="pl-4 border-l-2 border-border space-y-1">
+                            <p className="text-xs font-semibold text-muted-foreground">Variants:</p>
+                            {product.variants.map((variant: any, vIdx: number) => (
+                              <div key={vIdx} className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">
+                                  {variant.attribute}: <span className="font-medium text-foreground">{variant.value}</span>
+                                </span>
+                                <Badge variant="secondary" className="ml-2">Qty: {variant.quantity}</Badge>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Request Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Request</DialogTitle>
+            <DialogDescription>
+              {selectedRequest?.request_number} - Modify products and notes
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label>Notes</Label>
+              <Textarea
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+                placeholder="Add any notes for this request"
+                rows={3}
+              />
+            </div>
+
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <Label className="text-sm font-semibold">Products</Label>
+                <Button onClick={addProductToEdit} size="sm" variant="outline">
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Product
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                {editProducts.map((product, pIdx) => (
+                  <Card key={pIdx}>
+                    <CardContent className="pt-4 space-y-3">
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <Label className="text-xs">Product ID</Label>
+                          <Input
+                            value={product.productId}
+                            onChange={(e) => updateEditProduct(pIdx, 'productId', e.target.value)}
+                            placeholder="Product ID"
+                          />
+                        </div>
+                        <div className="w-24">
+                          <Label className="text-xs">Quantity</Label>
+                          <Input
+                            type="number"
+                            value={product.quantity}
+                            onChange={(e) => updateEditProduct(pIdx, 'quantity', parseInt(e.target.value) || 0)}
+                          />
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeProductFromEdit(pIdx)}
+                          className="mt-5"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between items-center mb-2">
+                          <Label className="text-xs">Variants</Label>
+                          <Button
+                            onClick={() => addVariantToEditProduct(pIdx)}
+                            size="sm"
+                            variant="ghost"
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            Add Variant
+                          </Button>
+                        </div>
+
+                        {product.variants?.map((variant: any, vIdx: number) => (
+                          <div key={vIdx} className="flex gap-2 mb-2 pl-4">
+                            <div className="flex-1">
+                              <Input
+                                value={variant.attribute}
+                                onChange={(e) => updateEditVariant(pIdx, vIdx, 'attribute', e.target.value)}
+                                placeholder="Attribute (e.g., Color)"
+                                className="text-xs"
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <Input
+                                value={variant.value}
+                                onChange={(e) => updateEditVariant(pIdx, vIdx, 'value', e.target.value)}
+                                placeholder="Value (e.g., Red)"
+                                className="text-xs"
+                              />
+                            </div>
+                            <div className="w-20">
+                              <Input
+                                type="number"
+                                value={variant.quantity}
+                                onChange={(e) => updateEditVariant(pIdx, vIdx, 'quantity', parseInt(e.target.value) || 0)}
+                                className="text-xs"
+                              />
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeVariantFromEditProduct(pIdx, vIdx)}
+                            >
+                              <Trash2 className="h-3 w-3 text-destructive" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveEdit}>
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
