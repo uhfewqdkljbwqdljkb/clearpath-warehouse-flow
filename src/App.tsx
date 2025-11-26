@@ -50,11 +50,19 @@ const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode;
     return <Navigate to="/dashboard/login" replace />;
   }
 
-  if (requiredRole && profile.role !== requiredRole) {
-    if (profile.role === 'admin') {
-      return <Navigate to="/dashboard" replace />;
-    } else if (profile.role === 'client') {
+  // Check if user has an admin-type role
+  const adminRoles = ['admin', 'super_admin', 'warehouse_manager', 'logistics_coordinator'];
+  const clientRoles = ['client', 'client_admin', 'client_user'];
+  const isAdminRole = adminRoles.includes(profile.role);
+  const isClientRole = clientRoles.includes(profile.role);
+
+  if (requiredRole === 'admin' && !isAdminRole) {
+    if (isClientRole) {
       return <Navigate to="/client" replace />;
+    }
+  } else if (requiredRole === 'client' && !isClientRole) {
+    if (isAdminRole) {
+      return <Navigate to="/dashboard" replace />;
     }
   }
   
@@ -69,9 +77,12 @@ const LoginRoute = () => {
   }
   
   if (user && profile) {
-    if (profile.role === 'admin') {
+    const adminRoles = ['admin', 'super_admin', 'warehouse_manager', 'logistics_coordinator'];
+    const clientRoles = ['client', 'client_admin', 'client_user'];
+    
+    if (adminRoles.includes(profile.role)) {
       return <Navigate to="/dashboard" replace />;
-    } else if (profile.role === 'client') {
+    } else if (clientRoles.includes(profile.role)) {
       return <Navigate to="/client" replace />;
     }
   }
@@ -87,9 +98,12 @@ const RootRedirect = () => {
   }
   
   if (user && profile) {
-    if (profile.role === 'admin') {
+    const adminRoles = ['admin', 'super_admin', 'warehouse_manager', 'logistics_coordinator'];
+    const clientRoles = ['client', 'client_admin', 'client_user'];
+    
+    if (adminRoles.includes(profile.role)) {
       return <Navigate to="/dashboard" replace />;
-    } else if (profile.role === 'client') {
+    } else if (clientRoles.includes(profile.role)) {
       return <Navigate to="/client" replace />;
     }
   }
