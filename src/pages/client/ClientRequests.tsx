@@ -105,22 +105,35 @@ export const ClientRequests: React.FC = () => {
     // Fetch product details for display
     const products = request.amended_products || request.requested_products;
     if (Array.isArray(products) && products.length > 0) {
-      const productIds = products.map((p: any) => p.productId);
-      const { data, error } = await supabase
-        .from('client_products')
-        .select('id, name, sku')
-        .in('id', productIds);
+      // Check if products have productId (new format) or name directly (old format)
+      const hasProductIds = products.some((p: any) => p.productId);
       
-      if (data) {
-        const enrichedProducts = products.map((p: any) => {
-          const productInfo = data.find(d => d.id === p.productId);
-          return {
-            ...p,
-            productName: productInfo?.name || 'Unknown Product',
-            sku: productInfo?.sku
-          };
-        });
-        setProductDetails(enrichedProducts);
+      if (hasProductIds) {
+        const productIds = products.map((p: any) => p.productId).filter(Boolean);
+        if (productIds.length > 0) {
+          const { data, error } = await supabase
+            .from('client_products')
+            .select('id, name, sku')
+            .in('id', productIds);
+          
+          if (data) {
+            const enrichedProducts = products.map((p: any) => {
+              const productInfo = data.find(d => d.id === p.productId);
+              return {
+                ...p,
+                productName: productInfo?.name || p.name || 'Unknown Product',
+                sku: productInfo?.sku
+              };
+            });
+            setProductDetails(enrichedProducts);
+          }
+        }
+      } else {
+        // Old format - products already have name directly
+        setProductDetails(products.map((p: any) => ({
+          ...p,
+          productName: p.name || 'Unknown Product'
+        })));
       }
     }
     
