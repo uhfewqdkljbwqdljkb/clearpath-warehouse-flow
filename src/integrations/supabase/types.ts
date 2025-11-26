@@ -975,6 +975,7 @@ export type Database = {
       generate_check_out_request_number: { Args: never; Returns: string }
       generate_client_code: { Args: never; Returns: string }
       generate_shipment_number: { Args: never; Returns: string }
+      get_user_company_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
