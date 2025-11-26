@@ -31,6 +31,8 @@ export const AdminUserManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState<string>('all');
   const [showCreateUser, setShowCreateUser] = useState(false);
+  const [showEditUser, setShowEditUser] = useState(false);
+  const [editingUser, setEditingUser] = useState<EnhancedProfile | null>(null);
 
   // New user form state
   const [newUser, setNewUser] = useState({
@@ -42,6 +44,7 @@ export const AdminUserManagement: React.FC = () => {
   });
 
   const isAdmin = profile?.role === 'admin' || (profile?.role as string)?.includes('admin');
+  const isClientAdmin = (profile?.role as string) === 'client_admin';
 
   useEffect(() => {
     if (isAdmin) {
@@ -155,6 +158,71 @@ export const AdminUserManagement: React.FC = () => {
         variant: "destructive",
         title: "Error",
         description: error.message || "Failed to create user."
+      });
+    }
+  };
+
+  const handleEditUser = (user: EnhancedProfile) => {
+    setEditingUser(user);
+    setShowEditUser(true);
+  };
+
+  const updateUserRole = async (userId: string, newRole: UserRole) => {
+    try {
+      // First, delete existing role
+      const { error: deleteError } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId);
+
+      if (deleteError) throw deleteError;
+
+      // Then, insert new role
+      const { error: insertError } = await supabase
+        .from('user_roles')
+        .insert({ user_id: userId, role: newRole });
+
+      if (insertError) throw insertError;
+
+      toast({
+        title: "Role Updated",
+        description: "User role has been updated successfully."
+      });
+
+      setShowEditUser(false);
+      setEditingUser(null);
+      fetchUsers();
+    } catch (error: any) {
+      console.error('Error updating role:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to update user role."
+      });
+    }
+  };
+
+  const updateUserProfile = async (userId: string, updates: { full_name?: string; company_id?: string }) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Profile Updated",
+        description: "User profile has been updated successfully."
+      });
+
+      fetchUsers();
+    } catch (error: any) {
+      console.error('Error updating profile:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to update user profile."
       });
     }
   };
@@ -392,7 +460,11 @@ export const AdminUserManagement: React.FC = () => {
                   
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="sm">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleEditUser(user)}
+                      >
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="sm" disabled>
@@ -406,6 +478,109 @@ export const AdminUserManagement: React.FC = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Edit User Dialog */}
+      <Dialog open={showEditUser} onOpenChange={setShowEditUser}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+          </DialogHeader>
+          {editingUser && (
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">Email</label>
+                <Input
+                  type="email"
+                  value={editingUser.email}
+                  disabled
+                  className="bg-muted"
+                />
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium">Full Name</label>
+                <Input
+                  value={editingUser.full_name || ''}
+                  onChange={(e) => setEditingUser(prev => prev ? ({ ...prev, full_name: e.target.value }) : null)}
+                  placeholder="John Doe"
+                />
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium">Role</label>
+                <Select 
+                  value={editingUser.role} 
+                  onValueChange={(value: UserRole) => 
+                    setEditingUser(prev => prev ? ({ ...prev, role: value }) : null)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {!isClientAdmin && (
+                      <>
+                        <SelectItem value="super_admin">Super Admin</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="warehouse_manager">Warehouse Manager</SelectItem>
+                        <SelectItem value="logistics_coordinator">Logistics Coordinator</SelectItem>
+                      </>
+                    )}
+                    <SelectItem value="client_admin">Client Admin</SelectItem>
+                    <SelectItem value="client_user">Client User</SelectItem>
+                    <SelectItem value="client">Client (Legacy)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {(editingUser.role === 'client_admin' || editingUser.role === 'client_user' || editingUser.role === 'client') && (
+                <div>
+                  <label className="text-sm font-medium">Company</label>
+                  <Select 
+                    value={editingUser.company_id || ''} 
+                    onValueChange={(value) => 
+                      setEditingUser(prev => prev ? ({ ...prev, company_id: value }) : null)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select company" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companies.map(company => (
+                        <SelectItem key={company.id} value={company.id}>
+                          {company.name} ({company.client_code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => {
+                  setShowEditUser(false);
+                  setEditingUser(null);
+                }}>
+                  Cancel
+                </Button>
+                <Button onClick={() => {
+                  if (editingUser) {
+                    // Update profile first
+                    updateUserProfile(editingUser.id, {
+                      full_name: editingUser.full_name,
+                      company_id: editingUser.company_id
+                    });
+                    // Then update role
+                    updateUserRole(editingUser.id, editingUser.role as UserRole);
+                  }
+                }}>
+                  Save Changes
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
