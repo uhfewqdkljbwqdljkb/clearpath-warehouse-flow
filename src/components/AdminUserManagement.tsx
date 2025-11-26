@@ -43,7 +43,7 @@ export const AdminUserManagement: React.FC = () => {
     password: ''
   });
 
-  const isAdmin = profile?.role === 'admin' || (profile?.role as string)?.includes('admin');
+  const isAdmin = ['admin', 'super_admin', 'warehouse_manager', 'logistics_coordinator'].includes(profile?.role || '');
   const isClientAdmin = (profile?.role as string) === 'client_admin';
 
   useEffect(() => {

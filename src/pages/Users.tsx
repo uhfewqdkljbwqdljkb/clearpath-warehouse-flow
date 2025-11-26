@@ -14,7 +14,7 @@ export const Users: React.FC = () => {
     recentSignups: 0
   });
 
-  const isAdmin = profile?.role === 'admin' || (profile?.role as string)?.includes('admin');
+  const isAdmin = ['admin', 'super_admin', 'warehouse_manager', 'logistics_coordinator'].includes(profile?.role || '');
 
   useEffect(() => {
     if (isAdmin) {
