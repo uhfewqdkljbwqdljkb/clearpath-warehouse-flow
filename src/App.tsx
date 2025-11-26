@@ -52,7 +52,7 @@ const ProtectedRoute = ({ children, requiredRole }: { children: React.ReactNode;
 
   // Check if user has an admin-type role
   const adminRoles = ['admin', 'super_admin', 'warehouse_manager', 'logistics_coordinator'];
-  const clientRoles = ['client', 'client_admin', 'client_user'];
+  const clientRoles = ['client'];
   const isAdminRole = adminRoles.includes(profile.role);
   const isClientRole = clientRoles.includes(profile.role);
 

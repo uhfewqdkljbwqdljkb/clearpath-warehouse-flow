@@ -7,7 +7,7 @@ export interface Profile {
   user_id: string;
   email: string;
   full_name: string | null;
-  role: 'admin' | 'client';
+  role: 'admin' | 'super_admin' | 'warehouse_manager' | 'logistics_coordinator' | 'client';
   company_id: string | null;
   created_at: string;
   updated_at: string;
@@ -107,25 +107,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          setTimeout(() => {
-            fetchProfile(session.user.id);
+          setTimeout(async () => {
+            await fetchProfile(session.user.id);
+            setIsLoading(false);
           }, 0);
         } else {
           setProfile(null);
           setCompany(null);
+          setIsLoading(false);
         }
-        
-        setIsLoading(false);
       }
     );
 
     // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        fetchProfile(session.user.id);
+        await fetchProfile(session.user.id);
       }
       
       setIsLoading(false);
