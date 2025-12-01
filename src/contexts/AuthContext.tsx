@@ -24,6 +24,7 @@ export interface Company {
   location_type: 'floor_zone' | 'shelf_row' | null;
   assigned_floor_zone_id: string | null;
   assigned_row_id: string | null;
+  client_type: 'ecommerce' | 'b2b';
   created_at: string;
   updated_at: string;
 }
@@ -91,7 +92,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           .single();
 
         if (companyData) {
-          setCompany(companyData);
+          setCompany({
+            ...companyData,
+            client_type: companyData.client_type || 'ecommerce'
+          } as Company);
         }
       }
     } catch (error) {

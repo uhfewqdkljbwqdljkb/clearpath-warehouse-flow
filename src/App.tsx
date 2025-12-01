@@ -33,6 +33,8 @@ import { ShipProducts } from "@/pages/ShipProducts";
 import { RealTimeNotifications } from "@/components/RealTimeNotifications";
 import AIAssistant from "@/pages/AIAssistant";
 import ClientAIAssistant from "@/pages/client/ClientAIAssistant";
+import { ClientSuppliers } from "@/pages/client/ClientSuppliers";
+import { ClientCustomers } from "@/pages/client/ClientCustomers";
 
 const queryClient = new QueryClient();
 
@@ -166,6 +168,8 @@ const App = () => {
               <Route path="messages" element={<ClientMessages />} />
               <Route path="profile" element={<ClientProfile />} />
               <Route path="ai-assistant" element={<ClientAIAssistant />} />
+              <Route path="suppliers" element={<ClientSuppliers />} />
+              <Route path="customers" element={<ClientCustomers />} />
               </Route>
               
               {/* Redirect root to appropriate dashboard */}

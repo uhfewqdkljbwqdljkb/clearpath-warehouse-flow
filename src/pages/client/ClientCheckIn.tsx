@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,6 +11,13 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Upload, Plus, X, Package } from 'lucide-react';
 import { ProductImportDialog } from '@/components/ProductImportDialog';
 import { ExistingProductsDialog } from '@/components/ExistingProductsDialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface ProductEntry {
   name: string;
@@ -26,13 +33,44 @@ interface ProductEntry {
 
 export const ClientCheckIn: React.FC = () => {
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, company } = useAuth();
   const { toast } = useToast();
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [products, setProducts] = useState<ProductEntry[]>([]);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showExistingProductsDialog, setShowExistingProductsDialog] = useState(false);
+  
+  // B2B-specific state
+  const [requestType, setRequestType] = useState<'standard' | 'supplier_sourcing'>('standard');
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [selectedSupplierId, setSelectedSupplierId] = useState('');
+  const [requiredDate, setRequiredDate] = useState('');
+
+  // Fetch suppliers for B2B clients
+  useEffect(() => {
+    if (company?.client_type === 'b2b' && profile?.company_id) {
+      fetchSuppliers();
+    }
+  }, [company?.client_type, profile?.company_id]);
+
+  const fetchSuppliers = async () => {
+    if (!profile?.company_id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('b2b_suppliers')
+        .select('*')
+        .eq('company_id', profile.company_id)
+        .eq('is_active', true)
+        .order('supplier_name');
+
+      if (error) throw error;
+      setSuppliers(data || []);
+    } catch (error) {
+      console.error('Error fetching suppliers:', error);
+    }
+  };
 
   const addProduct = () => {
     setProducts([...products, { 
@@ -224,16 +262,25 @@ export const ClientCheckIn: React.FC = () => {
       console.log('Generated request number:', requestNumber);
 
       // Create check-in request
+      const requestData: any = {
+        company_id: profile.company_id,
+        request_number: requestNumber,
+        requested_products: products as any,
+        notes: notes || null,
+        requested_by: profile.id,
+        status: 'pending',
+        request_type: requestType,
+      };
+
+      // Add B2B fields if applicable
+      if (requestType === 'supplier_sourcing') {
+        requestData.supplier_id = selectedSupplierId || null;
+        requestData.required_date = requiredDate || null;
+      }
+
       const { error } = await supabase
         .from('check_in_requests')
-        .insert([{
-          company_id: profile.company_id,
-          request_number: requestNumber,
-          requested_products: products as any,
-          notes: notes || null,
-          requested_by: profile.id,
-          status: 'pending'
-        }]);
+        .insert([requestData]);
 
       if (error) {
         console.error('Error inserting check-in request:', error);
@@ -280,6 +327,51 @@ export const ClientCheckIn: React.FC = () => {
           <CardDescription>Add products manually or import from Excel</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {company?.client_type === 'b2b' && (
+            <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
+              <div>
+                <Label>Request Type</Label>
+                <Select value={requestType} onValueChange={(value: any) => setRequestType(value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="standard">Standard Check-In</SelectItem>
+                    <SelectItem value="supplier_sourcing">Source from Supplier</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {requestType === 'supplier_sourcing' && (
+                <>
+                  <div>
+                    <Label>Supplier</Label>
+                    <Select value={selectedSupplierId} onValueChange={setSelectedSupplierId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select supplier" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {suppliers.map((supplier) => (
+                          <SelectItem key={supplier.id} value={supplier.id}>
+                            {supplier.supplier_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Required Date</Label>
+                    <Input 
+                      type="date" 
+                      value={requiredDate}
+                      onChange={(e) => setRequiredDate(e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+          
           <div className="flex gap-2 flex-wrap">
             <Button variant="outline" onClick={() => setShowImportDialog(true)}>
               <Upload className="h-4 w-4 mr-2" />

@@ -172,6 +172,94 @@ export type Database = {
           },
         ]
       }
+      b2b_customers: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          customer_name: string
+          id: string
+          is_active: boolean | null
+          location: string
+          phone: string
+          representative_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          customer_name: string
+          id?: string
+          is_active?: boolean | null
+          location: string
+          phone: string
+          representative_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          customer_name?: string
+          id?: string
+          is_active?: boolean | null
+          location?: string
+          phone?: string
+          representative_name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "b2b_customers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      b2b_suppliers: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          location: string
+          phone: string
+          representative_name: string
+          supplier_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          location: string
+          phone: string
+          representative_name: string
+          supplier_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          location?: string
+          phone?: string
+          representative_name?: string
+          supplier_name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "b2b_suppliers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       check_in_requests: {
         Row: {
           amended_products: Json | null
@@ -182,11 +270,14 @@ export type Database = {
           notes: string | null
           rejection_reason: string | null
           request_number: string
+          request_type: string | null
           requested_by: string
           requested_products: Json
+          required_date: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           status: string
+          supplier_id: string | null
           updated_at: string
           was_amended: boolean | null
         }
@@ -199,11 +290,14 @@ export type Database = {
           notes?: string | null
           rejection_reason?: string | null
           request_number: string
+          request_type?: string | null
           requested_by: string
           requested_products?: Json
+          required_date?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
+          supplier_id?: string | null
           updated_at?: string
           was_amended?: boolean | null
         }
@@ -216,11 +310,14 @@ export type Database = {
           notes?: string | null
           rejection_reason?: string | null
           request_number?: string
+          request_type?: string | null
           requested_by?: string
           requested_products?: Json
+          required_date?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
+          supplier_id?: string | null
           updated_at?: string
           was_amended?: boolean | null
         }
@@ -232,16 +329,26 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "check_in_requests_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "b2b_suppliers"
+            referencedColumns: ["id"]
+          },
         ]
       }
       check_out_requests: {
         Row: {
           company_id: string
           created_at: string
+          customer_id: string | null
+          delivery_date: string | null
           id: string
           notes: string | null
           rejection_reason: string | null
           request_number: string
+          request_type: string | null
           requested_by: string
           requested_items: Json
           reviewed_at: string | null
@@ -252,10 +359,13 @@ export type Database = {
         Insert: {
           company_id: string
           created_at?: string
+          customer_id?: string | null
+          delivery_date?: string | null
           id?: string
           notes?: string | null
           rejection_reason?: string | null
           request_number: string
+          request_type?: string | null
           requested_by: string
           requested_items?: Json
           reviewed_at?: string | null
@@ -266,10 +376,13 @@ export type Database = {
         Update: {
           company_id?: string
           created_at?: string
+          customer_id?: string | null
+          delivery_date?: string | null
           id?: string
           notes?: string | null
           rejection_reason?: string | null
           request_number?: string
+          request_type?: string | null
           requested_by?: string
           requested_items?: Json
           reviewed_at?: string | null
@@ -283,6 +396,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "check_out_requests_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "b2b_customers"
             referencedColumns: ["id"]
           },
         ]
@@ -536,6 +656,7 @@ export type Database = {
           billing_address: string | null
           client_code: string | null
           client_sequence_number: number | null
+          client_type: string | null
           contact_email: string | null
           contact_phone: string | null
           contract_document_url: string | null
@@ -555,6 +676,7 @@ export type Database = {
           billing_address?: string | null
           client_code?: string | null
           client_sequence_number?: number | null
+          client_type?: string | null
           contact_email?: string | null
           contact_phone?: string | null
           contract_document_url?: string | null
@@ -574,6 +696,7 @@ export type Database = {
           billing_address?: string | null
           client_code?: string | null
           client_sequence_number?: number | null
+          client_type?: string | null
           contact_email?: string | null
           contact_phone?: string | null
           contract_document_url?: string | null

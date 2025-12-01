@@ -66,6 +66,26 @@ export const ClientSidebar: React.FC<ClientSidebarProps> = ({ isCollapsed, onTog
     }
   ];
 
+  // Add B2B-specific menu items
+  const b2bNavItems = company?.client_type === 'b2b' ? [
+    {
+      name: 'Suppliers',
+      path: '/client/suppliers',
+      icon: Building2
+    },
+    {
+      name: 'Clients',
+      path: '/client/customers',
+      icon: Building2
+    }
+  ] : [];
+
+  const allNavItems = [
+    ...navItems.slice(0, 5), // Dashboard, Products, Requests, Orders, Analytics
+    ...b2bNavItems,
+    ...navItems.slice(5) // Messages, AI Assistant, Profile
+  ];
+
   return (
     <div className={`bg-card border-r border-border transition-all duration-300 ${
       isCollapsed ? 'w-16' : 'w-64'
@@ -94,7 +114,7 @@ export const ClientSidebar: React.FC<ClientSidebarProps> = ({ isCollapsed, onTog
 
         <nav className="flex-1 p-4">
           <div className="space-y-2">
-            {navItems.map((item) => (
+            {allNavItems.map((item) => (
               <NavLink
                 key={item.name}
                 to={item.path}

@@ -27,9 +27,15 @@ interface CheckOutRequest {
   created_at: string;
   company_id: string;
   requested_by: string;
+  request_type?: string;
+  customer_id?: string;
+  delivery_date?: string;
   companies?: {
     name: string;
     client_code: string;
+  };
+  b2b_customers?: {
+    customer_name: string;
   };
 }
 
@@ -62,6 +68,9 @@ export const CheckOutRequests: React.FC = () => {
           companies (
             name,
             client_code
+          ),
+          b2b_customers (
+            customer_name
           )
         `)
         .order('created_at', { ascending: false });
