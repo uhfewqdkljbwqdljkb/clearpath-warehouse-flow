@@ -1,20 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { AdminUserManagement } from '@/components/AdminUserManagement';
+import { EmployeeUserManagement } from '@/components/EmployeeUserManagement';
+import { ClientUserManagement } from '@/components/ClientUserManagement';
 import { Users as UsersIcon, UserCheck, UserPlus, Shield } from 'lucide-react';
+
+const ADMIN_ROLES = ['admin', 'super_admin', 'warehouse_manager', 'logistics_coordinator'];
+const CLIENT_ROLES = ['client', 'client_admin', 'client_user'];
 
 export const Users: React.FC = () => {
   const { profile } = useAuth();
+  const [activeTab, setActiveTab] = useState('employees');
   const [userStats, setUserStats] = useState({
     total: 0,
-    admins: 0,
+    employees: 0,
     clients: 0,
     recentSignups: 0
   });
 
-  const isAdmin = ['admin', 'super_admin', 'warehouse_manager', 'logistics_coordinator'].includes(profile?.role || '');
+  const isAdmin = ADMIN_ROLES.includes(profile?.role || '');
 
   useEffect(() => {
     if (isAdmin) {
@@ -34,12 +40,12 @@ export const Users: React.FC = () => {
         .from('user_roles')
         .select('role');
 
-      const adminCount = rolesData?.filter(r => 
-        (r.role as string) === 'admin' || (r.role as string) === 'super_admin'
+      const employeeCount = rolesData?.filter(r => 
+        ADMIN_ROLES.includes(r.role as string)
       ).length || 0;
 
       const clientCount = rolesData?.filter(r => 
-        (r.role as string).includes('client')
+        CLIENT_ROLES.includes(r.role as string)
       ).length || 0;
 
       // Get recent signups (last 7 days)
@@ -53,7 +59,7 @@ export const Users: React.FC = () => {
 
       setUserStats({
         total: totalCount || 0,
-        admins: adminCount,
+        employees: employeeCount,
         clients: clientCount,
         recentSignups: recentCount || 0
       });
@@ -83,7 +89,7 @@ export const Users: React.FC = () => {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">User Management</h1>
         <p className="text-muted-foreground">
-          Manage user accounts and permissions
+          Manage employee and client user accounts
         </p>
       </div>
 
@@ -103,13 +109,13 @@ export const Users: React.FC = () => {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Administrators</CardTitle>
+            <CardTitle className="text-sm font-medium">Employees</CardTitle>
             <Shield className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{userStats.admins}</div>
+            <div className="text-2xl font-bold">{userStats.employees}</div>
             <p className="text-xs text-muted-foreground">
-              Admin & super admin
+              Admin & staff
             </p>
           </CardContent>
         </Card>
@@ -121,7 +127,7 @@ export const Users: React.FC = () => {
           <CardContent>
             <div className="text-2xl font-bold">{userStats.clients}</div>
             <p className="text-xs text-muted-foreground">
-              Client accounts
+              Company portal users
             </p>
           </CardContent>
         </Card>
@@ -139,8 +145,19 @@ export const Users: React.FC = () => {
         </Card>
       </div>
 
-      {/* User Management Component */}
-      <AdminUserManagement />
+      {/* Tabs for Employee and Client Users */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="employees">Employees</TabsTrigger>
+          <TabsTrigger value="clients">Client Users</TabsTrigger>
+        </TabsList>
+        <TabsContent value="employees" className="space-y-4">
+          <EmployeeUserManagement />
+        </TabsContent>
+        <TabsContent value="clients" className="space-y-4">
+          <ClientUserManagement />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
