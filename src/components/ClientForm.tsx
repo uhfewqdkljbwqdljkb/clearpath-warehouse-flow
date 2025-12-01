@@ -47,6 +47,7 @@ const clientSchema = z.object({
   max_storage_cubic_feet: z.number().min(1, 'Storage capacity must be greater than 0'),
   monthly_fee: z.number().min(0, 'Monthly fee cannot be negative'),
   is_active: z.boolean(),
+  client_type: z.enum(['ecommerce', 'b2b']),
 });
 
 type ClientFormData = z.infer<typeof clientSchema>;
@@ -74,6 +75,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ client, onSubmit, onCanc
       max_storage_cubic_feet: client.max_storage_cubic_feet,
       monthly_fee: client.monthly_fee,
       is_active: client.is_active,
+      client_type: (client as any).client_type || 'ecommerce',
     } : {
       client_code: '',
       company_name: '',
@@ -88,6 +90,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ client, onSubmit, onCanc
       max_storage_cubic_feet: 1000,
       monthly_fee: 0,
       is_active: true,
+      client_type: 'ecommerce',
     },
   });
 
@@ -306,6 +309,31 @@ export const ClientForm: React.FC<ClientFormProps> = ({ client, onSubmit, onCanc
                   onCheckedChange={field.onChange}
                 />
               </FormControl>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="client_type"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Client Type</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select client type" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="ecommerce">E-commerce</SelectItem>
+                  <SelectItem value="b2b">B2B</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="text-sm text-muted-foreground">
+                B2B clients get additional features like supplier and customer management
+              </div>
+              <FormMessage />
             </FormItem>
           )}
         />

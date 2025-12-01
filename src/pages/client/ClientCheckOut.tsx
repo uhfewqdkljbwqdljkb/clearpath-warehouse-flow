@@ -34,19 +34,46 @@ interface CheckOutItem {
 
 export const ClientCheckOut: React.FC = () => {
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, company } = useAuth();
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [checkOutItems, setCheckOutItems] = useState<CheckOutItem[]>([]);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // B2B-specific state
+  const [requestType, setRequestType] = useState<'standard' | 'customer_shipment'>('standard');
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [deliveryDate, setDeliveryDate] = useState('');
 
   useEffect(() => {
     if (profile?.company_id) {
       fetchProducts();
+      if (company?.client_type === 'b2b') {
+        fetchCustomers();
+      }
     }
-  }, [profile?.company_id]);
+  }, [profile?.company_id, company?.client_type]);
+
+  const fetchCustomers = async () => {
+    if (!profile?.company_id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('b2b_customers')
+        .select('*')
+        .eq('company_id', profile.company_id)
+        .eq('is_active', true)
+        .order('customer_name');
+
+      if (error) throw error;
+      setCustomers(data || []);
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+    }
+  };
 
   const fetchProducts = async () => {
     if (!profile?.company_id) return;
@@ -149,16 +176,25 @@ export const ClientCheckOut: React.FC = () => {
       if (fnError) throw fnError;
 
       // Create check-out request
+      const requestData: any = {
+        company_id: profile.company_id,
+        request_number: requestNumber,
+        requested_items: checkOutItems as any,
+        notes: notes || null,
+        requested_by: profile.id,
+        status: 'pending',
+        request_type: requestType,
+      };
+
+      // Add B2B fields if applicable
+      if (requestType === 'customer_shipment') {
+        requestData.customer_id = selectedCustomerId || null;
+        requestData.delivery_date = deliveryDate || null;
+      }
+
       const { error } = await supabase
         .from('check_out_requests')
-        .insert([{
-          company_id: profile.company_id,
-          request_number: requestNumber,
-          requested_items: checkOutItems as any,
-          notes: notes || null,
-          requested_by: profile.id,
-          status: 'pending'
-        }]);
+        .insert([requestData]);
 
       if (error) throw error;
 
@@ -204,6 +240,51 @@ export const ClientCheckOut: React.FC = () => {
           <CardDescription>Choose products and quantities to check out</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {company?.client_type === 'b2b' && (
+            <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
+              <div>
+                <Label>Request Type</Label>
+                <Select value={requestType} onValueChange={(value: any) => setRequestType(value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="standard">Standard Check-Out</SelectItem>
+                    <SelectItem value="customer_shipment">Ship to Client</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {requestType === 'customer_shipment' && (
+                <>
+                  <div>
+                    <Label>Customer</Label>
+                    <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select customer" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {customers.map((customer) => (
+                          <SelectItem key={customer.id} value={customer.id}>
+                            {customer.customer_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Delivery Date</Label>
+                    <Input 
+                      type="date" 
+                      value={deliveryDate}
+                      onChange={(e) => setDeliveryDate(e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+          
           <Button onClick={addCheckOutItem}>
             <Plus className="h-4 w-4 mr-2" />
             Add Item

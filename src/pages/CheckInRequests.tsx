@@ -34,9 +34,15 @@ interface CheckInRequest {
   was_amended?: boolean;
   rejection_reason?: string | null;
   reviewed_at?: string | null;
+  request_type?: string;
+  supplier_id?: string;
+  required_date?: string;
   companies?: {
     name: string;
     client_code: string;
+  };
+  b2b_suppliers?: {
+    supplier_name: string;
   };
 }
 
@@ -72,6 +78,9 @@ export const CheckInRequests: React.FC = () => {
           companies (
             name,
             client_code
+          ),
+          b2b_suppliers (
+            supplier_name
           )
         `)
         .order('created_at', { ascending: false });
