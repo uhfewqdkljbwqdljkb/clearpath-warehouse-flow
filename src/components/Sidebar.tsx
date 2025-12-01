@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { LayoutDashboard, Warehouse, MessageSquare, User, Package, Settings, Menu, Sparkles, PackageCheck, PackageOpen, Truck } from 'lucide-react';
+import { LayoutDashboard, Warehouse, MessageSquare, User, Package, Settings, Menu, Sparkles, PackageCheck, PackageOpen, Truck, ClipboardCheck } from 'lucide-react';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -24,6 +24,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     '/dashboard/check-in-requests': ['admin', 'super_admin', 'warehouse_manager'],
     '/dashboard/check-out-requests': ['admin', 'super_admin', 'logistics_coordinator'],
     '/dashboard/ship-products': ['admin', 'super_admin', 'logistics_coordinator'],
+    '/dashboard/jarde': ['admin', 'super_admin', 'warehouse_manager'],
     '/dashboard/ai-assistant': ['admin', 'super_admin', 'warehouse_manager', 'logistics_coordinator'],
     '/dashboard/users': ['super_admin'], // Only super_admin can access
   };
@@ -60,6 +61,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     name: 'Ship Products',
     path: '/dashboard/ship-products',
     icon: Truck
+  }, {
+    name: 'JARDE',
+    path: '/dashboard/jarde',
+    icon: ClipboardCheck
   }, {
     name: 'AI Assistant',
     path: '/dashboard/ai-assistant',
