@@ -102,6 +102,38 @@ export const ClientRequests: React.FC = () => {
   const handleViewDetails = async (request: CheckInRequest) => {
     setSelectedRequest(request);
     
+    // Helper to normalize variants into a flat list of { attribute, value, quantity }
+    const normalizeProductForDisplay = (product: any) => {
+      if (!Array.isArray(product.variants) || product.variants.length === 0) {
+        return product;
+      }
+
+      const hasNestedValues = product.variants.some(
+        (v: any) => Array.isArray(v.values)
+      );
+
+      // If variants are stored as { attribute, values: [{ value, quantity }] }
+      if (hasNestedValues) {
+        const flatVariants = product.variants.flatMap((variant: any) =>
+          (variant.values || []).map((val: any) => ({
+            attribute: variant.attribute || '',
+            value: typeof val === 'string' ? val : val.value ?? '',
+            quantity: typeof val === 'object' && val !== null && 'quantity' in val
+              ? val.quantity ?? 0
+              : 0,
+          }))
+        );
+
+        return {
+          ...product,
+          variants: flatVariants,
+        };
+      }
+
+      // Already in flat format
+      return product;
+    };
+    
     // Fetch product details for display
     const products = request.amended_products || request.requested_products;
     if (Array.isArray(products) && products.length > 0) {
@@ -111,7 +143,7 @@ export const ClientRequests: React.FC = () => {
       if (hasProductIds) {
         const productIds = products.map((p: any) => p.productId).filter(Boolean);
         if (productIds.length > 0) {
-          const { data, error } = await supabase
+          const { data } = await supabase
             .from('client_products')
             .select('id, name, sku')
             .in('id', productIds);
@@ -119,27 +151,31 @@ export const ClientRequests: React.FC = () => {
           if (data) {
             const enrichedProducts = products.map((p: any) => {
               const productInfo = data.find(d => d.id === p.productId);
-              return {
+              return normalizeProductForDisplay({
                 ...p,
                 productName: productInfo?.name || p.name || 'Unknown Product',
-                sku: productInfo?.sku
-              };
+                sku: productInfo?.sku,
+              });
             });
             setProductDetails(enrichedProducts);
           }
         }
       } else {
         // Old format - products already have name directly
-        setProductDetails(products.map((p: any) => ({
-          ...p,
-          productName: p.name || 'Unknown Product'
-        })));
+        const normalized = products.map((p: any) =>
+          normalizeProductForDisplay({
+            ...p,
+            productName: p.name || 'Unknown Product',
+          })
+        );
+        setProductDetails(normalized);
       }
+    } else {
+      setProductDetails([]);
     }
     
     setViewDialogOpen(true);
   };
-
   const handleEditRequest = (request: CheckInRequest) => {
     setSelectedRequest(request);
     setEditProducts(JSON.parse(JSON.stringify(request.requested_products || [])));
