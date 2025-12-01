@@ -45,28 +45,34 @@ export const ClientAnalytics: React.FC = () => {
     if (!profile?.company_id) return;
 
     try {
-      // Fetch all products with their inventory
-      const { data: productsData, error } = await supabase
+      // Fetch all products
+      const { data: productsData, error: productsError } = await supabase
         .from('client_products')
-        .select(`
-          id,
-          name,
-          sku,
-          inventory_items (
-            quantity
-          )
-        `)
+        .select('id, name, sku')
         .eq('company_id', profile.company_id)
         .eq('is_active', true);
 
-      if (error) throw error;
+      if (productsError) throw productsError;
+
+      // Fetch all inventory items for this company
+      const { data: inventoryData, error: inventoryError } = await supabase
+        .from('inventory_items')
+        .select('product_id, quantity')
+        .eq('company_id', profile.company_id);
+
+      if (inventoryError) throw inventoryError;
+
+      // Create a map of product_id to total quantity
+      const inventoryMap = new Map<string, number>();
+      (inventoryData || []).forEach(item => {
+        const current = inventoryMap.get(item.product_id) || 0;
+        inventoryMap.set(item.product_id, current + (item.quantity || 0));
+      });
 
       // Process analytics data
       const processedAnalytics: ProductAnalytics[] = (productsData || []).map(product => {
-        // Sum up all inventory quantities for this product
-        const totalQuantity = Array.isArray(product.inventory_items) 
-          ? product.inventory_items.reduce((sum, inv) => sum + (inv.quantity || 0), 0)
-          : 0;
+        // Get total quantity from inventory map
+        const totalQuantity = inventoryMap.get(product.id) || 0;
         
         const totalValue = 0; // Value calculation removed since unit_value field was removed
         
