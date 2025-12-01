@@ -536,6 +536,34 @@ export const Clients: React.FC = () => {
     }
   };
 
+  const handleToggleClientType = async (client: Client) => {
+    const currentType = (client as any).client_type || 'ecommerce';
+    const newType = currentType === 'ecommerce' ? 'b2b' : 'ecommerce';
+
+    try {
+      const { error } = await supabase
+        .from('companies')
+        .update({ client_type: newType })
+        .eq('id', client.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `Client type changed to ${newType.toUpperCase()}`,
+      });
+
+      await fetchClients();
+    } catch (error) {
+      console.error('Error updating client type:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update client type",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDeleteClient = async () => {
     if (!deletingClient) return;
 
@@ -723,6 +751,10 @@ export const Clients: React.FC = () => {
                             <DropdownMenuItem onClick={() => openEditForm(client)}>
                               <Pencil className="h-4 w-4 mr-2" />
                               Edit Client
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleToggleClientType(client)}>
+                              <Building2 className="h-4 w-4 mr-2" />
+                              {(client as any).client_type === 'b2b' ? 'Change to E-commerce' : 'Change to B2B'}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleManageCredentials(client)}>
                               <Key className="h-4 w-4 mr-2" />
