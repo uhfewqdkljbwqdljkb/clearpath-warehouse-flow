@@ -112,14 +112,37 @@ export const ExistingProductsDialog: React.FC<ExistingProductsDialogProps> = ({
 
   const updateVariantQuantity = (
     productId: string,
+    productName: string,
+    variants: any,
     variantIndex: number,
     valueIndex: number,
     quantity: number
   ) => {
     const updated = new Map(selectedProducts);
-    const product = updated.get(productId);
+    let product = updated.get(productId);
     
-    if (product && product.variants[variantIndex]) {
+    // Initialize product if it doesn't exist
+    if (!product) {
+      const parsedVariants = Array.isArray(variants) && variants.length > 0
+        ? variants.map((v: any) => ({
+            attribute: v.attribute || '',
+            values: Array.isArray(v.values) 
+              ? v.values.map((val: any) => ({
+                  value: typeof val === 'string' ? val : val.value || '',
+                  quantity: 0
+                }))
+              : []
+          }))
+        : [];
+      
+      product = {
+        name: productName,
+        quantity: 0,
+        variants: parsedVariants
+      };
+    }
+    
+    if (product.variants[variantIndex]) {
       product.variants[variantIndex].values[valueIndex].quantity = quantity;
       
       // Recalculate total quantity
@@ -233,11 +256,10 @@ export const ExistingProductsDialog: React.FC<ExistingProductsDialogProps> = ({
                                       className="w-24"
                                       value={currentQty || ''}
                                       onChange={(e) => {
-                                        if (!selectedProduct) {
-                                          updateProductQuantity(product.id, product.name, 0, product.variants);
-                                        }
                                         updateVariantQuantity(
                                           product.id,
+                                          product.name,
+                                          product.variants,
                                           variantIndex,
                                           valueIndex,
                                           parseInt(e.target.value) || 0
