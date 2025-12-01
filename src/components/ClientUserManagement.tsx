@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { UserPlus, Edit, Loader2, Search } from 'lucide-react';
+import { Edit, Loader2, Search } from 'lucide-react';
 import { EnhancedProfile } from '@/types/integration';
 
 const CLIENT_ROLES = ['client', 'client_admin', 'client_user'] as const;
@@ -29,18 +29,9 @@ export const ClientUserManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [companyFilter, setCompanyFilter] = useState<string>('all');
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<(EnhancedProfile & { company_name?: string }) | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  const [newUser, setNewUser] = useState({
-    email: '',
-    password: '',
-    full_name: '',
-    company_id: '',
-    role: 'client' as ClientRole
-  });
 
   const isAdmin = ['admin', 'super_admin', 'warehouse_manager', 'logistics_coordinator'].includes(profile?.role || '');
 
@@ -118,40 +109,6 @@ export const ClientUserManagement: React.FC = () => {
     }
   };
 
-  const createClientUser = async () => {
-    if (!newUser.email || !newUser.password || !newUser.full_name || !newUser.company_id) {
-      toast.error('Please fill in all fields');
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-
-      // Use the edge function to create client user
-      const { data, error } = await supabase.functions.invoke('create-client-user', {
-        body: {
-          email: newUser.email,
-          password: newUser.password,
-          full_name: newUser.full_name,
-          company_id: newUser.company_id,
-          role: newUser.role
-        }
-      });
-
-      if (error) throw error;
-
-      toast.success('Client user created successfully');
-      setCreateDialogOpen(false);
-      setNewUser({ email: '', password: '', full_name: '', company_id: '', role: 'client' });
-      fetchClientUsers();
-    } catch (error: any) {
-      console.error('Error creating client user:', error);
-      toast.error(error.message || 'Failed to create client user');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   const handleEditUser = (user: EnhancedProfile & { company_name?: string }) => {
     setEditingUser(user);
     setEditDialogOpen(true);
@@ -226,45 +183,49 @@ export const ClientUserManagement: React.FC = () => {
 
   return (
     <div className="space-y-4">
+      {/* Info Banner */}
+      <Card className="bg-muted/50">
+        <CardContent className="pt-6">
+          <p className="text-sm text-muted-foreground">
+            Client users are created when granting portal access from the <strong>Clients</strong> page. 
+            This section provides a view of all existing client portal users.
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Actions Bar */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex-1 flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <div className="relative flex-1 sm:max-w-xs">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search users..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-          <Select value={companyFilter} onValueChange={setCompanyFilter}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Filter by company" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Companies</SelectItem>
-              {companies.map(company => (
-                <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={roleFilter} onValueChange={setRoleFilter}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Filter by role" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Roles</SelectItem>
-              <SelectItem value="client_admin">Client Admin</SelectItem>
-              <SelectItem value="client_user">Client User</SelectItem>
-              <SelectItem value="client">Client</SelectItem>
-            </SelectContent>
-          </Select>
+      <div className="flex flex-col sm:flex-row gap-2 w-full">
+        <div className="relative flex-1 sm:max-w-xs">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search users..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9"
+          />
         </div>
-        <Button onClick={() => setCreateDialogOpen(true)}>
-          <UserPlus className="h-4 w-4 mr-2" />
-          Create Client User
-        </Button>
+        <Select value={companyFilter} onValueChange={setCompanyFilter}>
+          <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectValue placeholder="Filter by company" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Companies</SelectItem>
+            {companies.map(company => (
+              <SelectItem key={company.id} value={company.id}>{company.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={roleFilter} onValueChange={setRoleFilter}>
+          <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectValue placeholder="Filter by role" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Roles</SelectItem>
+            <SelectItem value="client_admin">Client Admin</SelectItem>
+            <SelectItem value="client_user">Client User</SelectItem>
+            <SelectItem value="client">Client</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Client Users Table */}
@@ -322,86 +283,6 @@ export const ClientUserManagement: React.FC = () => {
           </Table>
         </CardContent>
       </Card>
-
-      {/* Create Client User Dialog */}
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create Client User</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={newUser.email}
-                onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={newUser.password}
-                onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="full_name">Full Name</Label>
-              <Input
-                id="full_name"
-                value={newUser.full_name}
-                onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="company">Company *</Label>
-              <Select 
-                value={newUser.company_id} 
-                onValueChange={(value) => setNewUser({ ...newUser, company_id: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a company" />
-                </SelectTrigger>
-                <SelectContent>
-                  {companies.map(company => (
-                    <SelectItem key={company.id} value={company.id}>
-                      {company.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="role">Role</Label>
-              <Select 
-                value={newUser.role} 
-                onValueChange={(value) => setNewUser({ ...newUser, role: value as ClientRole })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="client_admin">Client Admin</SelectItem>
-                  <SelectItem value="client_user">Client User</SelectItem>
-                  <SelectItem value="client">Client</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={createClientUser} disabled={submitting}>
-              {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Create
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Edit Client User Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
