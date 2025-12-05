@@ -143,13 +143,33 @@ export const EmployeeUserManagement: React.FC = () => {
 
       if (profileError) throw profileError;
 
-      // Update role
+      // Update role - use upsert to handle both update and insert cases
       const { error: roleError } = await supabase
         .from('user_roles')
-        .update({ role: editingUser.role as any })
-        .eq('user_id', editingUser.id);
+        .upsert({ 
+          user_id: editingUser.id,
+          role: editingUser.role as any 
+        }, {
+          onConflict: 'user_id,role'
+        });
 
-      if (roleError) throw roleError;
+      if (roleError) {
+        console.error('Role update error:', roleError);
+        // Try delete and insert as fallback
+        await supabase
+          .from('user_roles')
+          .delete()
+          .eq('user_id', editingUser.id);
+        
+        const { error: insertError } = await supabase
+          .from('user_roles')
+          .insert({ 
+            user_id: editingUser.id,
+            role: editingUser.role as any 
+          });
+        
+        if (insertError) throw insertError;
+      }
 
       toast.success('Employee updated successfully');
       setEditDialogOpen(false);
