@@ -6,9 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { CalendarIcon, Download, Search, AlertCircle } from 'lucide-react';
+import { CalendarIcon, Download, Search, AlertCircle, Save, History, Trash2, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
@@ -58,7 +60,22 @@ interface ClientProduct {
   variants: any;
 }
 
+interface SavedReport {
+  id: string;
+  report_date: string;
+  start_date: string;
+  end_date: string;
+  company_id: string | null;
+  report_data: JardeClientReport[];
+  total_products: number;
+  items_with_variance: number;
+  notes: string | null;
+  created_at: string;
+  companies?: { name: string } | null;
+}
+
 export const Jarde: React.FC = () => {
+  const { user } = useAuth();
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>('all');
@@ -66,9 +83,14 @@ export const Jarde: React.FC = () => {
   const [report, setReport] = useState<JardeClientReport[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState('generate');
+  const [savedReports, setSavedReports] = useState<SavedReport[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   useEffect(() => {
     fetchCompanies();
+    fetchSavedReports();
   }, []);
 
   const fetchCompanies = async () => {
@@ -86,6 +108,112 @@ export const Jarde: React.FC = () => {
       toast({
         title: 'Error',
         description: 'Failed to load clients',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const fetchSavedReports = async () => {
+    try {
+      setLoadingHistory(true);
+      const { data, error } = await supabase
+        .from('jarde_reports')
+        .select('*, companies(name)')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+      setSavedReports((data || []).map(item => ({
+        ...item,
+        report_data: item.report_data as unknown as JardeClientReport[],
+        companies: item.companies as { name: string } | null
+      })));
+    } catch (error) {
+      console.error('Error fetching saved reports:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const saveReport = async () => {
+    if (report.length === 0 || !startDate || !endDate) {
+      toast({
+        title: 'No Report',
+        description: 'Generate a report before saving',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const totalProducts = report.reduce((sum, c) => sum + c.items.length, 0);
+      const itemsWithVariance = report.reduce((sum, c) => 
+        sum + c.items.filter(i => i.variance !== null && i.variance !== 0).length, 0
+      );
+
+      const { error } = await supabase
+        .from('jarde_reports')
+        .insert({
+          start_date: format(startDate, 'yyyy-MM-dd'),
+          end_date: format(endDate, 'yyyy-MM-dd'),
+          company_id: selectedCompanyId === 'all' ? null : selectedCompanyId,
+          report_data: report as any,
+          total_products: totalProducts,
+          items_with_variance: itemsWithVariance,
+          created_by: user?.id,
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Report Saved',
+        description: 'JARDE report has been saved to history',
+      });
+      fetchSavedReports();
+    } catch (error) {
+      console.error('Error saving report:', error);
+      toast({
+        title: 'Save Failed',
+        description: 'Failed to save report',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const loadSavedReport = (savedReport: SavedReport) => {
+    setReport(savedReport.report_data);
+    setStartDate(new Date(savedReport.start_date));
+    setEndDate(new Date(savedReport.end_date));
+    setSelectedCompanyId(savedReport.company_id || 'all');
+    setActiveTab('generate');
+    toast({
+      title: 'Report Loaded',
+      description: `Loaded report from ${format(new Date(savedReport.created_at), 'PPP')}`,
+    });
+  };
+
+  const deleteSavedReport = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('jarde_reports')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Report Deleted',
+        description: 'Report has been removed from history',
+      });
+      fetchSavedReports();
+    } catch (error) {
+      console.error('Error deleting report:', error);
+      toast({
+        title: 'Delete Failed',
+        description: 'Failed to delete report',
         variant: 'destructive',
       });
     }
@@ -485,213 +613,302 @@ export const Jarde: React.FC = () => {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">JARDE</h1>
-        <p className="text-muted-foreground">
-          Inventory Reconciliation - Compare digital records with physical warehouse counts
-        </p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">JARDE</h1>
+          <p className="text-muted-foreground">
+            Inventory Reconciliation - Compare digital records with physical warehouse counts
+          </p>
+        </div>
       </div>
 
-      {/* Controls */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Report Parameters</CardTitle>
-          <CardDescription>Select date range and client to generate reconciliation report</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-4 items-end">
-            {/* Start Date */}
-            <div className="space-y-2">
-              <Label>Start Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-[200px] justify-start text-left font-normal",
-                      !startDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {startDate ? format(startDate, "PPP") : "Pick a date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={startDate}
-                    onSelect={setStartDate}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="generate">Generate Report</TabsTrigger>
+          <TabsTrigger value="history">
+            <History className="h-4 w-4 mr-2" />
+            Report History ({savedReports.length})
+          </TabsTrigger>
+        </TabsList>
 
-            {/* End Date */}
-            <div className="space-y-2">
-              <Label>End Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-[200px] justify-start text-left font-normal",
-                      !endDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {endDate ? format(endDate, "PPP") : "Pick a date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={endDate}
-                    onSelect={setEndDate}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            {/* Client Filter */}
-            <div className="space-y-2">
-              <Label>Client</Label>
-              <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Select client" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Clients</SelectItem>
-                  {companies.map(company => (
-                    <SelectItem key={company.id} value={company.id}>
-                      {company.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Generate Button */}
-            <Button onClick={generateReport} disabled={isGenerating}>
-              <Search className="mr-2 h-4 w-4" />
-              {isGenerating ? 'Generating...' : 'Generate Report'}
-            </Button>
-
-            {/* Export Button */}
-            <Button 
-              variant="outline" 
-              onClick={exportToPDF} 
-              disabled={isExporting || report.length === 0}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              {isExporting ? 'Exporting...' : 'Export PDF'}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Summary Stats */}
-      {report.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <TabsContent value="generate" className="space-y-6">
+          {/* Controls */}
           <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold">{report.length}</div>
-              <p className="text-muted-foreground text-sm">Clients Analyzed</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold">{totalProducts}</div>
-              <p className="text-muted-foreground text-sm">Products Tracked</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className={cn("text-2xl font-bold", itemsWithVariance > 0 && "text-red-600")}>
-                {itemsWithVariance}
+            <CardHeader>
+              <CardTitle className="text-lg">Report Parameters</CardTitle>
+              <CardDescription>Select date range and client to generate reconciliation report</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-4 items-end">
+                {/* Start Date */}
+                <div className="space-y-2">
+                  <Label>Start Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-[200px] justify-start text-left font-normal",
+                          !startDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {startDate ? format(startDate, "PPP") : "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={startDate}
+                        onSelect={setStartDate}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {/* End Date */}
+                <div className="space-y-2">
+                  <Label>End Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-[200px] justify-start text-left font-normal",
+                          !endDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {endDate ? format(endDate, "PPP") : "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={endDate}
+                        onSelect={setEndDate}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {/* Client Filter */}
+                <div className="space-y-2">
+                  <Label>Client</Label>
+                  <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="Select client" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Clients</SelectItem>
+                      {companies.map(company => (
+                        <SelectItem key={company.id} value={company.id}>
+                          {company.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Generate Button */}
+                <Button onClick={generateReport} disabled={isGenerating}>
+                  <Search className="mr-2 h-4 w-4" />
+                  {isGenerating ? 'Generating...' : 'Generate Report'}
+                </Button>
+
+                {/* Save Button */}
+                <Button 
+                  variant="secondary"
+                  onClick={saveReport} 
+                  disabled={isSaving || report.length === 0}
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  {isSaving ? 'Saving...' : 'Save Report'}
+                </Button>
+
+                {/* Export Button */}
+                <Button 
+                  variant="outline" 
+                  onClick={exportToPDF} 
+                  disabled={isExporting || report.length === 0}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  {isExporting ? 'Exporting...' : 'Export PDF'}
+                </Button>
               </div>
-              <p className="text-muted-foreground text-sm">Items with Variance</p>
             </CardContent>
           </Card>
-        </div>
-      )}
 
-      {/* Report Tables */}
-      {report.length === 0 ? (
-        <Card>
-          <CardContent className="py-12">
-            <div className="text-center text-muted-foreground">
-              <AlertCircle className="mx-auto h-12 w-12 mb-4 opacity-50" />
-              <p>Select dates and generate a report to view reconciliation data</p>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-6">
-          {report.map(clientReport => (
-            <Card key={clientReport.company_id}>
-              <CardHeader>
-                <CardTitle>{clientReport.company_name}</CardTitle>
-                <CardDescription>{clientReport.items.length} products tracked</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {clientReport.items.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-4">
-                    No inventory activity for this client in the selected period
-                  </p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left py-2 px-2">Product</th>
-                          <th className="text-right py-2 px-2">Start</th>
-                          <th className="text-right py-2 px-2">In</th>
-                          <th className="text-right py-2 px-2">Out</th>
-                          <th className="text-right py-2 px-2">Expected</th>
-                          <th className="text-right py-2 px-2">Actual</th>
-                          <th className="text-right py-2 px-2">Variance</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {clientReport.items.map((item, index) => (
-                          <tr key={`${item.product_id}-${item.variant_value || 'base'}`} className="border-b">
-                            <td className="py-2 px-2">{item.product_name}</td>
-                            <td className="text-right py-2 px-2">{item.starting_quantity}</td>
-                            <td className="text-right py-2 px-2 text-green-600">+{item.check_ins}</td>
-                            <td className="text-right py-2 px-2 text-red-600">-{item.check_outs}</td>
-                            <td className="text-right py-2 px-2 font-medium">{item.expected_quantity}</td>
-                            <td className="text-right py-2 px-2">
-                              <Input
-                                type="number"
-                                className="w-20 h-8 text-right"
-                                value={item.actual_quantity ?? ''}
-                                onChange={(e) => handleActualQuantityChange(
-                                  clientReport.company_id,
-                                  index,
-                                  e.target.value
-                                )}
-                                placeholder="-"
-                              />
-                            </td>
-                            <td className={cn(
-                              "text-right py-2 px-2 font-medium",
-                              getVarianceColor(item.variance)
-                            )}>
-                              {item.variance !== null ? item.variance : '-'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+          {/* Summary Stats */}
+          {report.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-2xl font-bold">{report.length}</div>
+                  <p className="text-muted-foreground text-sm">Clients Analyzed</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-2xl font-bold">{totalProducts}</div>
+                  <p className="text-muted-foreground text-sm">Products Tracked</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className={cn("text-2xl font-bold", itemsWithVariance > 0 && "text-red-600")}>
+                    {itemsWithVariance}
                   </div>
-                )}
+                  <p className="text-muted-foreground text-sm">Items with Variance</p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Report Tables */}
+          {report.length === 0 ? (
+            <Card>
+              <CardContent className="py-12">
+                <div className="text-center text-muted-foreground">
+                  <AlertCircle className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                  <p>Select dates and generate a report to view reconciliation data</p>
+                </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
-      )}
+          ) : (
+            <div className="space-y-6">
+              {report.map(clientReport => (
+                <Card key={clientReport.company_id}>
+                  <CardHeader>
+                    <CardTitle>{clientReport.company_name}</CardTitle>
+                    <CardDescription>{clientReport.items.length} products tracked</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {clientReport.items.length === 0 ? (
+                      <p className="text-muted-foreground text-center py-4">
+                        No inventory activity for this client in the selected period
+                      </p>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b">
+                              <th className="text-left py-2 px-2">Product</th>
+                              <th className="text-right py-2 px-2">Start</th>
+                              <th className="text-right py-2 px-2">In</th>
+                              <th className="text-right py-2 px-2">Out</th>
+                              <th className="text-right py-2 px-2">Expected</th>
+                              <th className="text-right py-2 px-2">Actual</th>
+                              <th className="text-right py-2 px-2">Variance</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {clientReport.items.map((item, index) => (
+                              <tr key={`${item.product_id}-${item.variant_value || 'base'}`} className="border-b">
+                                <td className="py-2 px-2">{item.product_name}</td>
+                                <td className="text-right py-2 px-2">{item.starting_quantity}</td>
+                                <td className="text-right py-2 px-2 text-green-600">+{item.check_ins}</td>
+                                <td className="text-right py-2 px-2 text-red-600">-{item.check_outs}</td>
+                                <td className="text-right py-2 px-2 font-medium">{item.expected_quantity}</td>
+                                <td className="text-right py-2 px-2">
+                                  <Input
+                                    type="number"
+                                    className="w-20 h-8 text-right"
+                                    value={item.actual_quantity ?? ''}
+                                    onChange={(e) => handleActualQuantityChange(
+                                      clientReport.company_id,
+                                      index,
+                                      e.target.value
+                                    )}
+                                    placeholder="-"
+                                  />
+                                </td>
+                                <td className={cn(
+                                  "text-right py-2 px-2 font-medium",
+                                  getVarianceColor(item.variance)
+                                )}>
+                                  {item.variance !== null ? item.variance : '-'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* History Tab */}
+        <TabsContent value="history" className="space-y-4">
+          {loadingHistory ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <p className="text-muted-foreground">Loading saved reports...</p>
+              </CardContent>
+            </Card>
+          ) : savedReports.length === 0 ? (
+            <Card>
+              <CardContent className="py-12">
+                <div className="text-center text-muted-foreground">
+                  <History className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                  <p>No saved reports yet</p>
+                  <p className="text-sm mt-2">Generate and save a report to see it here</p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4">
+              {savedReports.map((savedReport) => (
+                <Card key={savedReport.id}>
+                  <CardContent className="py-4">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <p className="font-medium">
+                          {format(new Date(savedReport.created_at), 'PPP')} at {format(new Date(savedReport.created_at), 'p')}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Date Range: {format(new Date(savedReport.start_date), 'PP')} - {format(new Date(savedReport.end_date), 'PP')}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Client: {savedReport.companies?.name || 'All Clients'} • 
+                          {savedReport.total_products} products • 
+                          <span className={savedReport.items_with_variance > 0 ? 'text-red-600' : 'text-green-600'}>
+                            {savedReport.items_with_variance} variances
+                          </span>
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => loadSavedReport(savedReport)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          View
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteSavedReport(savedReport.id)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

@@ -777,6 +777,56 @@ export type Database = {
           },
         ]
       }
+      jarde_reports: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          created_by: string | null
+          end_date: string
+          id: string
+          items_with_variance: number | null
+          notes: string | null
+          report_data: Json
+          report_date: string
+          start_date: string
+          total_products: number | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          end_date: string
+          id?: string
+          items_with_variance?: number | null
+          notes?: string | null
+          report_data: Json
+          report_date?: string
+          start_date: string
+          total_products?: number | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          end_date?: string
+          id?: string
+          items_with_variance?: number | null
+          notes?: string | null
+          report_data?: Json
+          report_date?: string
+          start_date?: string
+          total_products?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jarde_reports_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           company_id: string | null
