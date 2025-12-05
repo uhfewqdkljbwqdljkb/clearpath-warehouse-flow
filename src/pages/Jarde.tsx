@@ -14,7 +14,7 @@ import { CalendarIcon, Download, Search, AlertCircle, Save, History, Trash2, Eye
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 interface JardeReportItem {
   product_id: string;
@@ -541,7 +541,7 @@ export const Jarde: React.FC = () => {
           item.variance !== null ? item.variance.toString() : '-',
         ]);
 
-        (doc as any).autoTable({
+        autoTable(doc, {
           startY: yPosition,
           head: [['Product', 'Start', 'In', 'Out', 'Expected', 'Actual', 'Variance']],
           body: tableData,
