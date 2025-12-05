@@ -491,6 +491,98 @@ export const Jarde: React.FC = () => {
     return 'text-red-600';
   };
 
+  const generatePDF = (
+    reportData: JardeClientReport[],
+    reportStartDate: Date | null,
+    reportEndDate: Date | null,
+    filename: string
+  ) => {
+    const doc = new jsPDF();
+    
+    // Header
+    doc.setFontSize(20);
+    doc.text('JARDE - Inventory Reconciliation Report', 14, 20);
+    
+    doc.setFontSize(10);
+    doc.text(`Date Range: ${reportStartDate ? format(reportStartDate, 'PP') : 'N/A'} - ${reportEndDate ? format(reportEndDate, 'PP') : 'N/A'}`, 14, 30);
+    doc.text(`Generated: ${format(new Date(), 'PPpp')}`, 14, 36);
+
+    let yPosition = 45;
+
+    for (const clientReport of reportData) {
+      if (clientReport.items.length === 0) continue;
+
+      // Check if we need a new page
+      if (yPosition > 250) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      // Client header
+      doc.setFontSize(14);
+      doc.text(`Client: ${clientReport.company_name}`, 14, yPosition);
+      yPosition += 8;
+
+      // Table
+      const tableData = clientReport.items.map(item => [
+        item.product_name,
+        item.starting_quantity.toString(),
+        item.check_ins.toString(),
+        item.check_outs.toString(),
+        item.expected_quantity.toString(),
+        item.actual_quantity !== null ? item.actual_quantity.toString() : '-',
+        item.variance !== null ? item.variance.toString() : '-',
+      ]);
+
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Product', 'Start', 'In', 'Out', 'Expected', 'Actual', 'Variance']],
+        body: tableData,
+        theme: 'striped',
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [59, 130, 246] },
+        didParseCell: (data: any) => {
+          // Color variance column
+          if (data.column.index === 6 && data.section === 'body') {
+            const variance = parseInt(data.cell.text[0], 10);
+            if (!isNaN(variance)) {
+              if (variance === 0) {
+                data.cell.styles.textColor = [34, 197, 94];
+              } else if (Math.abs(variance) < 5) {
+                data.cell.styles.textColor = [234, 179, 8];
+              } else {
+                data.cell.styles.textColor = [239, 68, 68];
+              }
+            }
+          }
+        },
+      });
+
+      yPosition = (doc as any).lastAutoTable.finalY + 15;
+    }
+
+    // Summary
+    const totalProducts = reportData.reduce((sum, c) => sum + c.items.length, 0);
+    const itemsWithVariance = reportData.reduce((sum, c) => 
+      sum + c.items.filter(i => i.variance !== null && i.variance !== 0).length, 0
+    );
+
+    if (yPosition > 270) {
+      doc.addPage();
+      yPosition = 20;
+    }
+
+    doc.setFontSize(12);
+    doc.text('Summary', 14, yPosition);
+    yPosition += 7;
+    doc.setFontSize(10);
+    doc.text(`Total Products Analyzed: ${totalProducts}`, 14, yPosition);
+    yPosition += 6;
+    doc.text(`Products with Variance: ${itemsWithVariance}`, 14, yPosition);
+
+    doc.save(filename);
+  };
+
   const exportToPDF = () => {
     if (report.length === 0) {
       toast({
@@ -504,90 +596,7 @@ export const Jarde: React.FC = () => {
     setIsExporting(true);
 
     try {
-      const doc = new jsPDF();
-      
-      // Header
-      doc.setFontSize(20);
-      doc.text('JARDE - Inventory Reconciliation Report', 14, 20);
-      
-      doc.setFontSize(10);
-      doc.text(`Date Range: ${startDate ? format(startDate, 'PP') : 'N/A'} - ${endDate ? format(endDate, 'PP') : 'N/A'}`, 14, 30);
-      doc.text(`Generated: ${format(new Date(), 'PPpp')}`, 14, 36);
-
-      let yPosition = 45;
-
-      for (const clientReport of report) {
-        if (clientReport.items.length === 0) continue;
-
-        // Check if we need a new page
-        if (yPosition > 250) {
-          doc.addPage();
-          yPosition = 20;
-        }
-
-        // Client header
-        doc.setFontSize(14);
-        doc.text(`Client: ${clientReport.company_name}`, 14, yPosition);
-        yPosition += 8;
-
-        // Table
-        const tableData = clientReport.items.map(item => [
-          item.product_name,
-          item.starting_quantity.toString(),
-          item.check_ins.toString(),
-          item.check_outs.toString(),
-          item.expected_quantity.toString(),
-          item.actual_quantity !== null ? item.actual_quantity.toString() : '-',
-          item.variance !== null ? item.variance.toString() : '-',
-        ]);
-
-        autoTable(doc, {
-          startY: yPosition,
-          head: [['Product', 'Start', 'In', 'Out', 'Expected', 'Actual', 'Variance']],
-          body: tableData,
-          theme: 'striped',
-          styles: { fontSize: 8 },
-          headStyles: { fillColor: [59, 130, 246] },
-          didParseCell: (data: any) => {
-            // Color variance column
-            if (data.column.index === 6 && data.section === 'body') {
-              const variance = parseInt(data.cell.text[0], 10);
-              if (!isNaN(variance)) {
-                if (variance === 0) {
-                  data.cell.styles.textColor = [34, 197, 94];
-                } else if (Math.abs(variance) < 5) {
-                  data.cell.styles.textColor = [234, 179, 8];
-                } else {
-                  data.cell.styles.textColor = [239, 68, 68];
-                }
-              }
-            }
-          },
-        });
-
-        yPosition = (doc as any).lastAutoTable.finalY + 15;
-      }
-
-      // Summary
-      const totalProducts = report.reduce((sum, c) => sum + c.items.length, 0);
-      const itemsWithVariance = report.reduce((sum, c) => 
-        sum + c.items.filter(i => i.variance !== null && i.variance !== 0).length, 0
-      );
-
-      if (yPosition > 270) {
-        doc.addPage();
-        yPosition = 20;
-      }
-
-      doc.setFontSize(12);
-      doc.text('Summary', 14, yPosition);
-      yPosition += 7;
-      doc.setFontSize(10);
-      doc.text(`Total Products Analyzed: ${totalProducts}`, 14, yPosition);
-      yPosition += 6;
-      doc.text(`Products with Variance: ${itemsWithVariance}`, 14, yPosition);
-
-      doc.save(`JARDE-Report-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+      generatePDF(report, startDate || null, endDate || null, `JARDE-Report-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
       
       toast({
         title: 'Export Complete',
@@ -602,6 +611,30 @@ export const Jarde: React.FC = () => {
       });
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const exportSavedReportToPDF = (savedReport: SavedReport) => {
+    try {
+      const filename = `JARDE-Report-${format(new Date(savedReport.start_date), 'yyyy-MM-dd')}-to-${format(new Date(savedReport.end_date), 'yyyy-MM-dd')}.pdf`;
+      generatePDF(
+        savedReport.report_data,
+        new Date(savedReport.start_date),
+        new Date(savedReport.end_date),
+        filename
+      );
+      
+      toast({
+        title: 'Export Complete',
+        description: 'PDF has been downloaded',
+      });
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      toast({
+        title: 'Export Failed',
+        description: 'Failed to generate PDF',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -884,6 +917,14 @@ export const Jarde: React.FC = () => {
                         </p>
                       </div>
                       <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => exportSavedReportToPDF(savedReport)}
+                        >
+                          <Download className="h-4 w-4 mr-1" />
+                          Export PDF
+                        </Button>
                         <Button
                           variant="outline"
                           size="sm"
