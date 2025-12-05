@@ -117,13 +117,17 @@ export const Jarde: React.FC = () => {
         ? companies.map(c => c.id) 
         : [selectedCompanyId];
 
+      // Set end date to end of day for inclusive filtering
+      const endOfDay = new Date(endDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
       // BATCH QUERY 1: Fetch ALL approved check-ins up to end date
       const { data: allCheckIns, error: checkInError } = await supabase
         .from('check_in_requests')
         .select('company_id, requested_products, amended_products, was_amended, reviewed_at')
         .eq('status', 'approved')
         .in('company_id', companyFilter)
-        .lte('reviewed_at', endDate.toISOString());
+        .lte('reviewed_at', endOfDay.toISOString());
 
       if (checkInError) throw checkInError;
 
@@ -133,7 +137,7 @@ export const Jarde: React.FC = () => {
         .select('company_id, requested_items, reviewed_at')
         .eq('status', 'approved')
         .in('company_id', companyFilter)
-        .lte('reviewed_at', endDate.toISOString());
+        .lte('reviewed_at', endOfDay.toISOString());
 
       if (checkOutError) throw checkOutError;
 
