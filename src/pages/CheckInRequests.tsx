@@ -102,6 +102,8 @@ export const CheckInRequests: React.FC = () => {
   const handleApprove = async (request: CheckInRequest) => {
     setIsProcessing(true);
     try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
       // Get or create products and update inventory
       const productsToProcess = request.was_amended && request.amended_products 
         ? request.amended_products 
@@ -189,6 +191,7 @@ export const CheckInRequests: React.FC = () => {
         .update({
           status: 'approved',
           reviewed_at: new Date().toISOString(),
+          reviewed_by: user?.id,
         })
         .eq('id', request.id);
 
@@ -226,11 +229,15 @@ export const CheckInRequests: React.FC = () => {
 
     setIsProcessing(true);
     try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
       const { error } = await supabase
         .from('check_in_requests')
         .update({
           status: 'rejected',
           reviewed_at: new Date().toISOString(),
+          reviewed_by: user?.id,
           rejection_reason: rejectionReason,
         })
         .eq('id', request.id);
@@ -389,6 +396,9 @@ export const CheckInRequests: React.FC = () => {
 
     try {
       setIsProcessing(true);
+      
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
 
       // Create/update inventory with amended quantities
       for (const product of amendedProducts) {
@@ -481,6 +491,7 @@ export const CheckInRequests: React.FC = () => {
         .update({
           status: 'approved',
           reviewed_at: new Date().toISOString(),
+          reviewed_by: user?.id,
           amended_products: amendedProducts,
           amendment_notes: amendmentNotes,
           was_amended: true,
