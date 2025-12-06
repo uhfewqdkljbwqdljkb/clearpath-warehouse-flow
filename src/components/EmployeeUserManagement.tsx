@@ -143,28 +143,15 @@ export const EmployeeUserManagement: React.FC = () => {
 
       if (profileError) throw profileError;
 
-      // Update role - first delete existing role, then insert new one
-      // This is needed because the unique constraint is on (user_id, role) not just user_id
-      const { error: deleteError } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', editingUser.id);
+      // Update role using security definer function to avoid RLS issues
+      const { error: roleError } = await supabase.rpc('update_user_role', {
+        _user_id: editingUser.id,
+        _new_role: editingUser.role as 'admin' | 'super_admin' | 'warehouse_manager' | 'logistics_coordinator'
+      });
 
-      if (deleteError) {
-        console.error('Role delete error:', deleteError);
-        throw deleteError;
-      }
-
-      const { error: insertError } = await supabase
-        .from('user_roles')
-        .insert({ 
-          user_id: editingUser.id,
-          role: editingUser.role as any 
-        });
-
-      if (insertError) {
-        console.error('Role insert error:', insertError);
-        throw insertError;
+      if (roleError) {
+        console.error('Role update error:', roleError);
+        throw roleError;
       }
 
       toast.success('Employee updated successfully');
