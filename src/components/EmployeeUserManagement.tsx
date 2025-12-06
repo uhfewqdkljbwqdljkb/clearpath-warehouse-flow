@@ -10,7 +10,17 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { UserPlus, Edit, Loader2, Search } from 'lucide-react';
+import { UserPlus, Edit, Loader2, Search, Trash2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { EnhancedProfile } from '@/types/integration';
 
 const ADMIN_ROLES = ['super_admin', 'admin', 'warehouse_manager', 'logistics_coordinator'] as const;
@@ -26,7 +36,8 @@ export const EmployeeUserManagement: React.FC = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<EnhancedProfile | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<EnhancedProfile | null>(null);
   const [newUser, setNewUser] = useState({
     email: '',
     password: '',
@@ -166,6 +177,45 @@ export const EmployeeUserManagement: React.FC = () => {
     }
   };
 
+  const handleDeleteUser = (user: EnhancedProfile) => {
+    setUserToDelete(user);
+    setDeleteDialogOpen(true);
+  };
+
+  const deleteEmployee = async () => {
+    if (!userToDelete) return;
+
+    try {
+      setSubmitting(true);
+
+      // Delete user role first
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userToDelete.id);
+
+      if (roleError) throw roleError;
+
+      // Delete profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', userToDelete.id);
+
+      if (profileError) throw profileError;
+
+      toast.success('Employee deleted successfully');
+      setDeleteDialogOpen(false);
+      setUserToDelete(null);
+      fetchEmployees();
+    } catch (error: any) {
+      console.error('Error deleting employee:', error);
+      toast.error(error.message || 'Failed to delete employee');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const getRoleBadgeVariant = (role: string) => {
     switch (role) {
       case 'super_admin': return 'default';
@@ -262,6 +312,14 @@ export const EmployeeUserManagement: React.FC = () => {
                       onClick={() => handleEditUser(user)}
                     >
                       <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteUser(user)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -395,6 +453,29 @@ export const EmployeeUserManagement: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Employee</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {userToDelete?.full_name || userToDelete?.email}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={submitting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={deleteEmployee}
+              disabled={submitting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
