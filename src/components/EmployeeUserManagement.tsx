@@ -143,32 +143,28 @@ export const EmployeeUserManagement: React.FC = () => {
 
       if (profileError) throw profileError;
 
-      // Update role - use upsert to handle both update and insert cases
-      const { error: roleError } = await supabase
+      // Update role - first delete existing role, then insert new one
+      // This is needed because the unique constraint is on (user_id, role) not just user_id
+      const { error: deleteError } = await supabase
         .from('user_roles')
-        .upsert({ 
+        .delete()
+        .eq('user_id', editingUser.id);
+
+      if (deleteError) {
+        console.error('Role delete error:', deleteError);
+        throw deleteError;
+      }
+
+      const { error: insertError } = await supabase
+        .from('user_roles')
+        .insert({ 
           user_id: editingUser.id,
           role: editingUser.role as any 
-        }, {
-          onConflict: 'user_id,role'
         });
 
-      if (roleError) {
-        console.error('Role update error:', roleError);
-        // Try delete and insert as fallback
-        await supabase
-          .from('user_roles')
-          .delete()
-          .eq('user_id', editingUser.id);
-        
-        const { error: insertError } = await supabase
-          .from('user_roles')
-          .insert({ 
-            user_id: editingUser.id,
-            role: editingUser.role as any 
-          });
-        
-        if (insertError) throw insertError;
+      if (insertError) {
+        console.error('Role insert error:', insertError);
+        throw insertError;
       }
 
       toast.success('Employee updated successfully');
