@@ -152,6 +152,74 @@ export const Jarde: React.FC = () => {
         sum + c.items.filter(i => i.variance !== null && i.variance !== 0).length, 0
       );
 
+      // Update inventory for items with amended quantities (actual_quantity != null and has variance)
+      const inventoryUpdates: Array<{
+        product_id: string;
+        company_id: string;
+        quantity: number;
+        variant_value?: string;
+      }> = [];
+
+      for (const clientReport of report) {
+        for (const item of clientReport.items) {
+          // Only update items where actual quantity was entered and there's a variance
+          if (item.actual_quantity !== null && item.variance !== null && item.variance !== 0) {
+            inventoryUpdates.push({
+              product_id: item.product_id,
+              company_id: clientReport.company_id,
+              quantity: item.actual_quantity,
+              variant_value: item.variant_value,
+            });
+          }
+        }
+      }
+
+      // Process inventory updates
+      for (const update of inventoryUpdates) {
+        // Check if inventory item exists
+        let query = supabase
+          .from('inventory_items')
+          .select('id, quantity')
+          .eq('product_id', update.product_id)
+          .eq('company_id', update.company_id);
+
+        const { data: existingItems, error: fetchError } = await query;
+
+        if (fetchError) {
+          console.error('Error fetching inventory item:', fetchError);
+          continue;
+        }
+
+        if (existingItems && existingItems.length > 0) {
+          // Update existing inventory item
+          const { error: updateError } = await supabase
+            .from('inventory_items')
+            .update({ 
+              quantity: update.quantity,
+              last_updated: new Date().toISOString()
+            })
+            .eq('id', existingItems[0].id);
+
+          if (updateError) {
+            console.error('Error updating inventory:', updateError);
+          }
+        } else {
+          // Create new inventory item with reconciled quantity
+          const { error: insertError } = await supabase
+            .from('inventory_items')
+            .insert({
+              product_id: update.product_id,
+              company_id: update.company_id,
+              quantity: update.quantity,
+            });
+
+          if (insertError) {
+            console.error('Error creating inventory item:', insertError);
+          }
+        }
+      }
+
+      // Save the report
       const { error } = await supabase
         .from('jarde_reports')
         .insert({
@@ -166,9 +234,12 @@ export const Jarde: React.FC = () => {
 
       if (error) throw error;
 
+      const updatedCount = inventoryUpdates.length;
       toast({
         title: 'Report Saved',
-        description: 'JARDE report has been saved to history',
+        description: updatedCount > 0 
+          ? `JARDE report saved. ${updatedCount} inventory item(s) updated with reconciled quantities.`
+          : 'JARDE report has been saved to history',
       });
       fetchSavedReports();
     } catch (error) {
