@@ -26,6 +26,8 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Variant, calculateNestedVariantQuantity, getVariantBreakdown, hasNestedVariants } from '@/types/variants';
+import { VariantQuantityDisplay } from '@/components/VariantQuantityDisplay';
 
 interface Product {
   id: string;
@@ -38,16 +40,6 @@ interface Product {
 
 interface InventoryData {
   [productId: string]: number;
-}
-
-interface VariantValue {
-  value: string;
-  quantity: number;
-}
-
-interface Variant {
-  attribute: string;
-  values: VariantValue[];
 }
 
 export const ClientProducts: React.FC = () => {
@@ -156,16 +148,9 @@ export const ClientProducts: React.FC = () => {
     let variantQuantities: { [key: string]: number } | null = null;
 
     if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
-      variantQuantities = {};
-
-      product.variants.forEach((variant: any) => {
-        variant.values?.forEach((val: any) => {
-          const qty = val.quantity || 0;
-          const key = `${variant.attribute}: ${val.value}`;
-          variantQuantities![key] = qty;
-          variantsTotal += qty;
-        });
-      });
+      // Use nested variant calculation
+      variantsTotal = calculateNestedVariantQuantity(product.variants);
+      variantQuantities = getVariantBreakdown(product.variants);
     }
 
     const total = inventoryTotal > 0 ? inventoryTotal : variantsTotal;
@@ -174,6 +159,7 @@ export const ClientProducts: React.FC = () => {
       total,
       variants: variantQuantities,
       hasVariants: !!variantQuantities && Object.keys(variantQuantities).length > 0,
+      hasNestedVariants: hasNestedVariants(product.variants),
     };
   };
 
@@ -184,9 +170,25 @@ export const ClientProducts: React.FC = () => {
 
   const getVariantCount = (variants: any) => {
     if (!variants || !Array.isArray(variants)) return 0;
+    
+    // Count leaf values (values without sub-variants)
+    const countLeafValues = (values: any[]): number => {
+      let count = 0;
+      for (const val of values) {
+        if (val.subVariants && val.subVariants.length > 0) {
+          for (const subVar of val.subVariants) {
+            count += countLeafValues(subVar.values);
+          }
+        } else {
+          count++;
+        }
+      }
+      return count;
+    };
+    
     return variants.reduce((total: number, variant: any) => {
       if (variant.values && Array.isArray(variant.values)) {
-        return total + variant.values.length;
+        return total + countLeafValues(variant.values);
       }
       return total;
     }, 0);

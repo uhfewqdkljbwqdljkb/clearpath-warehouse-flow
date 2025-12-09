@@ -19,6 +19,8 @@ import { CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { calculateNestedVariantQuantity, getVariantBreakdown, hasNestedVariants, Variant, VariantValue } from '@/types/variants';
+import { NestedVariantEditor } from '@/components/NestedVariantEditor';
 
 interface CheckInRequest {
   id: string;
@@ -140,14 +142,10 @@ export const CheckInRequests: React.FC = () => {
           productId = newProduct.id;
         }
 
-        // Calculate total quantity for products with variants
+        // Calculate total quantity for products with variants (supports nested)
         let totalQuantity = product.quantity || 0;
         if (product.variants && product.variants.length > 0) {
-          totalQuantity = product.variants.reduce((sum: number, variant: any) => 
-            sum + variant.values.reduce((vSum: number, val: any) => 
-              vSum + (val.quantity || 0), 0
-            ), 0
-          );
+          totalQuantity = calculateNestedVariantQuantity(product.variants);
         }
 
         // Check if inventory item exists for this product
@@ -440,14 +438,10 @@ export const CheckInRequests: React.FC = () => {
           productId = newProduct.id;
         }
 
-        // Calculate total quantity for products with variants
+        // Calculate total quantity for products with variants (supports nested)
         let totalQuantity = product.quantity || 0;
         if (product.variants && product.variants.length > 0) {
-          totalQuantity = product.variants.reduce((sum: number, variant: any) => 
-            sum + variant.values.reduce((vSum: number, val: any) => 
-              vSum + (val.quantity || 0), 0
-            ), 0
-          );
+          totalQuantity = calculateNestedVariantQuantity(product.variants);
         }
 
         // Check if inventory item exists for this product
