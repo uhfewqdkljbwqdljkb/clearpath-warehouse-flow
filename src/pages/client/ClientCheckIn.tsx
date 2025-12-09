@@ -18,17 +18,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { NestedVariantEditor } from '@/components/NestedVariantEditor';
+import { Variant, calculateNestedVariantQuantity } from '@/types/variants';
 
 interface ProductEntry {
   name: string;
   quantity: number;
-  variants: Array<{
-    attribute: string;
-    values: Array<{
-      value: string;
-      quantity: number;
-    }>;
-  }>;
+  variants: Variant[];
 }
 
 export const ClientCheckIn: React.FC = () => {
@@ -90,73 +86,18 @@ export const ClientCheckIn: React.FC = () => {
     setProducts(updated);
   };
 
-  const addVariant = (productIndex: number) => {
+  const updateProductVariants = (productIndex: number, newVariants: Variant[]) => {
     const updated = [...products];
-    updated[productIndex].variants.push({ 
-      attribute: '', 
-      values: [{ value: '', quantity: 0 }] 
-    });
-    setProducts(updated);
-  };
-
-  const removeVariant = (productIndex: number, variantIndex: number) => {
-    const updated = [...products];
-    updated[productIndex].variants = updated[productIndex].variants.filter((_, i) => i !== variantIndex);
-    setProducts(updated);
-  };
-
-  const updateVariant = (productIndex: number, variantIndex: number, field: string, value: any) => {
-    const updated = [...products];
-    updated[productIndex].variants[variantIndex] = {
-      ...updated[productIndex].variants[variantIndex],
-      [field]: value
-    };
-    setProducts(updated);
-  };
-
-  const addVariantValue = (productIndex: number, variantIndex: number) => {
-    const updated = [...products];
-    updated[productIndex].variants[variantIndex].values.push({ value: '', quantity: 0 });
-    setProducts(updated);
-  };
-
-  const removeVariantValue = (productIndex: number, variantIndex: number, valueIndex: number) => {
-    const updated = [...products];
-    updated[productIndex].variants[variantIndex].values = 
-      updated[productIndex].variants[variantIndex].values.filter((_, i) => i !== valueIndex);
-    setProducts(updated);
-  };
-
-  const updateVariantValue = (
-    productIndex: number, 
-    variantIndex: number, 
-    valueIndex: number, 
-    field: string, 
-    value: any
-  ) => {
-    const updated = [...products];
-    updated[productIndex].variants[variantIndex].values[valueIndex] = {
-      ...updated[productIndex].variants[variantIndex].values[valueIndex],
-      [field]: value
-    };
-    
-    // Auto-update total quantity when variants exist
-    if (updated[productIndex].variants.length > 0) {
-      const totalQty = updated[productIndex].variants.reduce((sum, variant) => 
-        sum + variant.values.reduce((vSum, val) => vSum + (val.quantity || 0), 0), 0
-      );
-      updated[productIndex].quantity = totalQty;
-    }
-    
+    updated[productIndex].variants = newVariants;
+    // Auto-update total quantity using nested calculation
+    updated[productIndex].quantity = calculateNestedVariantQuantity(newVariants);
     setProducts(updated);
   };
 
   const calculateTotalQuantity = (productIndex: number) => {
     const product = products[productIndex];
     if (product.variants.length > 0) {
-      return product.variants.reduce((sum, variant) => 
-        sum + variant.values.reduce((vSum, val) => vSum + (val.quantity || 0), 0), 0
-      );
+      return calculateNestedVariantQuantity(product.variants);
     }
     return product.quantity || 0;
   };
@@ -420,67 +361,11 @@ export const ClientCheckIn: React.FC = () => {
                   />
                 </div>
 
-                <div className="space-y-3">
-                  <Label>Variants (Optional)</Label>
-                  {product.variants.map((variant, variantIndex) => (
-                    <Card key={variantIndex} className="p-4">
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-sm">Variant {variantIndex + 1}</Label>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeVariant(productIndex, variantIndex)}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        <Input
-                          placeholder="Attribute (e.g., Size, Color)"
-                          value={variant.attribute}
-                          onChange={(e) => updateVariant(productIndex, variantIndex, 'attribute', e.target.value)}
-                        />
-                        {variant.values.map((val, valueIndex) => (
-                          <div key={valueIndex} className="flex gap-2">
-                            <Input
-                              placeholder="Value"
-                              value={val.value}
-                              onChange={(e) => updateVariantValue(productIndex, variantIndex, valueIndex, 'value', e.target.value)}
-                            />
-                            <Input
-                              type="number"
-                              placeholder="Qty"
-                              value={val.quantity}
-                              onChange={(e) => updateVariantValue(productIndex, variantIndex, valueIndex, 'quantity', parseInt(e.target.value) || 0)}
-                              className="w-24"
-                            />
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeVariantValue(productIndex, variantIndex, valueIndex)}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => addVariantValue(productIndex, variantIndex)}
-                        >
-                          Add Value
-                        </Button>
-                      </div>
-                    </Card>
-                  ))}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => addVariant(productIndex)}
-                  >
-                    Add Variant
-                  </Button>
-                </div>
+                <NestedVariantEditor
+                  variants={product.variants}
+                  onChange={(newVariants) => updateProductVariants(productIndex, newVariants)}
+                  maxDepth={3}
+                />
               </CardContent>
             </Card>
           ))}
