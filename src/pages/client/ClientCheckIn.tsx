@@ -264,7 +264,7 @@ export const ClientCheckIn: React.FC = () => {
         notes: notes || null,
         requested_by: profile.id,
         status: 'pending',
-        request_type: isB2B ? 'b2b_sourcing' : 'standard',
+        request_type: isB2B ? 'supplier_sourcing' : 'standard',
         required_date: isB2B && requiredDate ? requiredDate : null,
       };
 
