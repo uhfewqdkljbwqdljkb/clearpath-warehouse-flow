@@ -13,6 +13,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Search, Plus, MoreHorizontal, Building2, Users, DollarSign, Package, Eye, Pencil, Trash2, Key, FileText, Download, Store } from 'lucide-react';
+import { B2BClientDetailDialog } from '@/components/B2BClientDetailDialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -47,6 +48,8 @@ export const Clients: React.FC = () => {
   const [deletingClient, setDeletingClient] = useState<Client | null>(null);
   const [credentialsClient, setCredentialsClient] = useState<Client | null>(null);
   const [showCredentialsDialog, setShowCredentialsDialog] = useState(false);
+  const [b2bDetailClient, setB2bDetailClient] = useState<Client | null>(null);
+  const [showB2bDetailDialog, setShowB2bDetailDialog] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -491,6 +494,11 @@ export const Clients: React.FC = () => {
     navigate(`/dashboard/clients/${client.id}/products`);
   };
 
+  const handleViewB2bClient = (client: Client) => {
+    setB2bDetailClient(client);
+    setShowB2bDetailDialog(true);
+  };
+
   const handleManageCredentials = (client: Client) => {
     setCredentialsClient(client);
     setShowCredentialsDialog(true);
@@ -768,8 +776,8 @@ export const Clients: React.FC = () => {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleViewProducts(client)}
-                                title="View Products"
+                                onClick={() => handleViewB2bClient(client)}
+                                title="View Details"
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
@@ -957,6 +965,12 @@ export const Clients: React.FC = () => {
         client={credentialsClient}
         open={showCredentialsDialog}
         onOpenChange={setShowCredentialsDialog}
+      />
+
+      <B2BClientDetailDialog
+        client={b2bDetailClient}
+        open={showB2bDetailDialog}
+        onOpenChange={setShowB2bDetailDialog}
       />
     </div>
   );
