@@ -11,7 +11,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Search, Plus, MoreHorizontal, Building2, Users, DollarSign, Package, Eye, Pencil, Trash2, Key, FileText, Download } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Search, Plus, MoreHorizontal, Building2, Users, DollarSign, Package, Eye, Pencil, Trash2, Key, FileText, Download, Store } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -97,6 +98,7 @@ export const Clients: React.FC = () => {
         assigned_row_id: company.assigned_row_id,
         created_at: company.created_at,
         updated_at: company.updated_at,
+        client_type: company.client_type || 'ecommerce',
       } as any)) || [];
 
       setClients(clientsData);
@@ -148,6 +150,9 @@ export const Clients: React.FC = () => {
     client.client_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
     client.contact_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const b2bClients = filteredClients.filter(c => (c as any).client_type === 'b2b');
+  const ecommerceClients = filteredClients.filter(c => (c as any).client_type !== 'b2b');
 
   // Helper to convert empty strings to null for dates
   const toDateOrNull = (dateStr: string | undefined) => {
@@ -639,10 +644,10 @@ export const Clients: React.FC = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Clients</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -650,6 +655,26 @@ export const Clients: React.FC = () => {
             <p className="text-xs text-muted-foreground">
               {clients.length - activeClients.length} inactive
             </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">B2B Clients</CardTitle>
+            <Building2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{b2bClients.length}</div>
+            <p className="text-xs text-muted-foreground">Business to business</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">E-commerce Clients</CardTitle>
+            <Store className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{ecommerceClients.length}</div>
+            <p className="text-xs text-muted-foreground">Online retail</p>
           </CardContent>
         </Card>
       </div>
@@ -667,125 +692,249 @@ export const Clients: React.FC = () => {
         </div>
       </div>
 
-      {/* Clients Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Clients ({filteredClients.length})</CardTitle>
-          <CardDescription>
-            All client accounts and their contract details
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="text-muted-foreground">Loading clients...</div>
-            </div>
-          ) : filteredClients.length === 0 ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="text-muted-foreground">
-                {searchTerm ? 'No clients found matching your search.' : 'No clients found. Add your first client to get started.'}
-              </div>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Client Code</TableHead>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Products</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredClients.map((client) => {
-                  const metrics = clientMetrics[client.id] || { productCount: 0, inventoryValue: 0 };
-                  return (
-                  <TableRow key={client.id} className="animate-fade-in">
-                    <TableCell className="font-medium">{client.client_code}</TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{client.company_name}</div>
-                        <div className="text-sm text-muted-foreground">{client.email}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{client.contact_name}</div>
-                        <div className="text-sm text-muted-foreground">{client.phone}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <Package className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{metrics.productCount}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={client.is_active ? "default" : "secondary"}>
-                        {client.is_active ? "Active" : "Inactive"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleViewProducts(client)}
-                          title="View Products"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              title="More actions"
-                            >
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openEditForm(client)}>
-                              <Pencil className="h-4 w-4 mr-2" />
-                              Edit Client
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleToggleClientType(client)}>
-                              <Building2 className="h-4 w-4 mr-2" />
-                              {(client as any).client_type === 'b2b' ? 'Change to E-commerce' : 'Change to B2B'}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleManageCredentials(client)}>
-                              <Key className="h-4 w-4 mr-2" />
-                              Manage Portal Access
-                            </DropdownMenuItem>
-                            {(client as any).contract_document_url && (
-                              <DropdownMenuItem onClick={() => handleViewContract(client)}>
-                                <FileText className="h-4 w-4 mr-2" />
-                                View Contract
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              onClick={() => setDeletingClient(client)}
-                              className="text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete Client
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      {/* Clients Tabs */}
+      <Tabs defaultValue="b2b" className="w-full">
+        <TabsList>
+          <TabsTrigger value="b2b" className="flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            B2B ({b2bClients.length})
+          </TabsTrigger>
+          <TabsTrigger value="ecommerce" className="flex items-center gap-2">
+            <Store className="h-4 w-4" />
+            E-commerce ({ecommerceClients.length})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="b2b" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>B2B Clients</CardTitle>
+              <CardDescription>Business-to-business client accounts with supplier and customer management</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-muted-foreground">Loading clients...</div>
+                </div>
+              ) : b2bClients.length === 0 ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-muted-foreground">
+                    {searchTerm ? 'No B2B clients found matching your search.' : 'No B2B clients found.'}
+                  </div>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Client Code</TableHead>
+                      <TableHead>Company</TableHead>
+                      <TableHead>Contact</TableHead>
+                      <TableHead>Products</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {b2bClients.map((client) => {
+                      const metrics = clientMetrics[client.id] || { productCount: 0, inventoryValue: 0 };
+                      return (
+                        <TableRow key={client.id} className="animate-fade-in">
+                          <TableCell className="font-medium">{client.client_code}</TableCell>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{client.company_name}</div>
+                              <div className="text-sm text-muted-foreground">{client.email}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{client.contact_name}</div>
+                              <div className="text-sm text-muted-foreground">{client.phone}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              <Package className="h-4 w-4 text-muted-foreground" />
+                              <span className="font-medium">{metrics.productCount}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={client.is_active ? "default" : "secondary"}>
+                              {client.is_active ? "Active" : "Inactive"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleViewProducts(client)}
+                                title="View Products"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm" title="More actions">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => openEditForm(client)}>
+                                    <Pencil className="h-4 w-4 mr-2" />
+                                    Edit Client
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleToggleClientType(client)}>
+                                    <Store className="h-4 w-4 mr-2" />
+                                    Change to E-commerce
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleManageCredentials(client)}>
+                                    <Key className="h-4 w-4 mr-2" />
+                                    Manage Portal Access
+                                  </DropdownMenuItem>
+                                  {(client as any).contract_document_url && (
+                                    <DropdownMenuItem onClick={() => handleViewContract(client)}>
+                                      <FileText className="h-4 w-4 mr-2" />
+                                      View Contract
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
+                                    onClick={() => setDeletingClient(client)}
+                                    className="text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete Client
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="ecommerce" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>E-commerce Clients</CardTitle>
+              <CardDescription>Online retail client accounts</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-muted-foreground">Loading clients...</div>
+                </div>
+              ) : ecommerceClients.length === 0 ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-muted-foreground">
+                    {searchTerm ? 'No E-commerce clients found matching your search.' : 'No E-commerce clients found.'}
+                  </div>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Client Code</TableHead>
+                      <TableHead>Company</TableHead>
+                      <TableHead>Contact</TableHead>
+                      <TableHead>Products</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {ecommerceClients.map((client) => {
+                      const metrics = clientMetrics[client.id] || { productCount: 0, inventoryValue: 0 };
+                      return (
+                        <TableRow key={client.id} className="animate-fade-in">
+                          <TableCell className="font-medium">{client.client_code}</TableCell>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{client.company_name}</div>
+                              <div className="text-sm text-muted-foreground">{client.email}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{client.contact_name}</div>
+                              <div className="text-sm text-muted-foreground">{client.phone}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              <Package className="h-4 w-4 text-muted-foreground" />
+                              <span className="font-medium">{metrics.productCount}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={client.is_active ? "default" : "secondary"}>
+                              {client.is_active ? "Active" : "Inactive"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleViewProducts(client)}
+                                title="View Products"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm" title="More actions">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => openEditForm(client)}>
+                                    <Pencil className="h-4 w-4 mr-2" />
+                                    Edit Client
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleToggleClientType(client)}>
+                                    <Building2 className="h-4 w-4 mr-2" />
+                                    Change to B2B
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleManageCredentials(client)}>
+                                    <Key className="h-4 w-4 mr-2" />
+                                    Manage Portal Access
+                                  </DropdownMenuItem>
+                                  {(client as any).contract_document_url && (
+                                    <DropdownMenuItem onClick={() => handleViewContract(client)}>
+                                      <FileText className="h-4 w-4 mr-2" />
+                                      View Contract
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
+                                    onClick={() => setDeletingClient(client)}
+                                    className="text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete Client
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <AlertDialog open={!!deletingClient} onOpenChange={() => setDeletingClient(null)}>
         <AlertDialogContent>
