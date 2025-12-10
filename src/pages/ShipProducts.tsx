@@ -10,9 +10,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, Package, TruckIcon, Search, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, Package, TruckIcon, Search, ChevronDown, ChevronRight, Printer } from 'lucide-react';
 import { calculateNestedVariantQuantity, getVariantBreakdown, Variant } from '@/types/variants';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 interface Company {
   id: string;
@@ -355,6 +357,198 @@ const fetchProducts = async () => {
     s.tracking_number?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const generateShipmentPDF = async (shipmentId: string) => {
+    try {
+      // Fetch full shipment details
+      const { data: shipment, error: shipmentError } = await supabase
+        .from('shipments')
+        .select(`
+          *,
+          companies!inner(name, client_code),
+          profiles!shipments_shipped_by_fkey(full_name, email)
+        `)
+        .eq('id', shipmentId)
+        .maybeSingle();
+
+      if (shipmentError || !shipment) {
+        toast({
+          title: 'Error',
+          description: 'Failed to fetch shipment details',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Fetch shipment items with product details
+      const { data: items, error: itemsError } = await supabase
+        .from('shipment_items')
+        .select(`
+          *,
+          client_products!inner(name, sku)
+        `)
+        .eq('shipment_id', shipmentId);
+
+      if (itemsError) {
+        toast({
+          title: 'Error',
+          description: 'Failed to fetch shipment items',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Generate PDF
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      
+      // Header
+      doc.setFontSize(20);
+      doc.setFont('helvetica', 'bold');
+      doc.text('SHIPMENT DOCUMENT', pageWidth / 2, 20, { align: 'center' });
+      
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Shipment #: ${shipment.shipment_number}`, pageWidth / 2, 30, { align: 'center' });
+      
+      // Shipment Info Section
+      let yPos = 45;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('SHIPMENT INFORMATION', 14, yPos);
+      yPos += 8;
+      
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Date: ${new Date(shipment.shipment_date).toLocaleDateString()}`, 14, yPos);
+      yPos += 6;
+      doc.text(`Created By: ${shipment.profiles?.full_name || shipment.profiles?.email || 'N/A'}`, 14, yPos);
+      yPos += 6;
+      doc.text(`Client: ${shipment.companies?.name || 'N/A'} (${shipment.companies?.client_code || ''})`, 14, yPos);
+      yPos += 6;
+      if (shipment.carrier) {
+        doc.text(`Carrier: ${shipment.carrier}`, 14, yPos);
+        yPos += 6;
+      }
+      if (shipment.tracking_number) {
+        doc.text(`Tracking #: ${shipment.tracking_number}`, 14, yPos);
+        yPos += 6;
+      }
+      
+      // Receiver Info Section
+      yPos += 6;
+      doc.setFont('helvetica', 'bold');
+      doc.text('RECEIVER INFORMATION', 14, yPos);
+      yPos += 8;
+      
+      doc.setFont('helvetica', 'normal');
+      if (shipment.destination_contact) {
+        doc.text(`Name: ${shipment.destination_contact}`, 14, yPos);
+        yPos += 6;
+      }
+      if (shipment.destination_phone) {
+        doc.text(`Phone: ${shipment.destination_phone}`, 14, yPos);
+        yPos += 6;
+      }
+      doc.text(`Address:`, 14, yPos);
+      yPos += 6;
+      
+      // Handle multi-line address
+      const addressLines = doc.splitTextToSize(shipment.destination_address, pageWidth - 28);
+      addressLines.forEach((line: string) => {
+        doc.text(line, 20, yPos);
+        yPos += 5;
+      });
+      
+      // Products Table
+      yPos += 8;
+      doc.setFont('helvetica', 'bold');
+      doc.text('PRODUCTS', 14, yPos);
+      yPos += 4;
+      
+      const tableData = (items || []).map(item => {
+        let description = '';
+        if (item.variant_attribute && item.variant_value) {
+          description = `${item.variant_attribute}: ${item.variant_value}`;
+        }
+        return [
+          item.client_products?.name || 'Unknown',
+          item.client_products?.sku || '-',
+          description || '-',
+          item.quantity.toString()
+        ];
+      });
+      
+      doc.autoTable({
+        startY: yPos,
+        head: [['Product Name', 'SKU', 'Variant Details', 'Quantity']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [66, 66, 66], fontSize: 9 },
+        bodyStyles: { fontSize: 9 },
+        columnStyles: {
+          0: { cellWidth: 60 },
+          1: { cellWidth: 35 },
+          2: { cellWidth: 55 },
+          3: { cellWidth: 25, halign: 'center' }
+        },
+        margin: { left: 14, right: 14 }
+      });
+      
+      // Get the Y position after the table
+      const finalY = doc.lastAutoTable.finalY || yPos + 40;
+      
+      // Notes section if present
+      let notesY = finalY + 10;
+      if (shipment.notes) {
+        doc.setFont('helvetica', 'bold');
+        doc.text('NOTES:', 14, notesY);
+        doc.setFont('helvetica', 'normal');
+        const noteLines = doc.splitTextToSize(shipment.notes, pageWidth - 28);
+        notesY += 6;
+        noteLines.forEach((line: string) => {
+          doc.text(line, 14, notesY);
+          notesY += 5;
+        });
+      }
+      
+      // Signature Section at bottom
+      const signatureY = Math.max(notesY + 20, 230);
+      doc.setDrawColor(0);
+      doc.setLineWidth(0.5);
+      
+      // Sender signature
+      doc.line(14, signatureY, 90, signatureY);
+      doc.setFontSize(9);
+      doc.text('Sender Signature', 14, signatureY + 5);
+      doc.text(`Date: _______________`, 14, signatureY + 12);
+      
+      // Receiver signature
+      doc.line(pageWidth - 90, signatureY, pageWidth - 14, signatureY);
+      doc.text('Receiver Signature', pageWidth - 90, signatureY + 5);
+      doc.text(`Date: _______________`, pageWidth - 90, signatureY + 12);
+      
+      // Footer
+      doc.setFontSize(8);
+      doc.setTextColor(128);
+      doc.text(`Generated on ${new Date().toLocaleString()}`, pageWidth / 2, 285, { align: 'center' });
+      
+      // Save the PDF
+      doc.save(`Shipment_${shipment.shipment_number}.pdf`);
+      
+      toast({
+        title: 'PDF Generated',
+        description: `Shipment document downloaded successfully`,
+      });
+      
+    } catch (error: any) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to generate PDF',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
@@ -637,12 +831,13 @@ const fetchProducts = async () => {
                 <TableHead>Carrier</TableHead>
                 <TableHead>Tracking</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="w-[80px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredShipments.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                     No shipments found
                   </TableCell>
                 </TableRow>
@@ -659,6 +854,16 @@ const fetchProducts = async () => {
                       <Badge variant={shipment.status === 'delivered' ? 'default' : 'secondary'}>
                         {shipment.status}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => generateShipmentPDF(shipment.id)}
+                        title="Print shipment"
+                      >
+                        <Printer className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))
