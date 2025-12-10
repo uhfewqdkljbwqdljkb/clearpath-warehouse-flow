@@ -909,34 +909,48 @@ export const Jarde: React.FC = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {clientReport.items.map((item, index) => (
-                              <tr key={`${item.product_id}-${item.variant_value || 'base'}`} className="border-b">
-                                <td className="py-2 px-2">{item.product_name}</td>
-                                <td className="text-right py-2 px-2">{item.starting_quantity}</td>
-                                <td className="text-right py-2 px-2 text-green-600">+{item.check_ins}</td>
-                                <td className="text-right py-2 px-2 text-red-600">-{item.check_outs}</td>
-                                <td className="text-right py-2 px-2 font-medium">{item.expected_quantity}</td>
-                                <td className="text-right py-2 px-2">
-                                  <Input
-                                    type="number"
-                                    className="w-20 h-8 text-right"
-                                    value={item.actual_quantity ?? ''}
-                                    onChange={(e) => handleActualQuantityChange(
-                                      clientReport.company_id,
-                                      index,
-                                      e.target.value
-                                    )}
-                                    placeholder="-"
-                                  />
-                                </td>
-                                <td className={cn(
-                                  "text-right py-2 px-2 font-medium",
-                                  getVarianceColor(item.variance)
+                            {clientReport.items.map((item, index) => {
+                              const isVariant = !!item.variant_value;
+                              return (
+                                <tr key={`${item.product_id}-${item.variant_value || 'base'}-${index}`} className={cn(
+                                  "border-b",
+                                  isVariant && "bg-muted/30"
                                 )}>
-                                  {item.variance !== null ? item.variance : '-'}
-                                </td>
-                              </tr>
-                            ))}
+                                  <td className="py-2 px-2">
+                                    {isVariant ? (
+                                      <span className="pl-4 text-muted-foreground">
+                                        ↳ {item.variant_value}
+                                      </span>
+                                    ) : (
+                                      <span className="font-medium">{item.product_name}</span>
+                                    )}
+                                  </td>
+                                  <td className="text-right py-2 px-2">{item.starting_quantity}</td>
+                                  <td className="text-right py-2 px-2 text-green-600">+{item.check_ins}</td>
+                                  <td className="text-right py-2 px-2 text-red-600">-{item.check_outs}</td>
+                                  <td className="text-right py-2 px-2 font-medium">{item.expected_quantity}</td>
+                                  <td className="text-right py-2 px-2">
+                                    <Input
+                                      type="number"
+                                      className="w-20 h-8 text-right"
+                                      value={item.actual_quantity ?? ''}
+                                      onChange={(e) => handleActualQuantityChange(
+                                        clientReport.company_id,
+                                        index,
+                                        e.target.value
+                                      )}
+                                      placeholder="-"
+                                    />
+                                  </td>
+                                  <td className={cn(
+                                    "text-right py-2 px-2 font-medium",
+                                    getVarianceColor(item.variance)
+                                  )}>
+                                    {item.variance !== null ? item.variance : '-'}
+                                  </td>
+                                </tr>
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>
