@@ -10,7 +10,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, Package, TruckIcon, Search } from 'lucide-react';
+import { Plus, Trash2, Package, TruckIcon, Search, ChevronDown, ChevronRight } from 'lucide-react';
+import { calculateNestedVariantQuantity, getVariantBreakdown, Variant } from '@/types/variants';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface Company {
   id: string;
@@ -103,7 +105,7 @@ export const ShipProducts: React.FC = () => {
     setCompanies(data || []);
   };
 
-  const fetchProducts = async () => {
+const fetchProducts = async () => {
     if (!selectedCompanyId) return;
 
     const { data: productsData, error: productsError } = await supabase
@@ -130,7 +132,13 @@ export const ShipProducts: React.FC = () => {
           .eq('product_id', product.id)
           .eq('company_id', selectedCompanyId);
 
-        const totalQuantity = inventoryData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+        const inventoryTotal = inventoryData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+        
+        // Fallback to variant quantities if no inventory items exist
+        let totalQuantity = inventoryTotal;
+        if (inventoryTotal === 0 && product.variants && Array.isArray(product.variants)) {
+          totalQuantity = calculateNestedVariantQuantity(product.variants as unknown as Variant[]);
+        }
 
         return {
           ...product,
@@ -386,27 +394,76 @@ export const ShipProducts: React.FC = () => {
               <div className="space-y-2">
                 <Label>Add Products to Shipment</Label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {products.map(product => (
-                    <Card key={product.id} className="p-3">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <p className="font-medium text-sm">{product.name}</p>
-                          <p className="text-xs text-muted-foreground">{product.sku}</p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Available: <span className="font-semibold">{product.available_quantity}</span>
-                          </p>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => addShipmentItem(product.id)}
-                          disabled={product.available_quantity === 0}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </Card>
-                  ))}
+                  {products.map(product => {
+                    const variantBreakdown = product.variants && Array.isArray(product.variants) ? getVariantBreakdown(product.variants as unknown as Variant[]) : {};
+                    const hasVariants = Object.keys(variantBreakdown).length > 0;
+
+                    return (
+                      <Card key={product.id} className="p-3">
+                        <Collapsible>
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <p className="font-medium text-sm">{product.name}</p>
+                              <p className="text-xs text-muted-foreground">{product.sku}</p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Total Available: <span className="font-semibold">{product.available_quantity}</span>
+                              </p>
+                            </div>
+                            {hasVariants ? (
+                              <CollapsibleTrigger asChild>
+                                <Button size="sm" variant="outline">
+                                  <ChevronDown className="h-4 w-4" />
+                                </Button>
+                              </CollapsibleTrigger>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => addShipmentItem(product.id)}
+                                disabled={product.available_quantity === 0}
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                          
+                          {hasVariants && (
+                            <CollapsibleContent className="mt-3 pt-3 border-t border-border">
+                              <p className="text-xs text-muted-foreground mb-2">Select variant to ship:</p>
+                              <div className="space-y-1 max-h-40 overflow-y-auto">
+                                {Object.entries(variantBreakdown).map(([variantPath, qty]) => (
+                                  <div key={variantPath} className="flex justify-between items-center p-2 rounded-md bg-muted/50 hover:bg-muted">
+                                    <div>
+                                      <p className="text-xs font-medium">{variantPath}</p>
+                                      <p className="text-xs text-muted-foreground">Qty: {qty}</p>
+                                    </div>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => addShipmentItem(product.id, variantPath.split(':')[0], variantPath)}
+                                      disabled={qty === 0}
+                                    >
+                                      <Plus className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                              {/* Option to add whole product */}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full mt-2"
+                                onClick={() => addShipmentItem(product.id)}
+                                disabled={product.available_quantity === 0}
+                              >
+                                <Plus className="h-3 w-3 mr-1" /> Add All Variants
+                              </Button>
+                            </CollapsibleContent>
+                          )}
+                        </Collapsible>
+                      </Card>
+                    );
+                  })}
                 </div>
               </div>
 
