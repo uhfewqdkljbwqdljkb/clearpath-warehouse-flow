@@ -17,6 +17,7 @@ import { Loader2, Package } from 'lucide-react';
 interface ProductEntry {
   name: string;
   quantity: number;
+  existingProductId?: string;
   variants: Array<{
     attribute: string;
     values: Array<{
@@ -101,6 +102,7 @@ export const ExistingProductsDialog: React.FC<ExistingProductsDialogProps> = ({
       updated.set(productId, {
         name: productName,
         quantity: parsedVariants.length > 0 ? 0 : quantity,
+        existingProductId: productId,
         variants: parsedVariants
       });
     } else {
@@ -138,6 +140,7 @@ export const ExistingProductsDialog: React.FC<ExistingProductsDialogProps> = ({
       product = {
         name: productName,
         quantity: 0,
+        existingProductId: productId,
         variants: parsedVariants
       };
     }

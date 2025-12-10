@@ -22,6 +22,8 @@ interface Product {
   name: string;
   sku: string | null;
   variants: any;
+  supplier_id?: string | null;
+  customer_id?: string | null;
 }
 
 interface CheckOutItem {
@@ -30,6 +32,8 @@ interface CheckOutItem {
   variant_attribute?: string;
   variant_value?: string;
   quantity: number;
+  customer_id?: string; // Auto-assigned from product's designated customer
+  customer_name?: string;
 }
 
 export const ClientCheckOut: React.FC = () => {
@@ -43,19 +47,18 @@ export const ClientCheckOut: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   
   // B2B-specific state
-  const [requestType, setRequestType] = useState<'standard' | 'customer_shipment'>('standard');
   const [customers, setCustomers] = useState<any[]>([]);
-  const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [deliveryDate, setDeliveryDate] = useState('');
+  const isB2B = company?.client_type === 'b2b';
 
   useEffect(() => {
     if (profile?.company_id) {
       fetchProducts();
-      if (company?.client_type === 'b2b') {
+      if (isB2B) {
         fetchCustomers();
       }
     }
-  }, [profile?.company_id, company?.client_type]);
+  }, [profile?.company_id, isB2B]);
 
   const fetchCustomers = async () => {
     if (!profile?.company_id) return;
@@ -81,7 +84,7 @@ export const ClientCheckOut: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('client_products')
-        .select('*')
+        .select('id, name, sku, variants, supplier_id, customer_id')
         .eq('company_id', profile.company_id)
         .eq('is_active', true)
         .order('name');
@@ -121,12 +124,19 @@ export const ClientCheckOut: React.FC = () => {
     if (field === 'product_id') {
       const product = products.find(p => p.id === value);
       if (product) {
+        // Auto-assign customer from product's designated customer for B2B
+        const customer = isB2B && product.customer_id 
+          ? customers.find(c => c.id === product.customer_id) 
+          : null;
+        
         updated[index] = {
           ...updated[index],
           product_id: value,
           product_name: product.name,
           variant_attribute: undefined,
           variant_value: undefined,
+          customer_id: product.customer_id || undefined,
+          customer_name: customer?.customer_name || undefined,
         };
       }
     } else {
@@ -183,14 +193,9 @@ export const ClientCheckOut: React.FC = () => {
         notes: notes || null,
         requested_by: profile.id,
         status: 'pending',
-        request_type: requestType,
+        request_type: isB2B ? 'b2b_shipment' : 'standard',
+        delivery_date: isB2B && deliveryDate ? deliveryDate : null,
       };
-
-      // Add B2B fields if applicable
-      if (requestType === 'customer_shipment') {
-        requestData.customer_id = selectedCustomerId || null;
-        requestData.delivery_date = deliveryDate || null;
-      }
 
       const { error } = await supabase
         .from('check_out_requests')
@@ -240,48 +245,20 @@ export const ClientCheckOut: React.FC = () => {
           <CardDescription>Choose products and quantities to check out</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {company?.client_type === 'b2b' && (
-            <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
-              <div>
-                <Label>Request Type</Label>
-                <Select value={requestType} onValueChange={(value: any) => setRequestType(value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="standard">Standard Check-Out</SelectItem>
-                    <SelectItem value="customer_shipment">Ship to Client</SelectItem>
-                  </SelectContent>
-                </Select>
+          {isB2B && (
+            <div className="p-4 border rounded-lg bg-muted/50 space-y-2">
+              <h3 className="font-medium text-sm">B2B Check-Out</h3>
+              <p className="text-xs text-muted-foreground">
+                Products will be shipped to their designated customers (assigned at check-in).
+              </p>
+              <div className="space-y-2">
+                <Label>Delivery Date (Optional)</Label>
+                <Input 
+                  type="date" 
+                  value={deliveryDate}
+                  onChange={(e) => setDeliveryDate(e.target.value)}
+                />
               </div>
-
-              {requestType === 'customer_shipment' && (
-                <>
-                  <div>
-                    <Label>Customer</Label>
-                    <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select customer" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {customers.map((customer) => (
-                          <SelectItem key={customer.id} value={customer.id}>
-                            {customer.customer_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Delivery Date</Label>
-                    <Input 
-                      type="date" 
-                      value={deliveryDate}
-                      onChange={(e) => setDeliveryDate(e.target.value)}
-                    />
-                  </div>
-                </>
-              )}
             </div>
           )}
           
@@ -327,6 +304,16 @@ export const ClientCheckOut: React.FC = () => {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* Show designated customer for B2B products */}
+                  {isB2B && item.product_id && (
+                    <div className="p-2 bg-muted/30 rounded border">
+                      <Label className="text-xs text-muted-foreground">Ships to Customer</Label>
+                      <p className="text-sm font-medium">
+                        {item.customer_name || 'No customer assigned'}
+                      </p>
+                    </div>
+                  )}
 
                   {item.product_id && getProductVariants(item.product_id).length > 0 && (
                     <div className="space-y-2">
