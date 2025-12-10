@@ -104,22 +104,42 @@ export const EmployeeUserManagement: React.FC = () => {
       return;
     }
 
+    if (newUser.password.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+
     try {
       setSubmitting(true);
 
-      // Create user with Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: newUser.email,
-        password: newUser.password,
-        options: {
-          data: {
-            full_name: newUser.full_name,
-            role: newUser.role
-          }
+      // Get session for authorization
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast.error('You must be logged in to create employees');
+        return;
+      }
+
+      // Use edge function to create employee user
+      const { data, error } = await supabase.functions.invoke('create-employee-user', {
+        body: {
+          email: newUser.email,
+          password: newUser.password,
+          full_name: newUser.full_name,
+          role: newUser.role
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
         }
       });
 
-      if (authError) throw authError;
+      if (error) {
+        throw new Error(error.message || 'Failed to create employee');
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
 
       toast.success('Employee created successfully');
       setCreateDialogOpen(false);

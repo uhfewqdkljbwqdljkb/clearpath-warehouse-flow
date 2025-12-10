@@ -54,29 +54,38 @@ Deno.serve(async (req) => {
     const adminRoles = ['admin', 'super_admin'];
     if (roleError || !adminRoles.includes(roleData?.role)) {
       return new Response(
-        JSON.stringify({ error: 'Only administrators can create client users' }),
+        JSON.stringify({ error: 'Only administrators can create employee users' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Parse request body
-    const { email, password, company_name, company_id } = await req.json();
+    const { email, password, full_name, role } = await req.json();
 
-    if (!email || !password || !company_id) {
+    if (!email || !password || !full_name || !role) {
       return new Response(
-        JSON.stringify({ error: 'Email, password, and company_id are required' }),
+        JSON.stringify({ error: 'Email, password, full_name, and role are required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Create the user with admin API
+    // Validate role is an admin role
+    const validRoles = ['admin', 'super_admin', 'warehouse_manager', 'logistics_coordinator'];
+    if (!validRoles.includes(role)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid role. Must be one of: ' + validRoles.join(', ') }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Create the user with admin API (no email confirmation required)
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true,
+      email_confirm: true, // Auto-confirm email
       user_metadata: {
-        full_name: company_name || email,
-        role: 'client'
+        full_name,
+        role
       }
     });
 
@@ -95,32 +104,56 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Update the profile with company_id
-    const { error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .update({ company_id })
-      .eq('id', newUser.user.id);
+    // The profile and role should be created by the handle_new_user trigger
+    // But let's verify and update if needed
+    
+    // Wait a moment for the trigger to execute
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-    if (profileError) {
-      console.error('Error updating profile:', profileError);
-      // Don't fail the whole operation
+    // Verify the role was set correctly
+    const { data: existingRole } = await supabaseAdmin
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', newUser.user.id)
+      .single();
+
+    // If role doesn't match or doesn't exist, update it
+    if (!existingRole || existingRole.role !== role) {
+      // Delete existing role if any
+      await supabaseAdmin
+        .from('user_roles')
+        .delete()
+        .eq('user_id', newUser.user.id);
+
+      // Insert correct role
+      const { error: roleInsertError } = await supabaseAdmin
+        .from('user_roles')
+        .insert({
+          user_id: newUser.user.id,
+          role: role
+        });
+
+      if (roleInsertError) {
+        console.error('Error setting role:', roleInsertError);
+      }
     }
 
-    console.log('Successfully created client user:', newUser.user.email);
+    console.log('Successfully created employee user:', newUser.user.email, 'with role:', role);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         user: {
           id: newUser.user.id,
-          email: newUser.user.email
+          email: newUser.user.email,
+          role: role
         }
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('Error in create-client-user function:', error);
+    console.error('Error in create-employee-user function:', error);
     return new Response(
       JSON.stringify({ error: error.message || 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
