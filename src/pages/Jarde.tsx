@@ -7,10 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
-import { CalendarIcon, Download, Search, AlertCircle, Save, History, Trash2, Eye } from 'lucide-react';
+import { CalendarIcon, Download, Search, AlertCircle, Save, History, Trash2, Eye, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
@@ -73,6 +74,101 @@ interface SavedReport {
   created_at: string;
   companies?: { name: string } | null;
 }
+
+// Collapsible ProductRow component for variants
+interface ProductRowProps {
+  baseItem: JardeReportItem;
+  baseIndex: number;
+  variants: (JardeReportItem & { originalIndex?: number })[];
+  hasVariants: boolean;
+  companyId: string;
+  onActualQuantityChange: (companyId: string, index: number, value: string) => void;
+  getVarianceColor: (variance: number | null) => string;
+}
+
+const ProductRow: React.FC<ProductRowProps> = ({
+  baseItem,
+  baseIndex,
+  variants,
+  hasVariants,
+  companyId,
+  onActualQuantityChange,
+  getVarianceColor,
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <>
+      <tr className="border-b hover:bg-muted/20">
+        <td className="py-2 px-2">
+          <div className="flex items-center gap-2">
+            {hasVariants && (
+              <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="p-0.5 hover:bg-muted rounded transition-colors"
+              >
+                <ChevronRight className={cn(
+                  "h-4 w-4 transition-transform",
+                  isOpen && "rotate-90"
+                )} />
+              </button>
+            )}
+            <span className="font-medium">{baseItem.product_name}</span>
+            {hasVariants && (
+              <span className="text-xs text-muted-foreground">
+                ({variants.length} variants)
+              </span>
+            )}
+          </div>
+        </td>
+        <td className="text-right py-2 px-2">{baseItem.starting_quantity}</td>
+        <td className="text-right py-2 px-2 text-green-600">+{baseItem.check_ins}</td>
+        <td className="text-right py-2 px-2 text-red-600">-{baseItem.check_outs}</td>
+        <td className="text-right py-2 px-2 font-medium">{baseItem.expected_quantity}</td>
+        <td className="text-right py-2 px-2">
+          <Input
+            type="number"
+            className="w-20 h-8 text-right"
+            value={baseItem.actual_quantity ?? ''}
+            onChange={(e) => onActualQuantityChange(companyId, baseIndex, e.target.value)}
+            placeholder="-"
+          />
+        </td>
+        <td className={cn("text-right py-2 px-2 font-medium", getVarianceColor(baseItem.variance))}>
+          {baseItem.variance !== null ? baseItem.variance : '-'}
+        </td>
+      </tr>
+      {isOpen && variants.map((variant) => (
+        <tr
+          key={`${variant.product_id}-${variant.variant_value}-${(variant as any).originalIndex}`}
+          className="border-b bg-muted/30"
+        >
+          <td className="py-2 px-2">
+            <span className="pl-8 text-muted-foreground">
+              ↳ {variant.variant_value}
+            </span>
+          </td>
+          <td className="text-right py-2 px-2">{variant.starting_quantity}</td>
+          <td className="text-right py-2 px-2 text-green-600">+{variant.check_ins}</td>
+          <td className="text-right py-2 px-2 text-red-600">-{variant.check_outs}</td>
+          <td className="text-right py-2 px-2 font-medium">{variant.expected_quantity}</td>
+          <td className="text-right py-2 px-2">
+            <Input
+              type="number"
+              className="w-20 h-8 text-right"
+              value={variant.actual_quantity ?? ''}
+              onChange={(e) => onActualQuantityChange(companyId, (variant as any).originalIndex, e.target.value)}
+              placeholder="-"
+            />
+          </td>
+          <td className={cn("text-right py-2 px-2 font-medium", getVarianceColor(variant.variance))}>
+            {variant.variance !== null ? variant.variance : '-'}
+          </td>
+        </tr>
+      ))}
+    </>
+  );
+};
 
 export const Jarde: React.FC = () => {
   const { user } = useAuth();
@@ -909,48 +1005,44 @@ export const Jarde: React.FC = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {clientReport.items.map((item, index) => {
-                              const isVariant = !!item.variant_value;
-                              return (
-                                <tr key={`${item.product_id}-${item.variant_value || 'base'}-${index}`} className={cn(
-                                  "border-b",
-                                  isVariant && "bg-muted/30"
-                                )}>
-                                  <td className="py-2 px-2">
-                                    {isVariant ? (
-                                      <span className="pl-4 text-muted-foreground">
-                                        ↳ {item.variant_value}
-                                      </span>
-                                    ) : (
-                                      <span className="font-medium">{item.product_name}</span>
-                                    )}
-                                  </td>
-                                  <td className="text-right py-2 px-2">{item.starting_quantity}</td>
-                                  <td className="text-right py-2 px-2 text-green-600">+{item.check_ins}</td>
-                                  <td className="text-right py-2 px-2 text-red-600">-{item.check_outs}</td>
-                                  <td className="text-right py-2 px-2 font-medium">{item.expected_quantity}</td>
-                                  <td className="text-right py-2 px-2">
-                                    <Input
-                                      type="number"
-                                      className="w-20 h-8 text-right"
-                                      value={item.actual_quantity ?? ''}
-                                      onChange={(e) => handleActualQuantityChange(
-                                        clientReport.company_id,
-                                        index,
-                                        e.target.value
-                                      )}
-                                      placeholder="-"
-                                    />
-                                  </td>
-                                  <td className={cn(
-                                    "text-right py-2 px-2 font-medium",
-                                    getVarianceColor(item.variance)
-                                  )}>
-                                    {item.variance !== null ? item.variance : '-'}
-                                  </td>
-                                </tr>
-                              );
-                            })}
+                            {(() => {
+                              // Group items by product_id
+                              const groupedItems: { baseItem: typeof clientReport.items[0]; variants: typeof clientReport.items; baseIndex: number }[] = [];
+                              let currentGroup: { baseItem: typeof clientReport.items[0]; variants: typeof clientReport.items; baseIndex: number } | null = null;
+
+                              clientReport.items.forEach((item, index) => {
+                                if (!item.variant_value) {
+                                  // This is a base product
+                                  if (currentGroup) {
+                                    groupedItems.push(currentGroup);
+                                  }
+                                  currentGroup = { baseItem: item, variants: [], baseIndex: index };
+                                } else if (currentGroup && item.product_id === currentGroup.baseItem.product_id) {
+                                  // This is a variant of the current product
+                                  currentGroup.variants.push({ ...item, originalIndex: index } as any);
+                                }
+                              });
+                              if (currentGroup) {
+                                groupedItems.push(currentGroup);
+                              }
+
+                              return groupedItems.map((group) => {
+                                const hasVariants = group.variants.length > 0;
+                                
+                                return (
+                                  <ProductRow
+                                    key={`${group.baseItem.product_id}-${group.baseIndex}`}
+                                    baseItem={group.baseItem}
+                                    baseIndex={group.baseIndex}
+                                    variants={group.variants}
+                                    hasVariants={hasVariants}
+                                    companyId={clientReport.company_id}
+                                    onActualQuantityChange={handleActualQuantityChange}
+                                    getVarianceColor={getVarianceColor}
+                                  />
+                                );
+                              });
+                            })()}
                           </tbody>
                         </table>
                       </div>
