@@ -611,30 +611,36 @@ export type Database = {
         Row: {
           company_id: string
           created_at: string | null
+          customer_id: string | null
           id: string
           is_active: boolean | null
           name: string
           sku: string | null
+          supplier_id: string | null
           updated_at: string | null
           variants: Json | null
         }
         Insert: {
           company_id: string
           created_at?: string | null
+          customer_id?: string | null
           id?: string
           is_active?: boolean | null
           name: string
           sku?: string | null
+          supplier_id?: string | null
           updated_at?: string | null
           variants?: Json | null
         }
         Update: {
           company_id?: string
           created_at?: string | null
+          customer_id?: string | null
           id?: string
           is_active?: boolean | null
           name?: string
           sku?: string | null
+          supplier_id?: string | null
           updated_at?: string | null
           variants?: Json | null
         }
@@ -644,6 +650,20 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_products_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "b2b_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "b2b_suppliers"
             referencedColumns: ["id"]
           },
         ]

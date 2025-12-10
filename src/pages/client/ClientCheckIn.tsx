@@ -25,6 +25,9 @@ interface ProductEntry {
   name: string;
   quantity: number;
   variants: Variant[];
+  existingProductId?: string; // For existing products
+  supplierId?: string; // B2B: assigned supplier
+  customerId?: string; // B2B: designated customer
 }
 
 export const ClientCheckIn: React.FC = () => {
@@ -38,17 +41,18 @@ export const ClientCheckIn: React.FC = () => {
   const [showExistingProductsDialog, setShowExistingProductsDialog] = useState(false);
   
   // B2B-specific state
-  const [requestType, setRequestType] = useState<'standard' | 'supplier_sourcing'>('standard');
   const [suppliers, setSuppliers] = useState<any[]>([]);
-  const [selectedSupplierId, setSelectedSupplierId] = useState('');
+  const [customers, setCustomers] = useState<any[]>([]);
   const [requiredDate, setRequiredDate] = useState('');
+  const isB2B = company?.client_type === 'b2b';
 
-  // Fetch suppliers for B2B clients
+  // Fetch suppliers and customers for B2B clients
   useEffect(() => {
-    if (company?.client_type === 'b2b' && profile?.company_id) {
+    if (isB2B && profile?.company_id) {
       fetchSuppliers();
+      fetchCustomers();
     }
-  }, [company?.client_type, profile?.company_id]);
+  }, [isB2B, profile?.company_id]);
 
   const fetchSuppliers = async () => {
     if (!profile?.company_id) return;
@@ -68,11 +72,31 @@ export const ClientCheckIn: React.FC = () => {
     }
   };
 
+  const fetchCustomers = async () => {
+    if (!profile?.company_id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('b2b_customers')
+        .select('*')
+        .eq('company_id', profile.company_id)
+        .eq('is_active', true)
+        .order('customer_name');
+
+      if (error) throw error;
+      setCustomers(data || []);
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+    }
+  };
+
   const addProduct = () => {
     setProducts([...products, { 
       name: '', 
       quantity: 0,
-      variants: []
+      variants: [],
+      supplierId: '',
+      customerId: '',
     }]);
   };
 
@@ -110,7 +134,37 @@ export const ClientCheckIn: React.FC = () => {
     });
   };
 
-  const handleExistingProductsSelected = (newProducts: ProductEntry[]) => {
+  const handleExistingProductsSelected = async (newProducts: ProductEntry[]) => {
+    // For B2B, fetch existing supplier/customer assignments for existing products
+    if (isB2B && newProducts.length > 0) {
+      const productIds = newProducts
+        .filter(p => p.existingProductId)
+        .map(p => p.existingProductId);
+      
+      if (productIds.length > 0) {
+        const { data: existingProducts } = await supabase
+          .from('client_products')
+          .select('id, supplier_id, customer_id')
+          .in('id', productIds);
+        
+        const enrichedProducts = newProducts.map(p => {
+          if (p.existingProductId) {
+            const existing = existingProducts?.find(ep => ep.id === p.existingProductId);
+            if (existing) {
+              return {
+                ...p,
+                supplierId: existing.supplier_id || '',
+                customerId: existing.customer_id || '',
+              };
+            }
+          }
+          return p;
+        });
+        
+        setProducts([...products, ...enrichedProducts]);
+        return;
+      }
+    }
     setProducts([...products, ...newProducts]);
   };
 
@@ -202,7 +256,7 @@ export const ClientCheckIn: React.FC = () => {
 
       console.log('Generated request number:', requestNumber);
 
-      // Create check-in request
+      // Create check-in request - include supplier/customer info per product for B2B
       const requestData: any = {
         company_id: profile.company_id,
         request_number: requestNumber,
@@ -210,14 +264,9 @@ export const ClientCheckIn: React.FC = () => {
         notes: notes || null,
         requested_by: profile.id,
         status: 'pending',
-        request_type: requestType,
+        request_type: isB2B ? 'b2b_sourcing' : 'standard',
+        required_date: isB2B && requiredDate ? requiredDate : null,
       };
-
-      // Add B2B fields if applicable
-      if (requestType === 'supplier_sourcing') {
-        requestData.supplier_id = selectedSupplierId || null;
-        requestData.required_date = requiredDate || null;
-      }
 
       const { error } = await supabase
         .from('check_in_requests')
@@ -268,48 +317,20 @@ export const ClientCheckIn: React.FC = () => {
           <CardDescription>Add products manually or import from Excel</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {company?.client_type === 'b2b' && (
-            <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
-              <div>
-                <Label>Request Type</Label>
-                <Select value={requestType} onValueChange={(value: any) => setRequestType(value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="standard">Standard Check-In</SelectItem>
-                    <SelectItem value="supplier_sourcing">Source from Supplier</SelectItem>
-                  </SelectContent>
-                </Select>
+          {isB2B && (
+            <div className="p-4 border rounded-lg bg-muted/50 space-y-2">
+              <h3 className="font-medium text-sm">B2B Check-In</h3>
+              <p className="text-xs text-muted-foreground">
+                For each product below, assign a supplier (source) and customer (destination).
+              </p>
+              <div className="space-y-2">
+                <Label>Required Date (Optional)</Label>
+                <Input 
+                  type="date" 
+                  value={requiredDate}
+                  onChange={(e) => setRequiredDate(e.target.value)}
+                />
               </div>
-
-              {requestType === 'supplier_sourcing' && (
-                <>
-                  <div>
-                    <Label>Supplier</Label>
-                    <Select value={selectedSupplierId} onValueChange={setSelectedSupplierId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select supplier" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {suppliers.map((supplier) => (
-                          <SelectItem key={supplier.id} value={supplier.id}>
-                            {supplier.supplier_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Required Date</Label>
-                    <Input 
-                      type="date" 
-                      value={requiredDate}
-                      onChange={(e) => setRequiredDate(e.target.value)}
-                    />
-                  </div>
-                </>
-              )}
             </div>
           )}
           
@@ -349,6 +370,56 @@ export const ClientCheckIn: React.FC = () => {
                     onChange={(e) => updateProduct(productIndex, 'name', e.target.value)}
                   />
                 </div>
+
+                {/* B2B: Per-product supplier and customer selection */}
+                {isB2B && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 border rounded-lg bg-muted/30">
+                    <div className="space-y-2">
+                      <Label>Supplier (Source) {product.existingProductId ? '' : '*'}</Label>
+                      <Select 
+                        value={product.supplierId || ''} 
+                        onValueChange={(value) => updateProduct(productIndex, 'supplierId', value)}
+                        disabled={!!product.existingProductId && !!product.supplierId}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select supplier" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {suppliers.map((supplier) => (
+                            <SelectItem key={supplier.id} value={supplier.id}>
+                              {supplier.supplier_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {product.existingProductId && product.supplierId && (
+                        <p className="text-xs text-muted-foreground">Locked to original supplier</p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Customer (Destination) {product.existingProductId ? '' : '*'}</Label>
+                      <Select 
+                        value={product.customerId || ''} 
+                        onValueChange={(value) => updateProduct(productIndex, 'customerId', value)}
+                        disabled={!!product.existingProductId && !!product.customerId}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select customer" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {customers.map((customer) => (
+                            <SelectItem key={customer.id} value={customer.id}>
+                              {customer.customer_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {product.existingProductId && product.customerId && (
+                        <p className="text-xs text-muted-foreground">Locked to original customer</p>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label>Quantity {product.variants.length > 0 && '(Auto-calculated from variants)'}</Label>
