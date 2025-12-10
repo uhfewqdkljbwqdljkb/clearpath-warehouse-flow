@@ -66,10 +66,36 @@ export const CheckInRequests: React.FC = () => {
   const [selectedRequestsForExport, setSelectedRequestsForExport] = useState<string[]>([]);
   const [isExporting, setIsExporting] = useState(false);
   const [selectionModeActive, setSelectionModeActive] = useState(false);
+  const [suppliersMap, setSuppliersMap] = useState<Record<string, string>>({});
+  const [customersMap, setCustomersMap] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchRequests();
+    fetchSuppliersAndCustomers();
   }, []);
+
+  const fetchSuppliersAndCustomers = async () => {
+    try {
+      const [suppliersRes, customersRes] = await Promise.all([
+        supabase.from('b2b_suppliers').select('id, supplier_name'),
+        supabase.from('b2b_customers').select('id, customer_name')
+      ]);
+
+      if (suppliersRes.data) {
+        const map: Record<string, string> = {};
+        suppliersRes.data.forEach(s => { map[s.id] = s.supplier_name; });
+        setSuppliersMap(map);
+      }
+
+      if (customersRes.data) {
+        const map: Record<string, string> = {};
+        customersRes.data.forEach(c => { map[c.id] = c.customer_name; });
+        setCustomersMap(map);
+      }
+    } catch (error) {
+      console.error('Error fetching suppliers/customers:', error);
+    }
+  };
 
   const fetchRequests = async () => {
     try {
@@ -1013,6 +1039,25 @@ export const CheckInRequests: React.FC = () => {
                     selectedRequest.requested_products.map((product: any, index: number) => (
                       <Card key={index} className="p-4">
                         <div className="font-medium text-lg">{product.name}</div>
+                        {/* B2B Supplier/Customer info */}
+                        {(product.supplierId || product.customerId) && (
+                          <div className="mt-2 flex flex-wrap gap-3 text-sm">
+                            {product.supplierId && suppliersMap[product.supplierId] && (
+                              <div className="flex items-center gap-1.5 text-muted-foreground">
+                                <Badge variant="outline" className="text-xs">
+                                  Supplier: {suppliersMap[product.supplierId]}
+                                </Badge>
+                              </div>
+                            )}
+                            {product.customerId && customersMap[product.customerId] && (
+                              <div className="flex items-center gap-1.5 text-muted-foreground">
+                                <Badge variant="outline" className="text-xs">
+                                  Customer: {customersMap[product.customerId]}
+                                </Badge>
+                              </div>
+                            )}
+                          </div>
+                        )}
                         {product.quantity && !product.variants?.length && (
                           <div className="text-sm text-muted-foreground mt-1">
                             Quantity: <span className="font-semibold">{product.quantity}</span>
@@ -1053,6 +1098,25 @@ export const CheckInRequests: React.FC = () => {
                       selectedRequest.amended_products.map((product: any, index: number) => (
                         <Card key={index} className="p-4 border-primary/50 bg-primary/5">
                           <div className="font-medium text-lg">{product.name}</div>
+                          {/* B2B Supplier/Customer info for amended products */}
+                          {(product.supplierId || product.customerId) && (
+                            <div className="mt-2 flex flex-wrap gap-3 text-sm">
+                              {product.supplierId && suppliersMap[product.supplierId] && (
+                                <div className="flex items-center gap-1.5 text-muted-foreground">
+                                  <Badge variant="outline" className="text-xs">
+                                    Supplier: {suppliersMap[product.supplierId]}
+                                  </Badge>
+                                </div>
+                              )}
+                              {product.customerId && customersMap[product.customerId] && (
+                                <div className="flex items-center gap-1.5 text-muted-foreground">
+                                  <Badge variant="outline" className="text-xs">
+                                    Customer: {customersMap[product.customerId]}
+                                  </Badge>
+                                </div>
+                              )}
+                            </div>
+                          )}
                           {product.quantity && !product.variants?.length && (
                             <div className="text-sm text-muted-foreground mt-1">
                               Quantity: <span className="font-semibold text-primary">{product.quantity}</span>
