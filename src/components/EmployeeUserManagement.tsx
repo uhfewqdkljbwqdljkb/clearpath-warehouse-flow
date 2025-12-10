@@ -112,24 +112,14 @@ export const EmployeeUserManagement: React.FC = () => {
     try {
       setSubmitting(true);
 
-      // Get session for authorization
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        toast.error('You must be logged in to create employees');
-        return;
-      }
-
       // Use edge function to create employee user
+      // supabase.functions.invoke automatically includes the auth token
       const { data, error } = await supabase.functions.invoke('create-employee-user', {
         body: {
           email: newUser.email,
           password: newUser.password,
           full_name: newUser.full_name,
           role: newUser.role
-        },
-        headers: {
-          Authorization: `Bearer ${session.access_token}`
         }
       });
 
