@@ -5,7 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Clock, CheckCircle, XCircle, Eye, FileText, Download } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Clock, CheckCircle, XCircle, Eye, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -30,6 +31,8 @@ interface CheckOutRequest {
   request_type?: string;
   customer_id?: string;
   delivery_date?: string;
+  reviewed_at?: string | null;
+  rejection_reason?: string | null;
   companies?: {
     name: string;
     client_code: string;
@@ -54,10 +57,25 @@ export const CheckOutRequests: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [selectedRequestsForExport, setSelectedRequestsForExport] = useState<string[]>([]);
   const [selectionModeActive, setSelectionModeActive] = useState(false);
+  const [customersMap, setCustomersMap] = useState<Record<string, string>>({});
 
   useEffect(() => {
     fetchRequests();
+    fetchCustomers();
   }, []);
+
+  const fetchCustomers = async () => {
+    try {
+      const { data } = await supabase.from('b2b_customers').select('id, customer_name');
+      if (data) {
+        const map: Record<string, string> = {};
+        data.forEach(c => { map[c.id] = c.customer_name; });
+        setCustomersMap(map);
+      }
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+    }
+  };
 
   const fetchRequests = async () => {
     try {
@@ -92,12 +110,14 @@ export const CheckOutRequests: React.FC = () => {
   const handleApprove = async (request: CheckOutRequest) => {
     setIsProcessing(true);
     try {
-      // Update request status
+      const { data: { user } } = await supabase.auth.getUser();
+      
       const { error } = await supabase
         .from('check_out_requests')
         .update({
           status: 'approved',
           reviewed_at: new Date().toISOString(),
+          reviewed_by: user?.id,
         })
         .eq('id', request.id);
 
@@ -135,11 +155,14 @@ export const CheckOutRequests: React.FC = () => {
 
     setIsProcessing(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
       const { error } = await supabase
         .from('check_out_requests')
         .update({
           status: 'rejected',
           reviewed_at: new Date().toISOString(),
+          reviewed_by: user?.id,
           rejection_reason: rejectionReason,
         })
         .eq('id', request.id);
@@ -201,12 +224,17 @@ export const CheckOutRequests: React.FC = () => {
     }
   };
 
-  const handleSelectAll = (checked: boolean) => {
+  const pendingRequests = requests.filter(r => r.status === 'pending');
+  const approvedRequests = requests.filter(r => r.status === 'approved');
+  const rejectedRequests = requests.filter(r => r.status === 'rejected');
+
+  const handleSelectAll = (requestsList: CheckOutRequest[], checked: boolean) => {
     if (checked) {
-      const requestIds = requests.map(r => r.id);
-      setSelectedRequestsForExport(requestIds);
+      const requestIds = requestsList.map(r => r.id);
+      setSelectedRequestsForExport(prev => [...new Set([...prev, ...requestIds])]);
     } else {
-      setSelectedRequestsForExport([]);
+      const requestIds = new Set(requestsList.map(r => r.id));
+      setSelectedRequestsForExport(prev => prev.filter(id => !requestIds.has(id)));
     }
   };
 
@@ -254,11 +282,9 @@ export const CheckOutRequests: React.FC = () => {
 
       const doc = new jsPDF();
       
-      // Add title
       doc.setFontSize(18);
       doc.text('Check-Out Requests Report', 14, 20);
       
-      // Add date range if specified
       if (exportStartDate || exportEndDate) {
         doc.setFontSize(10);
         const dateRangeText = `Date Range: ${exportStartDate ? format(exportStartDate, 'PP') : 'All'} - ${exportEndDate ? format(exportEndDate, 'PP') : 'All'}`;
@@ -267,22 +293,18 @@ export const CheckOutRequests: React.FC = () => {
       
       let yPosition = exportStartDate || exportEndDate ? 35 : 30;
       
-      // Process each request
       for (let i = 0; i < requestsToExport.length; i++) {
         const request = requestsToExport[i];
         
-        // Add page break if needed (except for first request)
         if (i > 0) {
           doc.addPage();
           yPosition = 20;
         }
         
-        // Request header
         doc.setFontSize(14);
         doc.text(`Request #${request.request_number}`, 14, yPosition);
         yPosition += 7;
         
-        // Request details
         doc.setFontSize(10);
         doc.text(`Client: ${request.companies?.name || 'N/A'}`, 14, yPosition);
         yPosition += 5;
@@ -293,7 +315,6 @@ export const CheckOutRequests: React.FC = () => {
         doc.text(`Submitted: ${new Date(request.created_at).toLocaleDateString()}`, 14, yPosition);
         yPosition += 10;
         
-        // Items table
         doc.setFontSize(12);
         doc.text('Requested Items:', 14, yPosition);
         yPosition += 5;
@@ -318,9 +339,8 @@ export const CheckOutRequests: React.FC = () => {
           headStyles: { fillColor: [59, 130, 246] },
         });
         
-        yPosition = (doc as any).lastAutoTable.finalY + 10;
+        yPosition = (doc as any).lastAutoTable?.finalY + 10 || yPosition + 40;
         
-        // Add notes if present
         if (request.notes) {
           doc.setFontSize(10);
           doc.text('Notes:', 14, yPosition);
@@ -330,19 +350,17 @@ export const CheckOutRequests: React.FC = () => {
           yPosition += splitNotes.length * 5 + 5;
         }
         
-        // Add rejection reason if present
-        if (request.status === 'rejected' && (request as any).rejection_reason) {
+        if (request.status === 'rejected' && request.rejection_reason) {
           doc.setFontSize(10);
           doc.setTextColor(220, 38, 38);
           doc.text('Rejection Reason:', 14, yPosition);
           yPosition += 5;
-          const splitReason = doc.splitTextToSize((request as any).rejection_reason, 180);
+          const splitReason = doc.splitTextToSize(request.rejection_reason, 180);
           doc.text(splitReason, 14, yPosition);
           doc.setTextColor(0, 0, 0);
         }
       }
       
-      // Save the PDF
       const fileName = `checkout-requests-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
       doc.save(fileName);
 
@@ -371,7 +389,6 @@ export const CheckOutRequests: React.FC = () => {
   const handleExportByDateRange = async () => {
     let requestsToExport = [...requests];
     
-    // Filter by date range if specified
     if (exportStartDate || exportEndDate) {
       requestsToExport = requestsToExport.filter(request => {
         const requestDate = new Date(request.created_at);
@@ -418,6 +435,87 @@ export const CheckOutRequests: React.FC = () => {
     await generatePDF(requestsToExport);
   };
 
+  const renderRequestsTable = (requestsList: CheckOutRequest[], showActions: boolean = true) => {
+    const allSelected = requestsList.length > 0 && requestsList.every(r => selectedRequestsForExport.includes(r.id));
+    
+    return (
+      requestsList.length > 0 ? (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {selectionModeActive && (
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={allSelected}
+                    onCheckedChange={(checked) => handleSelectAll(requestsList, checked as boolean)}
+                    aria-label="Select all"
+                  />
+                </TableHead>
+              )}
+              <TableHead>Request #</TableHead>
+              <TableHead>Client</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Items</TableHead>
+              <TableHead>Submitted</TableHead>
+              {showActions && <TableHead>Actions</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {requestsList.map((request) => (
+              <TableRow key={request.id}>
+                {selectionModeActive && (
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedRequestsForExport.includes(request.id)}
+                      onCheckedChange={(checked) => handleSelectRequest(request.id, checked as boolean)}
+                      aria-label={`Select ${request.request_number}`}
+                    />
+                  </TableCell>
+                )}
+                <TableCell className="font-mono text-sm">
+                  {request.request_number}
+                </TableCell>
+                <TableCell>
+                  <div>
+                    <div className="font-medium">{request.companies?.name}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {request.companies?.client_code}
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>{getStatusBadge(request.status)}</TableCell>
+                <TableCell>
+                  {Array.isArray(request.requested_items)
+                    ? `${request.requested_items.length} item(s)`
+                    : 'N/A'}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {new Date(request.created_at).toLocaleDateString()}
+                </TableCell>
+                {showActions && (
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openReviewDialog(request)}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      {request.status === 'pending' ? 'Review' : 'View Details'}
+                    </Button>
+                  </TableCell>
+                )}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      ) : (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">No requests found</p>
+        </div>
+      )
+    );
+  };
+
   if (isLoading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
   }
@@ -446,100 +544,70 @@ export const CheckOutRequests: React.FC = () => {
               </Button>
             </>
           )}
-          <Button onClick={handleExportButtonClick} className="gap-2">
-            <Download className="h-4 w-4" />
+          <Button onClick={handleExportButtonClick} variant="outline">
+            <Download className="h-4 w-4 mr-2" />
             Export Report
           </Button>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Pending & Recent Requests</CardTitle>
-          <CardDescription>Manage client check-out requests</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {requests.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  {selectionModeActive && (
-                    <TableHead className="w-12">
-                      <Checkbox
-                        checked={requests.length > 0 && requests.every(r => selectedRequestsForExport.includes(r.id))}
-                        onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
-                        aria-label="Select all"
-                      />
-                    </TableHead>
-                  )}
-                  <TableHead>Request #</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Items</TableHead>
-                  <TableHead>Submitted</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {requests.map((request) => (
-                  <TableRow key={request.id}>
-                    {selectionModeActive && (
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedRequestsForExport.includes(request.id)}
-                          onCheckedChange={(checked) => handleSelectRequest(request.id, checked as boolean)}
-                          aria-label={`Select ${request.request_number}`}
-                        />
-                      </TableCell>
-                    )}
-                    <TableCell className="font-mono text-sm">
-                      {request.request_number}
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{request.companies?.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {request.companies?.client_code}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{getStatusBadge(request.status)}</TableCell>
-                    <TableCell>
-                      {Array.isArray(request.requested_items)
-                        ? `${request.requested_items.length} item(s)`
-                        : 'N/A'}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {new Date(request.created_at).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openReviewDialog(request)}
-                        disabled={request.status !== 'pending'}
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        Review
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">No check-out requests found</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="pending" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="pending">
+            Pending ({pendingRequests.length})
+          </TabsTrigger>
+          <TabsTrigger value="approved">
+            Approved ({approvedRequests.length})
+          </TabsTrigger>
+          <TabsTrigger value="rejected">
+            Rejected ({rejectedRequests.length})
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Review Dialog */}
+        <TabsContent value="pending" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Pending Requests</CardTitle>
+              <CardDescription>Requests awaiting review</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {renderRequestsTable(pendingRequests)}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="approved" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Approved Requests</CardTitle>
+              <CardDescription>Previously approved check-out requests</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {renderRequestsTable(approvedRequests)}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="rejected" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Rejected Requests</CardTitle>
+              <CardDescription>Previously rejected check-out requests</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {renderRequestsTable(rejectedRequests)}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Review/View Dialog */}
       <Dialog open={isReviewDialogOpen} onOpenChange={setIsReviewDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Review Check-Out Request</DialogTitle>
+            <DialogTitle>
+              {selectedRequest?.status === 'pending' ? 'Review' : 'View'} Check-Out Request
+            </DialogTitle>
             <DialogDescription>
               {selectedRequest?.request_number} - {selectedRequest?.companies?.name}
             </DialogDescription>
@@ -547,8 +615,39 @@ export const CheckOutRequests: React.FC = () => {
           
           {selectedRequest && (
             <div className="space-y-6">
+              {/* Request Info */}
+              <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+                <div>
+                  <div className="text-sm text-muted-foreground">Status</div>
+                  <div className="mt-1">{getStatusBadge(selectedRequest.status)}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Submitted</div>
+                  <div className="mt-1">{new Date(selectedRequest.created_at).toLocaleString()}</div>
+                </div>
+                {selectedRequest.reviewed_at && (
+                  <div>
+                    <div className="text-sm text-muted-foreground">Reviewed</div>
+                    <div className="mt-1">{new Date(selectedRequest.reviewed_at).toLocaleString()}</div>
+                  </div>
+                )}
+                {selectedRequest.request_type === 'ship_to_client' && selectedRequest.b2b_customers && (
+                  <div>
+                    <div className="text-sm text-muted-foreground">Customer</div>
+                    <div className="mt-1">{selectedRequest.b2b_customers.customer_name}</div>
+                  </div>
+                )}
+                {selectedRequest.delivery_date && (
+                  <div>
+                    <div className="text-sm text-muted-foreground">Delivery Date</div>
+                    <div className="mt-1">{new Date(selectedRequest.delivery_date).toLocaleDateString()}</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Requested Items */}
               <div>
-                <h3 className="font-semibold mb-2">Requested Items</h3>
+                <h3 className="font-semibold mb-3 text-lg">Requested Items</h3>
                 <div className="space-y-2">
                   {Array.isArray(selectedRequest.requested_items) &&
                     selectedRequest.requested_items.map((item: any, index: number) => (
@@ -561,6 +660,11 @@ export const CheckOutRequests: React.FC = () => {
                                 {item.variant_attribute}: {item.variant_value}
                               </div>
                             )}
+                            {item.customerId && customersMap[item.customerId] && (
+                              <Badge variant="outline" className="text-xs mt-1">
+                                Customer: {customersMap[item.customerId]}
+                              </Badge>
+                            )}
                           </div>
                           <div className="text-right">
                             <div className="font-semibold">Qty: {item.quantity}</div>
@@ -571,49 +675,82 @@ export const CheckOutRequests: React.FC = () => {
                 </div>
               </div>
 
+              {/* Notes */}
               {selectedRequest.notes && (
                 <div>
                   <h3 className="font-semibold mb-2">Notes</h3>
-                  <p className="text-sm text-muted-foreground">{selectedRequest.notes}</p>
+                  <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+                    {selectedRequest.notes}
+                  </p>
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="rejectionReason">Rejection Reason (if rejecting)</Label>
-                <Textarea
-                  id="rejectionReason"
-                  placeholder="Provide a reason for rejection..."
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                  rows={3}
-                />
-              </div>
+              {/* Rejection Reason (for rejected requests) */}
+              {selectedRequest.status === 'rejected' && selectedRequest.rejection_reason && (
+                <div className="border-t pt-4">
+                  <h3 className="font-semibold mb-2 text-destructive">Rejection Reason</h3>
+                  <p className="text-sm text-destructive/80 bg-destructive/10 p-3 rounded-lg">
+                    {selectedRequest.rejection_reason}
+                  </p>
+                </div>
+              )}
 
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setIsReviewDialogOpen(false);
-                    setSelectedRequest(null);
-                    setRejectionReason('');
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => handleReject(selectedRequest)}
-                  disabled={isProcessing}
-                >
-                  Reject
-                </Button>
-                <Button
-                  onClick={() => handleApprove(selectedRequest)}
-                  disabled={isProcessing}
-                >
-                  {isProcessing ? 'Processing...' : 'Approve'}
-                </Button>
-              </div>
+              {/* Actions for pending requests */}
+              {selectedRequest.status === 'pending' && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="rejectionReason">Rejection Reason (if rejecting)</Label>
+                    <Textarea
+                      id="rejectionReason"
+                      placeholder="Provide a reason for rejection..."
+                      value={rejectionReason}
+                      onChange={(e) => setRejectionReason(e.target.value)}
+                      rows={3}
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setIsReviewDialogOpen(false);
+                        setSelectedRequest(null);
+                        setRejectionReason('');
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => handleReject(selectedRequest)}
+                      disabled={isProcessing}
+                    >
+                      Reject
+                    </Button>
+                    <Button
+                      onClick={() => handleApprove(selectedRequest)}
+                      disabled={isProcessing}
+                    >
+                      {isProcessing ? 'Processing...' : 'Approve'}
+                    </Button>
+                  </div>
+                </>
+              )}
+
+              {/* Close button for non-pending requests */}
+              {selectedRequest.status !== 'pending' && (
+                <div className="flex justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsReviewDialogOpen(false);
+                      setSelectedRequest(null);
+                    }}
+                  >
+                    Close
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
@@ -677,58 +814,58 @@ export const CheckOutRequests: React.FC = () => {
               <>
                 <div className="space-y-2">
                   <Label>Start Date (Optional)</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !exportStartDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {exportStartDate ? format(exportStartDate, "PPP") : "Pick a start date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={exportStartDate}
-                    onSelect={setExportStartDate}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-                </Popover>
-              </div>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !exportStartDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {exportStartDate ? format(exportStartDate, "PPP") : "Pick a start date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={exportStartDate}
+                        onSelect={setExportStartDate}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
 
-              <div className="space-y-2">
-                <Label>End Date (Optional)</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !exportEndDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {exportEndDate ? format(exportEndDate, "PPP") : "Pick an end date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={exportEndDate}
-                    onSelect={setExportEndDate}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-                </Popover>
-              </div>
-            </>
+                <div className="space-y-2">
+                  <Label>End Date (Optional)</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !exportEndDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {exportEndDate ? format(exportEndDate, "PPP") : "Pick an end date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={exportEndDate}
+                        onSelect={setExportEndDate}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </>
             )}
 
             <div className="flex justify-end gap-2 pt-4">
