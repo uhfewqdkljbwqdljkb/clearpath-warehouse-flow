@@ -14,7 +14,7 @@ import { Plus, Trash2, Package, TruckIcon, Search, ChevronDown, ChevronRight, Pr
 import { calculateNestedVariantQuantity, getVariantBreakdown, Variant } from '@/types/variants';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 interface Company {
   id: string;
@@ -477,7 +477,7 @@ const fetchProducts = async () => {
         ];
       });
       
-      doc.autoTable({
+      autoTable(doc, {
         startY: yPos,
         head: [['Product Name', 'SKU', 'Variant Details', 'Quantity']],
         body: tableData,
@@ -494,7 +494,7 @@ const fetchProducts = async () => {
       });
       
       // Get the Y position after the table
-      const finalY = doc.lastAutoTable.finalY || yPos + 40;
+      const finalY = (doc as any).lastAutoTable?.finalY || yPos + 40;
       
       // Notes section if present
       let notesY = finalY + 10;
