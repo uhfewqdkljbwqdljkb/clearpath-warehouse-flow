@@ -42,6 +42,7 @@ export const EmployeeUserManagement: React.FC = () => {
     email: '',
     password: '',
     full_name: '',
+    phone: '',
     role: 'admin' as AdminRole
   });
 
@@ -119,6 +120,7 @@ export const EmployeeUserManagement: React.FC = () => {
           email: newUser.email,
           password: newUser.password,
           full_name: newUser.full_name,
+          phone: newUser.phone,
           role: newUser.role
         }
       });
@@ -133,7 +135,7 @@ export const EmployeeUserManagement: React.FC = () => {
 
       toast.success('Employee created successfully');
       setCreateDialogOpen(false);
-      setNewUser({ email: '', password: '', full_name: '', role: 'admin' });
+      setNewUser({ email: '', password: '', full_name: '', phone: '', role: 'admin' });
       fetchEmployees();
     } catch (error: any) {
       console.error('Error creating employee:', error);
@@ -158,7 +160,8 @@ export const EmployeeUserManagement: React.FC = () => {
       const { error: profileError } = await supabase
         .from('profiles')
         .update({ 
-          full_name: editingUser.full_name
+          full_name: editingUser.full_name,
+          phone: (editingUser as any).phone || null
         })
         .eq('id', editingUser.id);
 
@@ -299,6 +302,7 @@ export const EmployeeUserManagement: React.FC = () => {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>Phone</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -309,6 +313,7 @@ export const EmployeeUserManagement: React.FC = () => {
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">{user.full_name || 'N/A'}</TableCell>
                   <TableCell>{user.email}</TableCell>
+                  <TableCell>{(user as any).phone || '-'}</TableCell>
                   <TableCell>
                     <Badge variant={getRoleBadgeVariant(user.role)}>
                       {user.role.replace('_', ' ')}
@@ -336,7 +341,7 @@ export const EmployeeUserManagement: React.FC = () => {
               ))}
               {filteredUsers.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
                     No employees found
                   </TableCell>
                 </TableRow>
@@ -377,6 +382,16 @@ export const EmployeeUserManagement: React.FC = () => {
                 id="full_name"
                 value={newUser.full_name}
                 onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="+1234567890"
+                value={newUser.phone}
+                onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
               />
             </div>
             <div>
@@ -431,6 +446,16 @@ export const EmployeeUserManagement: React.FC = () => {
                   id="edit-full_name"
                   value={editingUser.full_name || ''}
                   onChange={(e) => setEditingUser({ ...editingUser, full_name: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-phone">Phone Number</Label>
+                <Input
+                  id="edit-phone"
+                  type="tel"
+                  placeholder="+1234567890"
+                  value={(editingUser as any).phone || ''}
+                  onChange={(e) => setEditingUser({ ...editingUser, phone: e.target.value } as any)}
                 />
               </div>
               <div>
