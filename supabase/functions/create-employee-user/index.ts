@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
     }
 
     // Parse request body
-    const { email, password, full_name, role } = await req.json();
+    const { email, password, full_name, role, phone } = await req.json();
 
     if (!email || !password || !full_name || !role) {
       return new Response(
@@ -93,7 +93,8 @@ Deno.serve(async (req) => {
       email_confirm: true, // Auto-confirm email
       user_metadata: {
         full_name,
-        role
+        role,
+        phone: phone || null
       }
     });
 
@@ -117,6 +118,18 @@ Deno.serve(async (req) => {
     
     // Wait a moment for the trigger to execute
     await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Update profile with phone number if provided
+    if (phone) {
+      const { error: profileUpdateError } = await supabaseAdmin
+        .from('profiles')
+        .update({ phone })
+        .eq('id', newUser.user.id);
+
+      if (profileUpdateError) {
+        console.error('Error updating profile with phone:', profileUpdateError);
+      }
+    }
 
     // Verify the role was set correctly
     const { data: existingRole } = await supabaseAdmin
@@ -146,7 +159,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log('Successfully created employee user:', newUser.user.email, 'with role:', role);
+    console.log('Successfully created employee user:', newUser.user.email, 'with role:', role, 'phone:', phone || 'N/A');
 
     return new Response(
       JSON.stringify({ 
@@ -154,7 +167,8 @@ Deno.serve(async (req) => {
         user: {
           id: newUser.user.id,
           email: newUser.user.email,
-          role: role
+          role: role,
+          phone: phone || null
         }
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
