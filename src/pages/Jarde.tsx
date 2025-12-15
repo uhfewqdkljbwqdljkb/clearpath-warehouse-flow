@@ -16,6 +16,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { calculateNestedVariantQuantity } from '@/types/variants';
 
 interface JardeReportItem {
   product_id: string;
@@ -476,6 +477,36 @@ export const Jarde: React.FC = () => {
         fromDate: Date | null,
         toDate: Date
       ): number => {
+        const sumVariantQuantity = (variants: any[], targetValue: string): number => {
+          let total = 0;
+
+          const traverseValues = (values: any[]) => {
+            for (const val of values || []) {
+              if (!val) continue;
+
+              if (val.subVariants && Array.isArray(val.subVariants) && val.subVariants.length > 0) {
+                for (const subVariant of val.subVariants) {
+                  if (subVariant?.values && Array.isArray(subVariant.values)) {
+                    traverseValues(subVariant.values);
+                  }
+                }
+              } else {
+                if (val.value === targetValue) {
+                  total += val.quantity || 0;
+                }
+              }
+            }
+          };
+
+          for (const variant of variants || []) {
+            if (variant?.values && Array.isArray(variant.values)) {
+              traverseValues(variant.values);
+            }
+          }
+
+          return total;
+        };
+
         let total = 0;
         for (const request of checkIns) {
           const reviewedAt = new Date(request.reviewed_at);
@@ -489,16 +520,15 @@ export const Jarde: React.FC = () => {
             if (item.name !== productName) continue;
 
             if (variantValue) {
-              // Looking for specific variant
               if (item.variants && Array.isArray(item.variants)) {
-                const variant = item.variants.find((v: any) => v.value === variantValue);
-                if (variant) {
-                  total += variant.quantity || 0;
-                }
+                total += sumVariantQuantity(item.variants, variantValue);
               }
             } else {
-              // Base product quantity (non-variant)
-              total += item.quantity || 0;
+              if (item.variants && Array.isArray(item.variants) && item.variants.length > 0) {
+                total += calculateNestedVariantQuantity(item.variants);
+              } else {
+                total += item.quantity || 0;
+              }
             }
           }
         }
@@ -571,21 +601,20 @@ export const Jarde: React.FC = () => {
             variance: null,
           });
 
-          // Calculate for each variant - handle nested variant structure
+          // Calculate for each variant (single-level display, supports nested data)
           if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
             for (const variant of product.variants as any[]) {
               const variantAttribute = variant.attribute || '';
               if (variant.values && Array.isArray(variant.values)) {
                 for (const variantValue of variant.values) {
-                  // variantValue is an object with { value: string, quantity: number, subVariants?: ... }
                   const valueStr = typeof variantValue === 'string' ? variantValue : variantValue.value;
                   if (!valueStr) continue;
 
-                  const displayLabel = variantAttribute 
-                    ? `${variantAttribute}: ${valueStr}` 
+                  const displayLabel = variantAttribute
+                    ? `${variantAttribute}: ${valueStr}`
                     : valueStr;
 
-                  const variantStarting = 
+                  const variantStarting =
                     getCheckInQuantity(companyCheckIns, product.name, valueStr, null, startDate) -
                     getCheckOutQuantity(companyCheckOuts, product.name, valueStr, null, startDate);
 
@@ -604,42 +633,6 @@ export const Jarde: React.FC = () => {
                     actual_quantity: null,
                     variance: null,
                   });
-
-                  // Handle nested sub-variants if they exist
-                  if (variantValue.subVariants && Array.isArray(variantValue.subVariants)) {
-                    for (const subVariant of variantValue.subVariants) {
-                      const subAttribute = subVariant.attribute || '';
-                      if (subVariant.values && Array.isArray(subVariant.values)) {
-                        for (const subValue of subVariant.values) {
-                          const subValueStr = typeof subValue === 'string' ? subValue : subValue.value;
-                          if (!subValueStr) continue;
-
-                          const subDisplayLabel = `${displayLabel} → ${subAttribute}: ${subValueStr}`;
-                          const combinedKey = `${valueStr}|${subValueStr}`;
-
-                          const subStarting = 
-                            getCheckInQuantity(companyCheckIns, product.name, combinedKey, null, startDate) -
-                            getCheckOutQuantity(companyCheckOuts, product.name, combinedKey, null, startDate);
-
-                          const subCheckIns = getCheckInQuantity(companyCheckIns, product.name, combinedKey, startDate, endDate);
-                          const subCheckOuts = getCheckOutQuantity(companyCheckOuts, product.name, combinedKey, startDate, endDate);
-                          const subExpected = subStarting + subCheckIns - subCheckOuts;
-
-                          items.push({
-                            product_id: product.id,
-                            product_name: product.name,
-                            variant_value: subDisplayLabel,
-                            starting_quantity: subStarting,
-                            check_ins: subCheckIns,
-                            check_outs: subCheckOuts,
-                            expected_quantity: subExpected,
-                            actual_quantity: null,
-                            variance: null,
-                          });
-                        }
-                      }
-                    }
-                  }
                 }
               }
             }
