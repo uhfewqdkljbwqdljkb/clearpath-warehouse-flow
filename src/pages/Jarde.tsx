@@ -21,6 +21,7 @@ import { calculateNestedVariantQuantity } from '@/types/variants';
 interface JardeReportItem {
   product_id: string;
   product_name: string;
+  variant_attribute?: string;
   variant_value?: string;
   starting_quantity: number;
   check_ins: number;
@@ -254,6 +255,7 @@ export const Jarde: React.FC = () => {
         product_id: string;
         company_id: string;
         quantity: number;
+        variant_attribute?: string;
         variant_value?: string;
       }> = [];
 
@@ -265,20 +267,32 @@ export const Jarde: React.FC = () => {
               product_id: item.product_id,
               company_id: clientReport.company_id,
               quantity: item.actual_quantity,
+              variant_attribute: item.variant_attribute,
               variant_value: item.variant_value,
             });
           }
         }
       }
 
-      // Process inventory updates
+      // Process inventory updates with variant-level tracking
       for (const update of inventoryUpdates) {
-        // Check if inventory item exists
+        // Build query with variant matching
         let query = supabase
           .from('inventory_items')
           .select('id, quantity')
           .eq('product_id', update.product_id)
           .eq('company_id', update.company_id);
+
+        // Match variant columns (null matches null for base products)
+        if (update.variant_attribute && update.variant_value) {
+          query = query
+            .eq('variant_attribute', update.variant_attribute)
+            .eq('variant_value', update.variant_value);
+        } else {
+          query = query
+            .is('variant_attribute', null)
+            .is('variant_value', null);
+        }
 
         const { data: existingItems, error: fetchError } = await query;
 
@@ -301,13 +315,15 @@ export const Jarde: React.FC = () => {
             console.error('Error updating inventory:', updateError);
           }
         } else {
-          // Create new inventory item with reconciled quantity
+          // Create new inventory item with variant-level tracking
           const { error: insertError } = await supabase
             .from('inventory_items')
             .insert({
               product_id: update.product_id,
               company_id: update.company_id,
               quantity: update.quantity,
+              variant_attribute: update.variant_attribute || null,
+              variant_value: update.variant_value || null,
             });
 
           if (insertError) {
@@ -625,6 +641,7 @@ export const Jarde: React.FC = () => {
                   items.push({
                     product_id: product.id,
                     product_name: product.name,
+                    variant_attribute: variantAttribute,
                     variant_value: displayLabel,
                     starting_quantity: variantStarting,
                     check_ins: variantCheckIns,

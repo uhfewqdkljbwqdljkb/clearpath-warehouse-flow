@@ -757,6 +757,8 @@ export type Database = {
           product_id: string
           quantity: number
           received_date: string | null
+          variant_attribute: string | null
+          variant_value: string | null
         }
         Insert: {
           batch_number?: string | null
@@ -768,6 +770,8 @@ export type Database = {
           product_id: string
           quantity?: number
           received_date?: string | null
+          variant_attribute?: string | null
+          variant_value?: string | null
         }
         Update: {
           batch_number?: string | null
@@ -779,6 +783,8 @@ export type Database = {
           product_id?: string
           quantity?: number
           received_date?: string | null
+          variant_attribute?: string | null
+          variant_value?: string | null
         }
         Relationships: [
           {
