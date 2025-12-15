@@ -571,23 +571,32 @@ export const Jarde: React.FC = () => {
             variance: null,
           });
 
-          // Calculate for each variant
+          // Calculate for each variant - handle nested variant structure
           if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
             for (const variant of product.variants as any[]) {
+              const variantAttribute = variant.attribute || '';
               if (variant.values && Array.isArray(variant.values)) {
-                for (const value of variant.values) {
-                  const variantStarting = 
-                    getCheckInQuantity(companyCheckIns, product.name, value, null, startDate) -
-                    getCheckOutQuantity(companyCheckOuts, product.name, value, null, startDate);
+                for (const variantValue of variant.values) {
+                  // variantValue is an object with { value: string, quantity: number, subVariants?: ... }
+                  const valueStr = typeof variantValue === 'string' ? variantValue : variantValue.value;
+                  if (!valueStr) continue;
 
-                  const variantCheckIns = getCheckInQuantity(companyCheckIns, product.name, value, startDate, endDate);
-                  const variantCheckOuts = getCheckOutQuantity(companyCheckOuts, product.name, value, startDate, endDate);
+                  const displayLabel = variantAttribute 
+                    ? `${variantAttribute}: ${valueStr}` 
+                    : valueStr;
+
+                  const variantStarting = 
+                    getCheckInQuantity(companyCheckIns, product.name, valueStr, null, startDate) -
+                    getCheckOutQuantity(companyCheckOuts, product.name, valueStr, null, startDate);
+
+                  const variantCheckIns = getCheckInQuantity(companyCheckIns, product.name, valueStr, startDate, endDate);
+                  const variantCheckOuts = getCheckOutQuantity(companyCheckOuts, product.name, valueStr, startDate, endDate);
                   const variantExpected = variantStarting + variantCheckIns - variantCheckOuts;
 
                   items.push({
                     product_id: product.id,
-                    product_name: `${product.name} (${value})`,
-                    variant_value: value,
+                    product_name: product.name,
+                    variant_value: displayLabel,
                     starting_quantity: variantStarting,
                     check_ins: variantCheckIns,
                     check_outs: variantCheckOuts,
@@ -595,6 +604,42 @@ export const Jarde: React.FC = () => {
                     actual_quantity: null,
                     variance: null,
                   });
+
+                  // Handle nested sub-variants if they exist
+                  if (variantValue.subVariants && Array.isArray(variantValue.subVariants)) {
+                    for (const subVariant of variantValue.subVariants) {
+                      const subAttribute = subVariant.attribute || '';
+                      if (subVariant.values && Array.isArray(subVariant.values)) {
+                        for (const subValue of subVariant.values) {
+                          const subValueStr = typeof subValue === 'string' ? subValue : subValue.value;
+                          if (!subValueStr) continue;
+
+                          const subDisplayLabel = `${displayLabel} → ${subAttribute}: ${subValueStr}`;
+                          const combinedKey = `${valueStr}|${subValueStr}`;
+
+                          const subStarting = 
+                            getCheckInQuantity(companyCheckIns, product.name, combinedKey, null, startDate) -
+                            getCheckOutQuantity(companyCheckOuts, product.name, combinedKey, null, startDate);
+
+                          const subCheckIns = getCheckInQuantity(companyCheckIns, product.name, combinedKey, startDate, endDate);
+                          const subCheckOuts = getCheckOutQuantity(companyCheckOuts, product.name, combinedKey, startDate, endDate);
+                          const subExpected = subStarting + subCheckIns - subCheckOuts;
+
+                          items.push({
+                            product_id: product.id,
+                            product_name: product.name,
+                            variant_value: subDisplayLabel,
+                            starting_quantity: subStarting,
+                            check_ins: subCheckIns,
+                            check_outs: subCheckOuts,
+                            expected_quantity: subExpected,
+                            actual_quantity: null,
+                            variance: null,
+                          });
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
