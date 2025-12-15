@@ -33,9 +33,9 @@ import {
   Mail, 
   MailOpen, 
   Plus,
-  AlertCircle,
   CheckCircle2,
-  Search
+  Search,
+  User
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -53,26 +53,32 @@ interface Message {
   message_type: string;
   created_at: string;
   read_at: string | null;
-  sender?: {
-    id: string;
-    full_name: string;
+  sender_profile?: {
+    full_name: string | null;
     email: string;
   };
-  recipient?: {
-    id: string;
-    full_name: string;
+  recipient_profile?: {
+    full_name: string | null;
     email: string;
   };
-  companies?: {
-    id: string;
+  company?: {
     name: string;
-    client_code: string;
+  };
+}
+
+interface ClientUser {
+  id: string;
+  full_name: string | null;
+  email: string;
+  company_id: string | null;
+  company?: {
+    name: string;
   };
 }
 
 export const Messages: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [clientUsers, setClientUsers] = useState<ClientUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -80,7 +86,6 @@ export const Messages: React.FC = () => {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // New message form state
   const [newMessage, setNewMessage] = useState({
     recipient_id: '',
     subject: '',
@@ -91,18 +96,72 @@ export const Messages: React.FC = () => {
 
   useEffect(() => {
     fetchMessages();
+    fetchClientUsers();
+    
+    // Set up real-time subscription
+    const channel = supabase
+      .channel('admin-messages')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'messages'
+        },
+        () => {
+          fetchMessages();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchMessages = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: messagesData, error } = await supabase
         .from('messages')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      setMessages(data as any || []);
+      if (!messagesData || messagesData.length === 0) {
+        setMessages([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get unique user IDs and company IDs
+      const userIds = [...new Set([
+        ...messagesData.map(m => m.sender_id).filter(Boolean),
+        ...messagesData.map(m => m.recipient_id).filter(Boolean)
+      ])];
+      const companyIds = [...new Set(messagesData.map(m => m.company_id).filter(Boolean))];
+
+      // Fetch profiles
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', userIds);
+
+      // Fetch companies
+      const { data: companies } = await supabase
+        .from('companies')
+        .select('id, name')
+        .in('id', companyIds);
+
+      // Map profiles and companies to messages
+      const enrichedMessages: Message[] = messagesData.map(msg => ({
+        ...msg,
+        sender_profile: profiles?.find(p => p.id === msg.sender_id),
+        recipient_profile: profiles?.find(p => p.id === msg.recipient_id),
+        company: companies?.find(c => c.id === msg.company_id)
+      }));
+
+      setMessages(enrichedMessages);
     } catch (error) {
       console.error('Error fetching messages:', error);
       toast({
@@ -115,13 +174,62 @@ export const Messages: React.FC = () => {
     }
   };
 
+  const fetchClientUsers = async () => {
+    try {
+      // Get all profiles with company_id (client users)
+      const { data: profilesData, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, company_id')
+        .not('company_id', 'is', null);
+
+      if (error) throw error;
+
+      if (!profilesData || profilesData.length === 0) {
+        setClientUsers([]);
+        return;
+      }
+
+      // Fetch companies
+      const companyIds = [...new Set(profilesData.map(p => p.company_id).filter(Boolean))];
+      const { data: companies } = await supabase
+        .from('companies')
+        .select('id, name')
+        .in('id', companyIds);
+
+      const enrichedUsers: ClientUser[] = profilesData.map(p => ({
+        ...p,
+        company: companies?.find(c => c.id === p.company_id)
+      }));
+
+      setClientUsers(enrichedUsers);
+    } catch (error) {
+      console.error('Error fetching client users:', error);
+    }
+  };
+
   const handleSendMessage = async () => {
+    if (!newMessage.recipient_id || !newMessage.subject || !newMessage.content) {
+      toast({
+        title: "Error",
+        description: "Please select a recipient and fill in subject and message",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const selectedRecipient = clientUsers.find(u => u.id === newMessage.recipient_id);
+
     try {
       const { error } = await supabase
         .from('messages')
         .insert([{
+          sender_id: user?.id,
+          recipient_id: newMessage.recipient_id,
+          company_id: selectedRecipient?.company_id,
           subject: newMessage.subject,
           content: newMessage.content,
+          priority: newMessage.priority as any,
+          message_type: newMessage.message_type as any,
           status: 'unread',
         }]);
 
@@ -169,12 +277,12 @@ export const Messages: React.FC = () => {
     }
   };
 
-  // Filter messages
   const filteredMessages = messages.filter(message => {
+    const senderName = message.sender_profile?.full_name || message.sender_profile?.email || '';
     const matchesSearch = 
       message.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
       message.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      message.sender?.full_name?.toLowerCase().includes(searchTerm.toLowerCase());
+      senderName.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus = 
       filterStatus === 'all' || message.status === filterStatus;
@@ -182,7 +290,6 @@ export const Messages: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
-  // Calculate metrics
   const unreadCount = messages.filter(m => m.status === 'unread' && m.recipient_id === user?.id).length;
   const sentCount = messages.filter(m => m.sender_id === user?.id).length;
   const receivedCount = messages.filter(m => m.recipient_id === user?.id).length;
@@ -204,8 +311,6 @@ export const Messages: React.FC = () => {
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case 'order':
-        return 'text-purple-600 bg-purple-50';
       case 'inventory':
         return 'text-green-600 bg-green-50';
       case 'billing':
@@ -217,14 +322,29 @@ export const Messages: React.FC = () => {
     }
   };
 
+  const getSenderDisplay = (message: Message) => {
+    if (message.sender_id === user?.id) {
+      return { name: 'You', company: '' };
+    }
+    const name = message.sender_profile?.full_name || message.sender_profile?.email || 'Unknown';
+    const company = message.company?.name || '';
+    return { name, company };
+  };
+
+  const getRecipientDisplay = (message: Message) => {
+    if (message.recipient_id === user?.id) {
+      return 'You';
+    }
+    return message.recipient_profile?.full_name || message.recipient_profile?.email || 'Unknown';
+  };
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Messages</h1>
           <p className="text-muted-foreground">
-            Communicate with clients and warehouse staff
+            Communicate with clients
           </p>
         </div>
         <Dialog open={showNewMessage} onOpenChange={setShowNewMessage}>
@@ -238,10 +358,43 @@ export const Messages: React.FC = () => {
             <DialogHeader>
               <DialogTitle>New Message</DialogTitle>
               <DialogDescription>
-                Send a message to a client or staff member
+                Send a message to a client
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Recipient</label>
+                <Select 
+                  value={newMessage.recipient_id} 
+                  onValueChange={(value) => setNewMessage({...newMessage, recipient_id: value})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a client user...">
+                      {newMessage.recipient_id && (
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          {clientUsers.find(u => u.id === newMessage.recipient_id)?.full_name || 
+                           clientUsers.find(u => u.id === newMessage.recipient_id)?.email}
+                        </div>
+                      )}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clientUsers.map((clientUser) => (
+                      <SelectItem key={clientUser.id} value={clientUser.id}>
+                        <div className="flex flex-col">
+                          <span>{clientUser.full_name || clientUser.email}</span>
+                          {clientUser.company && (
+                            <span className="text-xs text-muted-foreground">
+                              {clientUser.company.name}
+                            </span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium mb-2 block">Priority</label>
@@ -271,7 +424,6 @@ export const Messages: React.FC = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="general">General</SelectItem>
-                      <SelectItem value="order">Order</SelectItem>
                       <SelectItem value="inventory">Inventory</SelectItem>
                       <SelectItem value="billing">Billing</SelectItem>
                       <SelectItem value="support">Support</SelectItem>
@@ -300,7 +452,7 @@ export const Messages: React.FC = () => {
                 <Button variant="outline" onClick={() => setShowNewMessage(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleSendMessage}>
+                <Button onClick={handleSendMessage} disabled={!newMessage.recipient_id}>
                   <Send className="h-4 w-4 mr-2" />
                   Send Message
                 </Button>
@@ -310,7 +462,6 @@ export const Messages: React.FC = () => {
         </Dialog>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -319,9 +470,7 @@ export const Messages: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{unreadCount}</div>
-            <p className="text-xs text-muted-foreground">
-              New messages
-            </p>
+            <p className="text-xs text-muted-foreground">New messages</p>
           </CardContent>
         </Card>
         <Card>
@@ -331,9 +480,7 @@ export const Messages: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{sentCount}</div>
-            <p className="text-xs text-muted-foreground">
-              Messages sent
-            </p>
+            <p className="text-xs text-muted-foreground">Messages sent</p>
           </CardContent>
         </Card>
         <Card>
@@ -343,14 +490,11 @@ export const Messages: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{receivedCount}</div>
-            <p className="text-xs text-muted-foreground">
-              Total received
-            </p>
+            <p className="text-xs text-muted-foreground">Total received</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -373,7 +517,6 @@ export const Messages: React.FC = () => {
         </Select>
       </div>
 
-      {/* Messages Table */}
       <Card>
         <CardHeader>
           <CardTitle>Messages ({filteredMessages.length})</CardTitle>
@@ -399,6 +542,7 @@ export const Messages: React.FC = () => {
                   <TableRow>
                     <TableHead>Status</TableHead>
                     <TableHead>From</TableHead>
+                    <TableHead>To</TableHead>
                     <TableHead>Subject</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Priority</TableHead>
@@ -407,63 +551,71 @@ export const Messages: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredMessages.map((message) => (
-                    <TableRow 
-                      key={message.id}
-                      className={message.status === 'unread' ? 'bg-blue-50/50' : ''}
-                    >
-                      <TableCell>
-                        {message.status === 'unread' ? (
-                          <Mail className="h-4 w-4 text-blue-600" />
-                        ) : (
-                          <MailOpen className="h-4 w-4 text-gray-400" />
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">System</div>
-                          <div className="text-xs text-muted-foreground">-</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{message.subject}</div>
-                          <div className="text-sm text-muted-foreground truncate max-w-md">
-                            {message.content}
+                  {filteredMessages.map((message) => {
+                    const sender = getSenderDisplay(message);
+                    return (
+                      <TableRow 
+                        key={message.id}
+                        className={message.status === 'unread' && message.recipient_id === user?.id ? 'bg-blue-50/50' : ''}
+                      >
+                        <TableCell>
+                          {message.status === 'unread' ? (
+                            <Mail className="h-4 w-4 text-blue-600" />
+                          ) : (
+                            <MailOpen className="h-4 w-4 text-gray-400" />
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{sender.name}</div>
+                            {sender.company && (
+                              <div className="text-xs text-muted-foreground">{sender.company}</div>
+                            )}
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getTypeColor(message.message_type)}>
-                          {message.message_type}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getPriorityColor(message.priority)}>
-                          {message.priority}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          {new Date(message.created_at).toLocaleDateString()}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {new Date(message.created_at).toLocaleTimeString()}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {message.status === 'unread' && message.recipient_id === user?.id && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => markAsRead(message.id)}
-                          >
-                            <CheckCircle2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">{getRecipientDisplay(message)}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{message.subject}</div>
+                            <div className="text-sm text-muted-foreground truncate max-w-md">
+                              {message.content}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getTypeColor(message.message_type)}>
+                            {message.message_type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getPriorityColor(message.priority)}>
+                            {message.priority}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            {new Date(message.created_at).toLocaleDateString()}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {new Date(message.created_at).toLocaleTimeString()}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {message.status === 'unread' && message.recipient_id === user?.id && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => markAsRead(message.id)}
+                            >
+                              <CheckCircle2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
