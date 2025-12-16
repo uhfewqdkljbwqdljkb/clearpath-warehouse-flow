@@ -8,6 +8,8 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { IntegrationProvider } from "@/contexts/IntegrationContext";
 import { AdminLogin } from "@/components/AdminLogin";
 import { ClientLogin } from "@/components/ClientLogin";
+import { ClientForgotPassword } from "@/components/ClientForgotPassword";
+import { ClientResetPassword } from "@/components/ClientResetPassword";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { ClientLayout } from "@/components/ClientLayout";
 import { Dashboard } from "@/components/Dashboard";
@@ -153,6 +155,8 @@ const App = () => {
 
               {/* Client login route */}
               <Route path="/client/login" element={<ClientLogin />} />
+              <Route path="/client/forgot-password" element={<ClientForgotPassword />} />
+              <Route path="/client/reset-password" element={<ClientResetPassword />} />
               
               {/* Client routes - protected */}
               <Route path="/client" element={

@@ -80,6 +80,15 @@ export const ClientLogin: React.FC = () => {
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? 'Signing In...' : 'Sign In'}
             </Button>
+
+            <div className="text-center">
+              <Link 
+                to="/client/forgot-password" 
+                className="text-sm text-muted-foreground hover:text-primary"
+              >
+                Forgot your password?
+              </Link>
+            </div>
           </form>
         </CardContent>
 
