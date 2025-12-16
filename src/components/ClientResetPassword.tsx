@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -6,9 +6,46 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Lock, AlertCircle, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+import { Lock, AlertCircle, Eye, EyeOff, CheckCircle2, Check, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import clearpathLogo from '@/assets/clearpath-logo-client.png';
+import { cn } from '@/lib/utils';
+
+const getPasswordStrength = (password: string) => {
+  let score = 0;
+  const checks = {
+    length: password.length >= 8,
+    lowercase: /[a-z]/.test(password),
+    uppercase: /[A-Z]/.test(password),
+    number: /[0-9]/.test(password),
+    special: /[^A-Za-z0-9]/.test(password),
+  };
+
+  if (checks.length) score++;
+  if (checks.lowercase) score++;
+  if (checks.uppercase) score++;
+  if (checks.number) score++;
+  if (checks.special) score++;
+
+  let label = 'Very Weak';
+  let color = 'bg-red-500';
+  
+  if (score >= 5) {
+    label = 'Very Strong';
+    color = 'bg-green-500';
+  } else if (score >= 4) {
+    label = 'Strong';
+    color = 'bg-green-400';
+  } else if (score >= 3) {
+    label = 'Medium';
+    color = 'bg-yellow-500';
+  } else if (score >= 2) {
+    label = 'Weak';
+    color = 'bg-orange-500';
+  }
+
+  return { score, label, color, checks };
+};
 
 export const ClientResetPassword: React.FC = () => {
   const [password, setPassword] = useState('');
@@ -22,6 +59,8 @@ export const ClientResetPassword: React.FC = () => {
   const [checkingSession, setCheckingSession] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const passwordStrength = useMemo(() => getPasswordStrength(password), [password]);
 
   useEffect(() => {
     // Check if user has a valid recovery session
@@ -43,8 +82,13 @@ export const ClientResetPassword: React.FC = () => {
     e.preventDefault();
     setError('');
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long');
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters long');
+      return;
+    }
+
+    if (passwordStrength.score < 3) {
+      setError('Please choose a stronger password');
       return;
     }
 
@@ -145,7 +189,7 @@ export const ClientResetPassword: React.FC = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10 pr-10"
                     required
-                    minLength={6}
+                    minLength={8}
                   />
                   <button
                     type="button"
@@ -155,6 +199,53 @@ export const ClientResetPassword: React.FC = () => {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+
+                {/* Password Strength Indicator */}
+                {password && (
+                  <div className="space-y-3 pt-2">
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Password strength</span>
+                        <span className={cn(
+                          "font-medium",
+                          passwordStrength.score >= 4 ? "text-green-600" : 
+                          passwordStrength.score >= 3 ? "text-yellow-600" : "text-red-600"
+                        )}>
+                          {passwordStrength.label}
+                        </span>
+                      </div>
+                      <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                        <div 
+                          className={cn("h-full transition-all duration-300", passwordStrength.color)}
+                          style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-1 text-xs">
+                      <div className={cn("flex items-center gap-1", passwordStrength.checks.length ? "text-green-600" : "text-muted-foreground")}>
+                        {passwordStrength.checks.length ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                        8+ characters
+                      </div>
+                      <div className={cn("flex items-center gap-1", passwordStrength.checks.uppercase ? "text-green-600" : "text-muted-foreground")}>
+                        {passwordStrength.checks.uppercase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                        Uppercase
+                      </div>
+                      <div className={cn("flex items-center gap-1", passwordStrength.checks.lowercase ? "text-green-600" : "text-muted-foreground")}>
+                        {passwordStrength.checks.lowercase ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                        Lowercase
+                      </div>
+                      <div className={cn("flex items-center gap-1", passwordStrength.checks.number ? "text-green-600" : "text-muted-foreground")}>
+                        {passwordStrength.checks.number ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                        Number
+                      </div>
+                      <div className={cn("flex items-center gap-1", passwordStrength.checks.special ? "text-green-600" : "text-muted-foreground")}>
+                        {passwordStrength.checks.special ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                        Special char
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -169,7 +260,7 @@ export const ClientResetPassword: React.FC = () => {
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className="pl-10 pr-10"
                     required
-                    minLength={6}
+                    minLength={8}
                   />
                   <button
                     type="button"
