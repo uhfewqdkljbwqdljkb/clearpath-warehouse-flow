@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, Plus, Package, MoreVertical, X, Upload, PackageOpen } from 'lucide-react';
+import { Search, Plus, Package, MoreVertical, X, Upload, PackageOpen, RefreshCw } from 'lucide-react';
 import { ProductImportDialog } from '@/components/ProductImportDialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
@@ -28,6 +28,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Variant, calculateNestedVariantQuantity, getVariantBreakdown, hasNestedVariants } from '@/types/variants';
 import { VariantQuantityDisplay } from '@/components/VariantQuantityDisplay';
+import { ReassignProductDialog } from '@/components/ReassignProductDialog';
 
 interface Product {
   id: string;
@@ -60,7 +61,8 @@ export const ClientProducts: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
-  const [companyInfo, setCompanyInfo] = useState<{ name: string; client_code: string } | null>(null);
+  const [companyInfo, setCompanyInfo] = useState<{ name: string; client_code: string; client_type: string } | null>(null);
+  const [showReassignDialog, setShowReassignDialog] = useState(false);
 
   useEffect(() => {
     if (profile?.company_id) {
@@ -79,7 +81,7 @@ export const ClientProducts: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('companies')
-        .select('name, client_code')
+        .select('name, client_code, client_type')
         .eq('id', profile.company_id)
         .single();
 
@@ -346,6 +348,12 @@ export const ClientProducts: React.FC = () => {
           <p className="text-muted-foreground">View your product catalog and manage check-in/check-out requests</p>
         </div>
         <div className="flex gap-2">
+          {companyInfo?.client_type === 'b2b' && (
+            <Button variant="outline" onClick={() => setShowReassignDialog(true)}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Reassign Products
+            </Button>
+          )}
           <Button variant="outline" onClick={() => navigate('/client/check-out')}>
             <PackageOpen className="h-4 w-4 mr-2" />
             Check Out Products
@@ -713,6 +721,16 @@ export const ClientProducts: React.FC = () => {
           clientName={companyInfo.name}
           clientCode={companyInfo.client_code || ''}
           onImportComplete={fetchProducts}
+        />
+      )}
+
+      {/* Reassign Products Dialog (B2B only) */}
+      {profile?.company_id && companyInfo?.client_type === 'b2b' && (
+        <ReassignProductDialog
+          open={showReassignDialog}
+          onOpenChange={setShowReassignDialog}
+          companyId={profile.company_id}
+          onReassignComplete={fetchProducts}
         />
       )}
     </div>
