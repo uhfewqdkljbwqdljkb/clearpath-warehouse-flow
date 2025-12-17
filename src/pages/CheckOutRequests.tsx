@@ -112,6 +112,83 @@ export const CheckOutRequests: React.FC = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
+      // Deduct inventory for each requested item
+      const items = Array.isArray(request.requested_items) ? request.requested_items : [];
+      
+      for (const item of items) {
+        const productId = item.product_id;
+        const quantityToDeduct = item.quantity || 0;
+        
+        if (!productId || quantityToDeduct <= 0) continue;
+        
+        // Check if it's a variant-level item
+        if (item.variant_attribute && item.variant_value) {
+          // Find inventory item with matching variant
+          const { data: existingInventory } = await supabase
+            .from('inventory_items')
+            .select('id, quantity')
+            .eq('product_id', productId)
+            .eq('company_id', request.company_id)
+            .eq('variant_attribute', item.variant_attribute)
+            .eq('variant_value', item.variant_value)
+            .maybeSingle();
+          
+          if (existingInventory) {
+            const newQuantity = Math.max(0, existingInventory.quantity - quantityToDeduct);
+            await supabase
+              .from('inventory_items')
+              .update({ 
+                quantity: newQuantity,
+                last_updated: new Date().toISOString()
+              })
+              .eq('id', existingInventory.id);
+          }
+        } else {
+          // Find base inventory item (no variant)
+          const { data: existingInventory } = await supabase
+            .from('inventory_items')
+            .select('id, quantity')
+            .eq('product_id', productId)
+            .eq('company_id', request.company_id)
+            .is('variant_attribute', null)
+            .is('variant_value', null)
+            .maybeSingle();
+          
+          if (existingInventory) {
+            const newQuantity = Math.max(0, existingInventory.quantity - quantityToDeduct);
+            await supabase
+              .from('inventory_items')
+              .update({ 
+                quantity: newQuantity,
+                last_updated: new Date().toISOString()
+              })
+              .eq('id', existingInventory.id);
+          } else {
+            // Fallback: try to find any inventory item for this product and deduct from it
+            const { data: anyInventory } = await supabase
+              .from('inventory_items')
+              .select('id, quantity')
+              .eq('product_id', productId)
+              .eq('company_id', request.company_id)
+              .order('quantity', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            
+            if (anyInventory) {
+              const newQuantity = Math.max(0, anyInventory.quantity - quantityToDeduct);
+              await supabase
+                .from('inventory_items')
+                .update({ 
+                  quantity: newQuantity,
+                  last_updated: new Date().toISOString()
+                })
+                .eq('id', anyInventory.id);
+            }
+          }
+        }
+      }
+      
+      // Update request status
       const { error } = await supabase
         .from('check_out_requests')
         .update({
@@ -125,7 +202,7 @@ export const CheckOutRequests: React.FC = () => {
 
       toast({
         title: "Success",
-        description: "Check-out request approved",
+        description: "Check-out request approved and inventory updated",
       });
 
       fetchRequests();
