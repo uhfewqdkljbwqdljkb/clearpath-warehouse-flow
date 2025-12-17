@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { ClientSidebar } from './ClientSidebar';
 import { ClientHeader } from './ClientHeader';
 import { AdminClientPortalBridge } from './AdminClientPortalBridge';
+import { ErrorBoundary } from './ErrorBoundary';
 
 export const ClientLayout: React.FC = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -19,7 +20,9 @@ export const ClientLayout: React.FC = () => {
         
         <main className="flex-1 overflow-auto p-6 bg-muted/50">
           <AdminClientPortalBridge />
-          <Outlet />
+          <ErrorBoundary componentName="Client Content" fallbackRoute="/client">
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
     </div>

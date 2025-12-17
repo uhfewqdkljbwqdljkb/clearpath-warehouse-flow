@@ -135,37 +135,51 @@ export const ClientCheckIn: React.FC = () => {
   };
 
   const handleExistingProductsSelected = async (newProducts: ProductEntry[]) => {
-    // For B2B, fetch existing supplier/customer assignments for existing products
-    if (isB2B && newProducts.length > 0) {
-      const productIds = newProducts
-        .filter(p => p.existingProductId)
-        .map(p => p.existingProductId);
-      
-      if (productIds.length > 0) {
-        const { data: existingProducts } = await supabase
-          .from('client_products')
-          .select('id, supplier_id, customer_id')
-          .in('id', productIds);
+    try {
+      // For B2B, fetch existing supplier/customer assignments for existing products
+      if (isB2B && newProducts && newProducts.length > 0) {
+        const productIds = newProducts
+          .filter(p => p?.existingProductId)
+          .map(p => p.existingProductId);
         
-        const enrichedProducts = newProducts.map(p => {
-          if (p.existingProductId) {
-            const existing = existingProducts?.find(ep => ep.id === p.existingProductId);
-            if (existing) {
-              return {
-                ...p,
-                supplierId: existing.supplier_id || '',
-                customerId: existing.customer_id || '',
-              };
-            }
+        if (productIds.length > 0) {
+          const { data: existingProducts, error } = await supabase
+            .from('client_products')
+            .select('id, supplier_id, customer_id')
+            .in('id', productIds);
+          
+          if (error) {
+            console.error('Error fetching existing products:', error);
+            throw error;
           }
-          return p;
-        });
-        
-        setProducts([...products, ...enrichedProducts]);
-        return;
+          
+          const enrichedProducts = newProducts.map(p => {
+            if (p?.existingProductId) {
+              const existing = existingProducts?.find(ep => ep.id === p.existingProductId);
+              if (existing) {
+                return {
+                  ...p,
+                  supplierId: existing.supplier_id || '',
+                  customerId: existing.customer_id || '',
+                };
+              }
+            }
+            return p;
+          });
+          
+          setProducts([...products, ...enrichedProducts]);
+          return;
+        }
       }
+      setProducts([...products, ...(newProducts || [])]);
+    } catch (error) {
+      console.error('Error processing existing products:', error);
+      toast({
+        title: "Error",
+        description: "Failed to process selected products. Please try again.",
+        variant: "destructive",
+      });
     }
-    setProducts([...products, ...newProducts]);
   };
 
   const handleSubmit = async () => {
