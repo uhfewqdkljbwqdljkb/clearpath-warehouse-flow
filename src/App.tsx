@@ -119,78 +119,76 @@ const RootRedirect = () => {
 
 const App = () => {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <IntegrationProvider>
-          <TooltipProvider>
-            <RealTimeNotifications />
-            <BrowserRouter>
-            <Routes>
-              {/* Login route - unprotected */}
-              <Route path="/dashboard/login" element={<LoginRoute />} />
-              
-              {/* Dashboard routes - protected */}
-              <Route path="/dashboard" element={
-                <ProtectedRoute requiredRole="admin">
-                  <DashboardLayout />
-                </ProtectedRoute>
-              }>
-                <Route index element={<Dashboard />} />
-                <Route path="warehouse" element={<Warehouse />} />
-                <Route path="messages" element={<Messages />} />
-                <Route path="users" element={<Users />} />
-                <Route path="clients" element={
-                  <ErrorBoundary componentName="Clients">
-                    <Clients />
-                  </ErrorBoundary>
-                } />
-                <Route path="clients/:clientId/products" element={<Products />} />
-                <Route path="products" element={<Products />} />
-                <Route path="check-in-requests" element={<CheckInRequests />} />
-                <Route path="check-out-requests" element={<CheckOutRequests />} />
-                <Route path="ship-products" element={<ShipProducts />} />
-                <Route path="jarde" element={<Jarde />} />
-                <Route path="ai-assistant" element={<AIAssistant />} />
-              </Route>
+    <ErrorBoundary componentName="Application" fallbackRoute="/">
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <IntegrationProvider>
+            <TooltipProvider>
+              <RealTimeNotifications />
+              <BrowserRouter>
+              <Routes>
+                {/* Login route - unprotected */}
+                <Route path="/dashboard/login" element={<LoginRoute />} />
+                
+                {/* Dashboard routes - protected */}
+                <Route path="/dashboard" element={
+                  <ProtectedRoute requiredRole="admin">
+                    <DashboardLayout />
+                  </ProtectedRoute>
+                }>
+                  <Route index element={<Dashboard />} />
+                  <Route path="warehouse" element={<Warehouse />} />
+                  <Route path="messages" element={<Messages />} />
+                  <Route path="users" element={<Users />} />
+                  <Route path="clients" element={<Clients />} />
+                  <Route path="clients/:clientId/products" element={<Products />} />
+                  <Route path="products" element={<Products />} />
+                  <Route path="check-in-requests" element={<CheckInRequests />} />
+                  <Route path="check-out-requests" element={<CheckOutRequests />} />
+                  <Route path="ship-products" element={<ShipProducts />} />
+                  <Route path="jarde" element={<Jarde />} />
+                  <Route path="ai-assistant" element={<AIAssistant />} />
+                </Route>
 
-              {/* Client login route */}
-              <Route path="/client/login" element={<ClientLogin />} />
-              <Route path="/client/forgot-password" element={<ClientForgotPassword />} />
-              <Route path="/client/reset-password" element={<ClientResetPassword />} />
-              
-              {/* Client routes - protected */}
-              <Route path="/client" element={
-                <ProtectedRoute requiredRole="client">
-                  <ClientLayout />
-                </ProtectedRoute>
-              }>
-              <Route index element={<ClientDashboard />} />
-                <Route path="products" element={<ClientProducts />} />
-                <Route path="check-in" element={<ClientCheckIn />} />
-                <Route path="check-out" element={<ClientCheckOut />} />
-                <Route path="requests" element={<ClientRequests />} />
-                <Route path="orders" element={<ClientOrders />} />
-              <Route path="analytics" element={<ClientAnalytics />} />
-              <Route path="messages" element={<ClientMessages />} />
-              <Route path="profile" element={<ClientProfile />} />
-              <Route path="ai-assistant" element={<ClientAIAssistant />} />
-              <Route path="suppliers" element={<ClientSuppliers />} />
-              <Route path="customers" element={<ClientCustomers />} />
-              </Route>
-              
-              {/* Redirect root to appropriate dashboard */}
-              <Route path="/" element={<RootRedirect />} />
-              
-              {/* Redirect all other routes to appropriate login */}
-              <Route path="*" element={<RootRedirect />} />
-            </Routes>
-          </BrowserRouter>
-          <Toaster />
-          <Sonner />
-        </TooltipProvider>
-        </IntegrationProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+                {/* Client login route */}
+                <Route path="/client/login" element={<ClientLogin />} />
+                <Route path="/client/forgot-password" element={<ClientForgotPassword />} />
+                <Route path="/client/reset-password" element={<ClientResetPassword />} />
+                
+                {/* Client routes - protected */}
+                <Route path="/client" element={
+                  <ProtectedRoute requiredRole="client">
+                    <ClientLayout />
+                  </ProtectedRoute>
+                }>
+                <Route index element={<ClientDashboard />} />
+                  <Route path="products" element={<ClientProducts />} />
+                  <Route path="check-in" element={<ClientCheckIn />} />
+                  <Route path="check-out" element={<ClientCheckOut />} />
+                  <Route path="requests" element={<ClientRequests />} />
+                  <Route path="orders" element={<ClientOrders />} />
+                <Route path="analytics" element={<ClientAnalytics />} />
+                <Route path="messages" element={<ClientMessages />} />
+                <Route path="profile" element={<ClientProfile />} />
+                <Route path="ai-assistant" element={<ClientAIAssistant />} />
+                <Route path="suppliers" element={<ClientSuppliers />} />
+                <Route path="customers" element={<ClientCustomers />} />
+                </Route>
+                
+                {/* Redirect root to appropriate dashboard */}
+                <Route path="/" element={<RootRedirect />} />
+                
+                {/* Redirect all other routes to appropriate login */}
+                <Route path="*" element={<RootRedirect />} />
+              </Routes>
+            </BrowserRouter>
+            <Toaster />
+            <Sonner />
+          </TooltipProvider>
+          </IntegrationProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 };
 
