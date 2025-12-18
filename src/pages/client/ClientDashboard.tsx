@@ -39,12 +39,14 @@ export const ClientDashboard: React.FC = () => {
     if (!profile?.company_id) return;
 
     try {
-      // Fetch total products
-      const { count: productsCount } = await supabase
+      // Fetch total products with value
+      const { data: productsData, error: productsError } = await supabase
         .from('client_products')
-        .select('*', { count: 'exact', head: true })
+        .select('id, minimum_quantity, variants, value')
         .eq('company_id', profile.company_id)
         .eq('is_active', true);
+
+      if (productsError) throw productsError;
 
       // Fetch inventory items
       const { data: inventoryData } = await supabase
@@ -64,18 +66,20 @@ export const ClientDashboard: React.FC = () => {
         }
       });
 
-      // Fetch products with minimum_quantity to calculate low stock alerts
-      const { data: productsData } = await supabase
-        .from('client_products')
-        .select('id, minimum_quantity, variants')
-        .eq('company_id', profile.company_id)
-        .eq('is_active', true);
-
-      // Calculate low stock alerts
+      // Calculate low stock alerts and total inventory value
       let lowStockCount = 0;
+      let totalInventoryValue = 0;
+      
       productsData?.forEach((product) => {
+        const currentStock = inventoryByProduct[product.id] || 0;
+        
+        // Calculate value for this product
+        if (product.value && product.value > 0) {
+          totalInventoryValue += product.value * currentStock;
+        }
+        
+        // Check low stock
         if (product.minimum_quantity && product.minimum_quantity > 0) {
-          const currentStock = inventoryByProduct[product.id] || 0;
           if (currentStock <= product.minimum_quantity) {
             lowStockCount++;
           }
@@ -90,10 +94,10 @@ export const ClientDashboard: React.FC = () => {
         .in('status', ['pending', 'processing']);
 
       setMetrics({
-        totalProducts: productsCount || 0,
+        totalProducts: productsData?.length || 0,
         totalInventory,
         pendingOrders: pendingCount || 0,
-        totalValue: 0, // Calculate based on your business logic
+        totalValue: totalInventoryValue,
         lowStockAlerts: lowStockCount,
       });
     } catch (error) {
