@@ -181,10 +181,11 @@ export const CheckInRequests: React.FC = () => {
           .eq('product_id', productId)
           .eq('company_id', request.company_id)
           .is('location_id', null)
+          .is('variant_attribute', null)
           .maybeSingle();
 
         if (existingInventory) {
-          // Update existing inventory
+          // Update existing inventory by ADDING to current quantity
           const { error: updateError } = await supabase
             .from('inventory_items')
             .update({ 
@@ -195,13 +196,26 @@ export const CheckInRequests: React.FC = () => {
 
           if (updateError) throw updateError;
         } else {
-          // Create new inventory item
+          // No inventory_items record exists - check if product has existing variant quantities
+          const { data: existingProduct } = await supabase
+            .from('client_products')
+            .select('variants')
+            .eq('id', productId)
+            .single();
+          
+          // Calculate existing quantity from product variants (if any)
+          let existingVariantQuantity = 0;
+          if (existingProduct?.variants && Array.isArray(existingProduct.variants) && existingProduct.variants.length > 0) {
+            existingVariantQuantity = calculateNestedVariantQuantity(existingProduct.variants as unknown as Variant[]);
+          }
+          
+          // Create new inventory item with existing + new quantity
           const { error: insertError } = await supabase
             .from('inventory_items')
             .insert({
               product_id: productId,
               company_id: request.company_id,
-              quantity: totalQuantity,
+              quantity: existingVariantQuantity + totalQuantity,
               received_date: new Date().toISOString()
             });
 
@@ -477,10 +491,11 @@ export const CheckInRequests: React.FC = () => {
           .eq('product_id', productId)
           .eq('company_id', selectedRequest.company_id)
           .is('location_id', null)
+          .is('variant_attribute', null)
           .maybeSingle();
 
         if (existingInventory) {
-          // Update existing inventory
+          // Update existing inventory by ADDING to current quantity
           const { error: updateError } = await supabase
             .from('inventory_items')
             .update({ 
@@ -491,13 +506,26 @@ export const CheckInRequests: React.FC = () => {
 
           if (updateError) throw updateError;
         } else {
-          // Create new inventory item
+          // No inventory_items record exists - check if product has existing variant quantities
+          const { data: existingProductData } = await supabase
+            .from('client_products')
+            .select('variants')
+            .eq('id', productId)
+            .single();
+          
+          // Calculate existing quantity from product variants (if any)
+          let existingVariantQuantity = 0;
+          if (existingProductData?.variants && Array.isArray(existingProductData.variants) && existingProductData.variants.length > 0) {
+            existingVariantQuantity = calculateNestedVariantQuantity(existingProductData.variants as unknown as Variant[]);
+          }
+          
+          // Create new inventory item with existing + new quantity
           const { error: insertError } = await supabase
             .from('inventory_items')
             .insert({
               product_id: productId,
               company_id: selectedRequest.company_id,
-              quantity: totalQuantity,
+              quantity: existingVariantQuantity + totalQuantity,
               received_date: new Date().toISOString()
             });
 
