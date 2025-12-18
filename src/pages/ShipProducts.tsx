@@ -122,6 +122,90 @@ export const ShipProducts: React.FC = () => {
     }
   }, [selectedCompanyId]);
 
+  // Real-time subscriptions for inventory updates
+  useEffect(() => {
+    if (!selectedCompanyId) return;
+
+    // Subscribe to client_products changes (variants are source of truth)
+    const productsChannel = supabase
+      .channel(`products-${selectedCompanyId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'client_products',
+          filter: `company_id=eq.${selectedCompanyId}`
+        },
+        () => {
+          console.log('Real-time: client_products changed, refetching...');
+          fetchProducts();
+        }
+      )
+      .subscribe();
+
+    // Subscribe to inventory_items changes (for products without variants)
+    const inventoryChannel = supabase
+      .channel(`inventory-${selectedCompanyId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'inventory_items',
+          filter: `company_id=eq.${selectedCompanyId}`
+        },
+        () => {
+          console.log('Real-time: inventory_items changed, refetching...');
+          fetchProducts();
+        }
+      )
+      .subscribe();
+
+    // Subscribe to check_in_requests changes (approvals affect inventory)
+    const checkInChannel = supabase
+      .channel(`checkin-${selectedCompanyId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'check_in_requests',
+          filter: `company_id=eq.${selectedCompanyId}`
+        },
+        () => {
+          console.log('Real-time: check_in_requests updated, refetching...');
+          fetchProducts();
+        }
+      )
+      .subscribe();
+
+    // Subscribe to check_out_requests changes (approvals affect inventory)
+    const checkOutChannel = supabase
+      .channel(`checkout-${selectedCompanyId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'check_out_requests',
+          filter: `company_id=eq.${selectedCompanyId}`
+        },
+        () => {
+          console.log('Real-time: check_out_requests updated, refetching...');
+          fetchProducts();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(productsChannel);
+      supabase.removeChannel(inventoryChannel);
+      supabase.removeChannel(checkInChannel);
+      supabase.removeChannel(checkOutChannel);
+    };
+  }, [selectedCompanyId]);
+
   const fetchCompanies = async () => {
     const { data, error } = await supabase
       .from('companies')
