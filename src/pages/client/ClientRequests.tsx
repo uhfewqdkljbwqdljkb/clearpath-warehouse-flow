@@ -269,17 +269,30 @@ export const ClientRequests: React.FC = () => {
     setSelectedCheckOutRequest(request);
     
     const normalizeItemForDisplay = (item: any) => {
-      if (!item.variant_attribute) return item;
+      const variant_attribute =
+        item.variant_attribute ??
+        item.variantAttribute ??
+        item.variant ??
+        (Array.isArray(item.variants) ? item.variants?.[0]?.attribute : undefined);
+
+      const variant_value =
+        item.variant_value ??
+        item.variantValue ??
+        (Array.isArray(item.variants) ? item.variants?.[0]?.value : undefined);
+
       return {
         ...item,
-        variants: item.variant_attribute ? [{ attribute: item.variant_attribute, value: item.variant_value, quantity: item.quantity }] : [],
+        variant_attribute,
+        variant_value,
       };
     };
     
     const items = request.requested_items;
     if (Array.isArray(items) && items.length > 0) {
-      // Check-out items use product_id (snake_case)
-      const productIds = items.map((i: any) => i.product_id).filter(Boolean);
+      // Check-out items may come from older/newer payload shapes
+      const productIds = items
+        .map((i: any) => i.product_id ?? i.productId)
+        .filter(Boolean);
       if (productIds.length > 0) {
         const { data } = await supabase
           .from('client_products')
@@ -288,10 +301,12 @@ export const ClientRequests: React.FC = () => {
         
         if (data) {
           const enrichedItems = items.map((item: any) => {
-            const productInfo = data.find(d => d.id === item.product_id);
+            const pid = item.product_id ?? item.productId;
+            const productInfo = data.find(d => d.id === pid);
             return normalizeItemForDisplay({
               ...item,
-              productName: productInfo?.name || item.product_name || 'Unknown Product',
+              productName:
+                productInfo?.name || item.product_name || item.productName || item.name || 'Unknown Product',
               sku: productInfo?.sku,
             });
           });
@@ -816,16 +831,31 @@ export const ClientRequests: React.FC = () => {
                           <Badge variant="secondary">Qty: {item.quantity}</Badge>
                         </div>
                         
-                        {item.variant_attribute && (
-                          <div className="pl-4 border-l-2 border-border space-y-1">
-                            <p className="text-xs font-semibold text-muted-foreground">Variant:</p>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">
-                                {item.variant_attribute}: <span className="font-medium text-foreground">{item.variant_value}</span>
-                              </span>
+                        {(() => {
+                          const attribute =
+                            item.variant_attribute ??
+                            item.variantAttribute ??
+                            item.variant ??
+                            (Array.isArray(item.variants) ? item.variants?.[0]?.attribute : undefined);
+                          const value =
+                            item.variant_value ??
+                            item.variantValue ??
+                            (Array.isArray(item.variants) ? item.variants?.[0]?.value : undefined);
+
+                          if (!value) return null;
+                          const label = attribute || 'Variant';
+
+                          return (
+                            <div className="pl-4 border-l-2 border-border space-y-1">
+                              <p className="text-xs font-semibold text-muted-foreground">Variant:</p>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">
+                                  {label}: <span className="font-medium text-foreground">{value}</span>
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
                       </div>
                     </CardContent>
                   </Card>
