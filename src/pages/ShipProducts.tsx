@@ -285,18 +285,28 @@ const fetchProducts = async () => {
 
         if (itemError) throw itemError;
 
-        // Reduce inventory quantity
-        const { data: inventoryItems, error: fetchError } = await supabase
+        // Reduce inventory quantity - prioritize variant-level inventory if specified
+        let query = supabase
           .from('inventory_items')
-          .select('id, quantity')
+          .select('id, quantity, variant_attribute, variant_value')
           .eq('product_id', item.product_id)
           .eq('company_id', selectedCompanyId)
-          .gt('quantity', 0)
-          .order('received_date', { ascending: true });
+          .gt('quantity', 0);
+
+        // If variant is specified, try to deduct from variant-level inventory first
+        if (item.variant_attribute && item.variant_value) {
+          query = query
+            .eq('variant_attribute', item.variant_attribute)
+            .eq('variant_value', item.variant_value);
+        }
+
+        const { data: inventoryItems, error: fetchError } = await query.order('received_date', { ascending: true });
 
         if (fetchError) throw fetchError;
 
         let remainingToShip = item.quantity;
+        
+        // First, deduct from matching inventory items
         for (const invItem of inventoryItems || []) {
           if (remainingToShip <= 0) break;
 
@@ -306,7 +316,7 @@ const fetchProducts = async () => {
           if (newQuantity > 0) {
             await supabase
               .from('inventory_items')
-              .update({ quantity: newQuantity })
+              .update({ quantity: newQuantity, last_updated: new Date().toISOString() })
               .eq('id', invItem.id);
           } else {
             await supabase
@@ -316,6 +326,39 @@ const fetchProducts = async () => {
           }
 
           remainingToShip -= deductAmount;
+        }
+
+        // If we still have remaining to ship and had a variant filter, try base inventory
+        if (remainingToShip > 0 && item.variant_attribute && item.variant_value) {
+          const { data: baseInventory } = await supabase
+            .from('inventory_items')
+            .select('id, quantity')
+            .eq('product_id', item.product_id)
+            .eq('company_id', selectedCompanyId)
+            .is('variant_attribute', null)
+            .gt('quantity', 0)
+            .order('received_date', { ascending: true });
+
+          for (const invItem of baseInventory || []) {
+            if (remainingToShip <= 0) break;
+
+            const deductAmount = Math.min(invItem.quantity, remainingToShip);
+            const newQuantity = invItem.quantity - deductAmount;
+
+            if (newQuantity > 0) {
+              await supabase
+                .from('inventory_items')
+                .update({ quantity: newQuantity, last_updated: new Date().toISOString() })
+                .eq('id', invItem.id);
+            } else {
+              await supabase
+                .from('inventory_items')
+                .delete()
+                .eq('id', invItem.id);
+            }
+
+            remainingToShip -= deductAmount;
+          }
         }
       }
 
