@@ -66,11 +66,19 @@ interface CheckOutItem {
   customer_name?: string;
 }
 
+interface InventoryItem {
+  product_id: string;
+  quantity: number;
+  variant_attribute: string | null;
+  variant_value: string | null;
+}
+
 export const ClientCheckOut: React.FC = () => {
   const navigate = useNavigate();
   const { profile, company } = useAuth();
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [itemDrafts, setItemDrafts] = useState<CheckOutItemDraft[]>([]);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -85,6 +93,7 @@ export const ClientCheckOut: React.FC = () => {
   useEffect(() => {
     if (profile?.company_id) {
       fetchProducts();
+      fetchInventory();
       if (isB2B) {
         fetchCustomers();
       }
@@ -106,6 +115,22 @@ export const ClientCheckOut: React.FC = () => {
       setCustomers(data || []);
     } catch (error) {
       console.error('Error fetching customers:', error);
+    }
+  };
+
+  const fetchInventory = async () => {
+    if (!profile?.company_id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('inventory_items')
+        .select('product_id, quantity, variant_attribute, variant_value')
+        .eq('company_id', profile.company_id);
+
+      if (error) throw error;
+      setInventory(data || []);
+    } catch (error) {
+      console.error('Error fetching inventory:', error);
     }
   };
 
@@ -132,6 +157,42 @@ export const ClientCheckOut: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Get available quantity for a product (base level - no variant)
+  const getProductAvailableQuantity = (productId: string): number => {
+    // First check for base inventory (no variant)
+    const baseInventory = inventory.find(
+      i => i.product_id === productId && !i.variant_attribute && !i.variant_value
+    );
+    if (baseInventory) return baseInventory.quantity;
+
+    // Sum all variant inventory for this product
+    const variantTotal = inventory
+      .filter(i => i.product_id === productId)
+      .reduce((sum, i) => sum + i.quantity, 0);
+    return variantTotal;
+  };
+
+  // Get available quantity for a specific variant
+  const getVariantAvailableQuantity = (
+    productId: string, 
+    variantAttr: string, 
+    variantVal: string
+  ): number => {
+    // First try to find exact variant match
+    const variantInventory = inventory.find(
+      i => i.product_id === productId && 
+           i.variant_attribute === variantAttr && 
+           i.variant_value === variantVal
+    );
+    if (variantInventory) return variantInventory.quantity;
+
+    // Fall back to base inventory divided equally (or just show base)
+    const baseInventory = inventory.find(
+      i => i.product_id === productId && !i.variant_attribute && !i.variant_value
+    );
+    return baseInventory?.quantity || 0;
   };
 
   const addItemDraft = () => {
@@ -529,10 +590,16 @@ export const ClientCheckOut: React.FC = () => {
 
                     {draft.product_id && !hasVariants && (
                       <div className="space-y-2">
-                        <Label>Quantity *</Label>
+                        <div className="flex items-center justify-between">
+                          <Label>Quantity *</Label>
+                          <span className="text-xs text-muted-foreground">
+                            Available: <span className="font-medium text-foreground">{getProductAvailableQuantity(draft.product_id)}</span>
+                          </span>
+                        </div>
                         <Input
                           type="number"
                           min="1"
+                          max={getProductAvailableQuantity(draft.product_id)}
                           placeholder="Enter quantity"
                           value={draft.noVariantQuantity || ''}
                           onChange={(e) => updateNoVariantQuantity(itemIndex, parseInt(e.target.value) || 0)}
@@ -572,6 +639,10 @@ export const ClientCheckOut: React.FC = () => {
                                       >
                                         {val.value}
                                       </label>
+                                      
+                                      <span className="text-xs text-muted-foreground px-2 py-0.5 bg-muted rounded">
+                                        {getVariantAvailableQuantity(draft.product_id, variant.attribute, val.value)} available
+                                      </span>
                                       
                                       {isSelected && !hasSubVariants && (
                                         <Input
