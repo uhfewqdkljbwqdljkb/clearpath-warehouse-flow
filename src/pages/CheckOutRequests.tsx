@@ -116,18 +116,27 @@ export const CheckOutRequests: React.FC = () => {
     subVariantVal?: string,
     quantityToDeduct: number = 0
   ): any[] => {
-    if (!variants || !Array.isArray(variants)) return [];
+    if (!variants || !Array.isArray(variants)) {
+      console.log('deductFromVariants: variants is empty or not array', variants);
+      return [];
+    }
 
     const norm = (v: any) => String(v ?? '').trim();
     const normAttr = (v: any) => norm(v).toLowerCase();
 
+    console.log(`deductFromVariants: Looking for attr="${variantAttr}" val="${variantVal}" subAttr="${subVariantAttr}" subVal="${subVariantVal}" qty=${quantityToDeduct}`);
+
     return variants.map((variant) => {
-      if (normAttr(variant.attribute) !== normAttr(variantAttr)) return variant;
+      const attrMatch = normAttr(variant.attribute) === normAttr(variantAttr);
+      console.log(`  Checking variant attr="${variant.attribute}" vs "${variantAttr}" -> match=${attrMatch}`);
+      if (!attrMatch) return variant;
 
       return {
         ...variant,
         values: variant.values?.map((val: any) => {
-          if (norm(val.value) !== norm(variantVal)) return val;
+          const valMatch = norm(val.value) === norm(variantVal);
+          console.log(`    Checking value="${val.value}" vs "${variantVal}" -> match=${valMatch}, current qty=${val.quantity}`);
+          if (!valMatch) return val;
 
           // If we have sub-variants to deduct from
           if (subVariantAttr && subVariantVal && val.subVariants && val.subVariants.length > 0) {
@@ -151,9 +160,11 @@ export const CheckOutRequests: React.FC = () => {
           }
 
           // No sub-variants, deduct from this variant value directly
+          const newQty = Math.max(0, (val.quantity || 0) - quantityToDeduct);
+          console.log(`    DEDUCTING: ${val.quantity} - ${quantityToDeduct} = ${newQty}`);
           return {
             ...val,
-            quantity: Math.max(0, (val.quantity || 0) - quantityToDeduct),
+            quantity: newQty,
           };
         }),
       };
