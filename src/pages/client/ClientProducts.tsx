@@ -59,6 +59,45 @@ const VariantValuesDisplay: React.FC<{ values: any[]; depth: number }> = ({ valu
     </div>
   );
 };
+
+// Helper to merge variants coming from check-ins into a product's configured variants
+// - merges by attribute/value (case-insensitive)
+// - accumulates quantities (matching admin approval behavior)
+const mergeVariants = (existingVariants: any[], newVariants: any[]): any[] => {
+  if (!newVariants || newVariants.length === 0) return existingVariants || [];
+  if (!existingVariants || existingVariants.length === 0) return newVariants;
+
+  const merged = JSON.parse(JSON.stringify(existingVariants));
+
+  for (const newVariant of newVariants) {
+    const existingVariant = merged.find(
+      (v: any) => v.attribute?.toLowerCase().trim() === newVariant.attribute?.toLowerCase().trim()
+    );
+
+    if (existingVariant) {
+      for (const newValue of newVariant.values || []) {
+        const existingValue = existingVariant.values?.find(
+          (v: any) => v.value?.toLowerCase().trim() === newValue.value?.toLowerCase().trim()
+        );
+
+        if (existingValue) {
+          existingValue.quantity = (existingValue.quantity || 0) + (newValue.quantity || 0);
+          if (newValue.subVariants && newValue.subVariants.length > 0) {
+            existingValue.subVariants = mergeVariants(existingValue.subVariants || [], newValue.subVariants);
+          }
+        } else {
+          existingVariant.values = existingVariant.values || [];
+          existingVariant.values.push(JSON.parse(JSON.stringify(newValue)));
+        }
+      }
+    } else {
+      merged.push(JSON.parse(JSON.stringify(newVariant)));
+    }
+  }
+
+  return merged;
+};
+
 interface Product {
   id: string;
   name: string;
