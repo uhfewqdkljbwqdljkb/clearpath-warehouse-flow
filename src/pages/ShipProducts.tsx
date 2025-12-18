@@ -298,6 +298,56 @@ export const ShipProducts: React.FC = () => {
     setShipmentItems(shipmentItems.filter((_, i) => i !== index));
   };
 
+  // Keep client_products.variants in sync with shipments (Client Products page uses variants as source of truth)
+  const parseShipmentVariant = (variantAttr?: string, variantPath?: string) => {
+    const norm = (v: any) => String(v ?? '').trim();
+
+    const rawAttr = norm(variantAttr);
+    const rawPath = norm(variantPath);
+
+    // Example variantPath formats we store in shipment_items/inventory_items:
+    // - "Size: Large"
+    // - "Size: Large → Color / Red"
+    // We only store a single (attribute, value) pair in shipment_items, so we treat the FIRST pair as the selected variant.
+    const firstSegment = rawPath ? rawPath.split('→')[0].trim() : '';
+
+    const attrFromPath = firstSegment.includes(':') ? firstSegment.split(':')[0].trim() : '';
+    const valueFromPath = firstSegment.includes(':') ? firstSegment.split(':').slice(1).join(':').trim() : '';
+
+    return {
+      attr: rawAttr || attrFromPath,
+      // IMPORTANT: client_products.variants stores value WITHOUT the "Attr: " prefix
+      value: valueFromPath || (rawPath && !rawPath.includes(':') ? rawPath : ''),
+    };
+  };
+
+  const deductFromVariants = (
+    variants: any[],
+    variantAttr: string,
+    variantVal: string,
+    quantityToDeduct: number
+  ): any[] => {
+    if (!variants || !Array.isArray(variants)) return [];
+
+    const norm = (v: any) => String(v ?? '').trim();
+    const normAttr = (v: any) => norm(v).toLowerCase();
+
+    return variants.map((variant) => {
+      if (normAttr(variant.attribute) !== normAttr(variantAttr)) return variant;
+
+      return {
+        ...variant,
+        values: variant.values?.map((val: any) => {
+          if (norm(val.value) !== norm(variantVal)) return val;
+          return {
+            ...val,
+            quantity: Math.max(0, (val.quantity || 0) - quantityToDeduct),
+          };
+        }),
+      };
+    });
+  };
+
   const createShipment = async () => {
     if (!selectedCompanyId || shipmentItems.length === 0 || !destinationAddress) {
       toast({
