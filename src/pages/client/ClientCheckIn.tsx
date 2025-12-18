@@ -29,6 +29,7 @@ interface ProductEntry {
   supplierId?: string; // B2B: assigned supplier
   customerId?: string; // B2B: designated customer
   minimumQuantity?: number; // Minimum recommended stock level
+  value?: number; // Dollar value assigned to the product
 }
 
 export const ClientCheckIn: React.FC = () => {
@@ -99,6 +100,7 @@ export const ClientCheckIn: React.FC = () => {
       supplierId: '',
       customerId: '',
       minimumQuantity: 0,
+      value: 0,
     }]);
   };
 
@@ -450,18 +452,33 @@ export const ClientCheckIn: React.FC = () => {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label>Minimum Stock Level</Label>
+                    <Label>Product Value ($)</Label>
                     <Input
                       type="number"
                       min="0"
-                      placeholder="Set low stock alert threshold"
-                      value={product.minimumQuantity || ''}
-                      onChange={(e) => updateProduct(productIndex, 'minimumQuantity', parseInt(e.target.value) || 0)}
+                      step="0.01"
+                      placeholder="Enter dollar value"
+                      value={product.value || ''}
+                      onChange={(e) => updateProduct(productIndex, 'value', parseFloat(e.target.value) || 0)}
                     />
                     <p className="text-xs text-muted-foreground">
-                      You'll be alerted when stock falls below this level
+                      Assign a dollar value to this product
                     </p>
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Minimum Stock Level</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    placeholder="Set low stock alert threshold"
+                    value={product.minimumQuantity || ''}
+                    onChange={(e) => updateProduct(productIndex, 'minimumQuantity', parseInt(e.target.value) || 0)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    You'll be alerted when stock falls below this level
+                  </p>
                 </div>
 
                 <NestedVariantEditor

@@ -149,6 +149,7 @@ interface Product {
   is_active: boolean;
   created_at: string;
   minimum_quantity?: number;
+  value?: number;
 }
 
 interface InventoryData {
@@ -181,6 +182,7 @@ export const ClientProducts: React.FC = () => {
   const [variants, setVariants] = useState<Variant[]>([]);
   const [quantity, setQuantity] = useState(0);
   const [minimumQuantity, setMinimumQuantity] = useState(0);
+  const [productValue, setProductValue] = useState(0);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
@@ -190,6 +192,8 @@ export const ClientProducts: React.FC = () => {
   const [isSavingMinQuantity, setIsSavingMinQuantity] = useState(false);
   const [editVariants, setEditVariants] = useState<any[]>([]);
   const [isSavingVariants, setIsSavingVariants] = useState(false);
+  const [editValue, setEditValue] = useState<number>(0);
+  const [isSavingValue, setIsSavingValue] = useState(false);
 
   useEffect(() => {
     if (profile?.company_id) {
@@ -451,6 +455,7 @@ export const ClientProducts: React.FC = () => {
           is_active: isActive,
           variants: variants as any,
           minimum_quantity: minimumQuantity,
+          value: productValue || null,
         }]);
 
       if (error) throw error;
@@ -485,6 +490,7 @@ export const ClientProducts: React.FC = () => {
     setVariants([]);
     setQuantity(0);
     setMinimumQuantity(0);
+    setProductValue(0);
   };
 
   const handleViewDetails = async (product: Product) => {
@@ -562,6 +568,7 @@ export const ClientProducts: React.FC = () => {
 
     setSelectedProduct(nextProduct);
     setEditMinQuantity(nextProduct.minimum_quantity || 0);
+    setEditValue(nextProduct.value || 0);
     setEditVariants(nextProduct.variants && Array.isArray(nextProduct.variants) ? JSON.parse(JSON.stringify(nextProduct.variants)) : []);
     setIsViewDialogOpen(true);
   };
@@ -627,6 +634,38 @@ export const ClientProducts: React.FC = () => {
       });
     } finally {
       setIsSavingMinQuantity(false);
+    }
+  };
+
+  const handleSaveValue = async () => {
+    if (!selectedProduct) return;
+    
+    setIsSavingValue(true);
+    try {
+      const { error } = await supabase
+        .from('client_products')
+        .update({ value: editValue || null })
+        .eq('id', selectedProduct.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Product value updated successfully",
+      });
+
+      // Update local state
+      setSelectedProduct({ ...selectedProduct, value: editValue });
+      fetchProducts();
+    } catch (error) {
+      console.error('Error updating product value:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update product value",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingValue(false);
     }
   };
 
@@ -874,6 +913,24 @@ export const ClientProducts: React.FC = () => {
               </p>
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="productValue">
+                Product Value ($)
+              </Label>
+              <Input
+                id="productValue"
+                type="number"
+                min="0"
+                step="0.01"
+                value={productValue || ''}
+                onChange={(e) => setProductValue(parseFloat(e.target.value) || 0)}
+                placeholder="Enter dollar value"
+              />
+              <p className="text-xs text-muted-foreground">
+                Assign a dollar value to this product
+              </p>
+            </div>
+
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label>Variants</Label>
@@ -1047,6 +1104,31 @@ export const ClientProducts: React.FC = () => {
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
                   You'll be notified when stock falls below this level
+                </p>
+              </div>
+
+              <div className="border rounded-lg p-4 bg-muted/30">
+                <Label className="text-muted-foreground">Product Value ($)</Label>
+                <div className="flex items-center gap-3 mt-2">
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={editValue || ''}
+                    onChange={(e) => setEditValue(parseFloat(e.target.value) || 0)}
+                    className="w-32"
+                    placeholder="0.00"
+                  />
+                  <Button 
+                    size="sm" 
+                    onClick={handleSaveValue}
+                    disabled={isSavingValue || editValue === (selectedProduct.value || 0)}
+                  >
+                    {isSavingValue ? 'Saving...' : 'Save'}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Dollar value assigned to this product
                 </p>
               </div>
 
