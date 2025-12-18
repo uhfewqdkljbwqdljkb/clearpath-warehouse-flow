@@ -7,8 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Package, Plus, X } from 'lucide-react';
+import { ArrowLeft, Package, Plus, X, ChevronDown, ChevronRight } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -16,6 +17,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 
 interface Product {
   id: string;
@@ -26,6 +32,28 @@ interface Product {
   customer_id?: string | null;
 }
 
+interface VariantSelection {
+  attribute: string;
+  value: string;
+  quantity: number;
+  subVariants?: SubVariantSelection[];
+}
+
+interface SubVariantSelection {
+  attribute: string;
+  value: string;
+  quantity: number;
+}
+
+interface CheckOutItemDraft {
+  product_id: string;
+  product_name: string;
+  customer_id?: string;
+  customer_name?: string;
+  selectedVariants: VariantSelection[];
+  noVariantQuantity: number; // For products without variants
+}
+
 interface CheckOutItem {
   product_id: string;
   product_name: string;
@@ -34,7 +62,7 @@ interface CheckOutItem {
   sub_variant_attribute?: string;
   sub_variant_value?: string;
   quantity: number;
-  customer_id?: string; // Auto-assigned from product's designated customer
+  customer_id?: string;
   customer_name?: string;
 }
 
@@ -43,10 +71,11 @@ export const ClientCheckOut: React.FC = () => {
   const { profile, company } = useAuth();
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
-  const [checkOutItems, setCheckOutItems] = useState<CheckOutItem[]>([]);
+  const [itemDrafts, setItemDrafts] = useState<CheckOutItemDraft[]>([]);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [expandedVariants, setExpandedVariants] = useState<Record<string, boolean>>({});
   
   // B2B-specific state
   const [customers, setCustomers] = useState<any[]>([]);
@@ -105,47 +134,40 @@ export const ClientCheckOut: React.FC = () => {
     }
   };
 
-  const addCheckOutItem = () => {
-    setCheckOutItems([
-      ...checkOutItems,
+  const addItemDraft = () => {
+    setItemDrafts([
+      ...itemDrafts,
       {
         product_id: '',
         product_name: '',
-        quantity: 0,
+        selectedVariants: [],
+        noVariantQuantity: 0,
       },
     ]);
   };
 
-  const removeCheckOutItem = (index: number) => {
-    setCheckOutItems(checkOutItems.filter((_, i) => i !== index));
+  const removeItemDraft = (index: number) => {
+    setItemDrafts(itemDrafts.filter((_, i) => i !== index));
   };
 
-  const updateCheckOutItem = (index: number, field: string, value: any) => {
-    const updated = [...checkOutItems];
-    
-    if (field === 'product_id') {
-      const product = products.find(p => p.id === value);
-      if (product) {
-        // Auto-assign customer from product's designated customer for B2B
-        const customer = isB2B && product.customer_id 
-          ? customers.find(c => c.id === product.customer_id) 
-          : null;
-        
-        updated[index] = {
-          ...updated[index],
-          product_id: value,
-          product_name: product.name,
-          variant_attribute: undefined,
-          variant_value: undefined,
-          customer_id: product.customer_id || undefined,
-          customer_name: customer?.customer_name || undefined,
-        };
-      }
-    } else {
-      updated[index] = { ...updated[index], [field]: value };
-    }
-    
-    setCheckOutItems(updated);
+  const updateItemProduct = (index: number, productId: string) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    const customer = isB2B && product.customer_id 
+      ? customers.find(c => c.id === product.customer_id) 
+      : null;
+
+    const updated = [...itemDrafts];
+    updated[index] = {
+      product_id: productId,
+      product_name: product.name,
+      customer_id: product.customer_id || undefined,
+      customer_name: customer?.customer_name || undefined,
+      selectedVariants: [],
+      noVariantQuantity: 0,
+    };
+    setItemDrafts(updated);
   };
 
   const getProductVariants = (productId: string) => {
@@ -154,24 +176,207 @@ export const ClientCheckOut: React.FC = () => {
     return product.variants;
   };
 
+  const toggleVariantSelection = (
+    itemIndex: number, 
+    variantAttr: string, 
+    variantVal: string
+  ) => {
+    const updated = [...itemDrafts];
+    const draft = updated[itemIndex];
+    const existingIndex = draft.selectedVariants.findIndex(
+      sv => sv.attribute === variantAttr && sv.value === variantVal
+    );
+
+    if (existingIndex >= 0) {
+      // Remove variant
+      draft.selectedVariants.splice(existingIndex, 1);
+    } else {
+      // Add variant
+      draft.selectedVariants.push({
+        attribute: variantAttr,
+        value: variantVal,
+        quantity: 0,
+        subVariants: [],
+      });
+    }
+    setItemDrafts(updated);
+  };
+
+  const updateVariantQuantity = (
+    itemIndex: number,
+    variantAttr: string,
+    variantVal: string,
+    quantity: number
+  ) => {
+    const updated = [...itemDrafts];
+    const draft = updated[itemIndex];
+    const variant = draft.selectedVariants.find(
+      sv => sv.attribute === variantAttr && sv.value === variantVal
+    );
+    if (variant) {
+      variant.quantity = quantity;
+    }
+    setItemDrafts(updated);
+  };
+
+  const toggleSubVariantSelection = (
+    itemIndex: number,
+    variantAttr: string,
+    variantVal: string,
+    subAttr: string,
+    subVal: string
+  ) => {
+    const updated = [...itemDrafts];
+    const draft = updated[itemIndex];
+    const variant = draft.selectedVariants.find(
+      sv => sv.attribute === variantAttr && sv.value === variantVal
+    );
+    
+    if (!variant) return;
+    
+    if (!variant.subVariants) {
+      variant.subVariants = [];
+    }
+    
+    const existingIndex = variant.subVariants.findIndex(
+      sub => sub.attribute === subAttr && sub.value === subVal
+    );
+
+    if (existingIndex >= 0) {
+      variant.subVariants.splice(existingIndex, 1);
+    } else {
+      variant.subVariants.push({
+        attribute: subAttr,
+        value: subVal,
+        quantity: 0,
+      });
+    }
+    setItemDrafts(updated);
+  };
+
+  const updateSubVariantQuantity = (
+    itemIndex: number,
+    variantAttr: string,
+    variantVal: string,
+    subAttr: string,
+    subVal: string,
+    quantity: number
+  ) => {
+    const updated = [...itemDrafts];
+    const draft = updated[itemIndex];
+    const variant = draft.selectedVariants.find(
+      sv => sv.attribute === variantAttr && sv.value === variantVal
+    );
+    if (!variant || !variant.subVariants) return;
+    
+    const subVariant = variant.subVariants.find(
+      sub => sub.attribute === subAttr && sub.value === subVal
+    );
+    if (subVariant) {
+      subVariant.quantity = quantity;
+    }
+    setItemDrafts(updated);
+  };
+
+  const updateNoVariantQuantity = (index: number, quantity: number) => {
+    const updated = [...itemDrafts];
+    updated[index].noVariantQuantity = quantity;
+    setItemDrafts(updated);
+  };
+
+  const isVariantSelected = (itemIndex: number, variantAttr: string, variantVal: string) => {
+    return itemDrafts[itemIndex].selectedVariants.some(
+      sv => sv.attribute === variantAttr && sv.value === variantVal
+    );
+  };
+
+  const isSubVariantSelected = (
+    itemIndex: number, 
+    variantAttr: string, 
+    variantVal: string, 
+    subAttr: string, 
+    subVal: string
+  ) => {
+    const variant = itemDrafts[itemIndex].selectedVariants.find(
+      sv => sv.attribute === variantAttr && sv.value === variantVal
+    );
+    return variant?.subVariants?.some(
+      sub => sub.attribute === subAttr && sub.value === subVal
+    ) || false;
+  };
+
+  const getSelectedVariantData = (itemIndex: number, variantAttr: string, variantVal: string) => {
+    return itemDrafts[itemIndex].selectedVariants.find(
+      sv => sv.attribute === variantAttr && sv.value === variantVal
+    );
+  };
+
+  // Convert draft items to final checkout items
+  const buildCheckOutItems = (): CheckOutItem[] => {
+    const items: CheckOutItem[] = [];
+
+    for (const draft of itemDrafts) {
+      if (!draft.product_id) continue;
+
+      const variants = getProductVariants(draft.product_id);
+      
+      if (variants.length === 0) {
+        // No variants - use noVariantQuantity
+        if (draft.noVariantQuantity > 0) {
+          items.push({
+            product_id: draft.product_id,
+            product_name: draft.product_name,
+            quantity: draft.noVariantQuantity,
+            customer_id: draft.customer_id,
+            customer_name: draft.customer_name,
+          });
+        }
+      } else {
+        // Has variants - process selected variants
+        for (const sv of draft.selectedVariants) {
+          if (sv.subVariants && sv.subVariants.length > 0) {
+            // Has sub-variants selected
+            for (const sub of sv.subVariants) {
+              if (sub.quantity > 0) {
+                items.push({
+                  product_id: draft.product_id,
+                  product_name: draft.product_name,
+                  variant_attribute: sv.attribute,
+                  variant_value: sv.value,
+                  sub_variant_attribute: sub.attribute,
+                  sub_variant_value: sub.value,
+                  quantity: sub.quantity,
+                  customer_id: draft.customer_id,
+                  customer_name: draft.customer_name,
+                });
+              }
+            }
+          } else if (sv.quantity > 0) {
+            // No sub-variants, use variant quantity
+            items.push({
+              product_id: draft.product_id,
+              product_name: draft.product_name,
+              variant_attribute: sv.attribute,
+              variant_value: sv.value,
+              quantity: sv.quantity,
+              customer_id: draft.customer_id,
+              customer_name: draft.customer_name,
+            });
+          }
+        }
+      }
+    }
+
+    return items;
+  };
+
   const handleSubmit = async () => {
+    const checkOutItems = buildCheckOutItems();
+
     if (checkOutItems.length === 0) {
       toast({
         title: "Error",
-        description: "Please add at least one item to check out",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const hasInvalidItems = checkOutItems.some(
-      item => !item.product_id || item.quantity <= 0
-    );
-
-    if (hasInvalidItems) {
-      toast({
-        title: "Error",
-        description: "Please fill in all required fields and ensure quantities are greater than 0",
+        description: "Please add at least one item with quantity greater than 0",
         variant: "destructive",
       });
       return;
@@ -181,13 +386,11 @@ export const ClientCheckOut: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      // Generate request number
       const { data: requestNumber, error: fnError } = await supabase
         .rpc('generate_check_out_request_number');
 
       if (fnError) throw fnError;
 
-      // Create check-out request
       const requestData: any = {
         company_id: profile.company_id,
         request_number: requestNumber,
@@ -223,6 +426,10 @@ export const ClientCheckOut: React.FC = () => {
     }
   };
 
+  const toggleVariantExpanded = (key: string) => {
+    setExpandedVariants(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
   if (isLoading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
   }
@@ -244,7 +451,7 @@ export const ClientCheckOut: React.FC = () => {
       <Card>
         <CardHeader>
           <CardTitle>Select Products</CardTitle>
-          <CardDescription>Choose products and quantities to check out</CardDescription>
+          <CardDescription>Choose products and variants to check out. You can select multiple variants per product.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {isB2B && (
@@ -264,166 +471,218 @@ export const ClientCheckOut: React.FC = () => {
             </div>
           )}
           
-          <Button onClick={addCheckOutItem}>
+          <Button onClick={addItemDraft}>
             <Plus className="h-4 w-4 mr-2" />
             Add Item
           </Button>
 
-          {checkOutItems.length === 0 ? (
+          {itemDrafts.length === 0 ? (
             <div className="text-center py-12">
               <Package className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
               <p className="text-muted-foreground">No items added yet. Click "Add Item" to get started.</p>
             </div>
           ) : (
-            checkOutItems.map((item, index) => (
-              <Card key={index} className="border-2">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                  <CardTitle className="text-base">Item {index + 1}</CardTitle>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeCheckOutItem(index)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Product *</Label>
-                    <Select
-                      value={item.product_id}
-                      onValueChange={(value) => updateCheckOutItem(index, 'product_id', value)}
+            itemDrafts.map((draft, itemIndex) => {
+              const variants = getProductVariants(draft.product_id);
+              const hasVariants = variants.length > 0;
+
+              return (
+                <Card key={itemIndex} className="border-2">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                    <CardTitle className="text-base">Item {itemIndex + 1}</CardTitle>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeItemDraft(itemIndex)}
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a product" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {products.map((product) => (
-                          <SelectItem key={product.id} value={product.id}>
-                            {product.name} {product.sku && `(${product.sku})`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Show designated customer for B2B products */}
-                  {isB2B && item.product_id && (
-                    <div className="p-2 bg-muted/30 rounded border">
-                      <Label className="text-xs text-muted-foreground">Ships to Customer</Label>
-                      <p className="text-sm font-medium">
-                        {item.customer_name || 'No customer assigned'}
-                      </p>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Product *</Label>
+                      <Select
+                        value={draft.product_id}
+                        onValueChange={(value) => updateItemProduct(itemIndex, value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a product" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {products.map((product) => (
+                            <SelectItem key={product.id} value={product.id}>
+                              {product.name} {product.sku && `(${product.sku})`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                  )}
 
-                  {item.product_id && getProductVariants(item.product_id).length > 0 && (
-                    <div className="space-y-4">
-                      {/* Primary Variant Selection */}
-                      <div className="space-y-2">
-                        <Label>Variant</Label>
-                        <Select
-                          value={item.variant_value || ''}
-                          onValueChange={(value) => {
-                            const variants = getProductVariants(item.product_id);
-                            const selectedVariant = variants.find((v: any) =>
-                              v.values?.some((val: any) => val.value === value)
-                            );
-                            if (selectedVariant) {
-                              const updated = [...checkOutItems];
-                              updated[index] = {
-                                ...updated[index],
-                                variant_attribute: selectedVariant.attribute,
-                                variant_value: value,
-                                sub_variant_attribute: undefined,
-                                sub_variant_value: undefined,
-                              };
-                              setCheckOutItems(updated);
-                            }
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a variant" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {getProductVariants(item.product_id).map((variant: any) =>
-                              variant.values?.map((val: any) => (
-                                <SelectItem key={`${variant.attribute}-${val.value}`} value={val.value}>
-                                  {variant.attribute}: {val.value}
-                                </SelectItem>
-                              ))
-                            )}
-                          </SelectContent>
-                        </Select>
+                    {isB2B && draft.product_id && (
+                      <div className="p-2 bg-muted/30 rounded border">
+                        <Label className="text-xs text-muted-foreground">Ships to Customer</Label>
+                        <p className="text-sm font-medium">
+                          {draft.customer_name || 'No customer assigned'}
+                        </p>
                       </div>
+                    )}
 
-                      {/* Sub-Variant Selection - shows if selected variant has subVariants */}
-                      {item.variant_value && (() => {
-                        const variants = getProductVariants(item.product_id);
-                        const selectedVariant = variants.find((v: any) =>
-                          v.values?.some((val: any) => val.value === item.variant_value)
-                        );
-                        const selectedValue = selectedVariant?.values?.find(
-                          (val: any) => val.value === item.variant_value
-                        );
-                        const subVariants = selectedValue?.subVariants || [];
+                    {draft.product_id && !hasVariants && (
+                      <div className="space-y-2">
+                        <Label>Quantity *</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          placeholder="Enter quantity"
+                          value={draft.noVariantQuantity || ''}
+                          onChange={(e) => updateNoVariantQuantity(itemIndex, parseInt(e.target.value) || 0)}
+                        />
+                      </div>
+                    )}
+
+                    {draft.product_id && hasVariants && (
+                      <div className="space-y-3">
+                        <Label>Select Variants to Check Out</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Check the variants you want to include and enter quantities for each.
+                        </p>
                         
-                        if (subVariants.length === 0) return null;
-                        
-                        return (
-                          <div className="space-y-2">
-                            <Label>Sub-Variant</Label>
-                            <Select
-                              value={item.sub_variant_value || ''}
-                              onValueChange={(value) => {
-                                const subVariant = subVariants.find((sv: any) =>
-                                  sv.values?.some((val: any) => val.value === value)
+                        <div className="space-y-2 border rounded-lg p-3 bg-muted/20">
+                          {variants.map((variant: any) => (
+                            <div key={variant.attribute} className="space-y-2">
+                              <p className="text-sm font-medium text-muted-foreground">{variant.attribute}</p>
+                              {variant.values?.map((val: any) => {
+                                const isSelected = isVariantSelected(itemIndex, variant.attribute, val.value);
+                                const selectedData = getSelectedVariantData(itemIndex, variant.attribute, val.value);
+                                const hasSubVariants = val.subVariants && val.subVariants.length > 0;
+                                const variantKey = `${itemIndex}-${variant.attribute}-${val.value}`;
+                                const isExpanded = expandedVariants[variantKey];
+
+                                return (
+                                  <div key={val.value} className="ml-2">
+                                    <div className="flex items-center gap-3 py-2 px-3 rounded-md hover:bg-muted/50">
+                                      <Checkbox
+                                        id={`variant-${itemIndex}-${variant.attribute}-${val.value}`}
+                                        checked={isSelected}
+                                        onCheckedChange={() => toggleVariantSelection(itemIndex, variant.attribute, val.value)}
+                                      />
+                                      <label
+                                        htmlFor={`variant-${itemIndex}-${variant.attribute}-${val.value}`}
+                                        className="flex-1 text-sm cursor-pointer"
+                                      >
+                                        {val.value}
+                                      </label>
+                                      
+                                      {isSelected && !hasSubVariants && (
+                                        <Input
+                                          type="number"
+                                          min="1"
+                                          placeholder="Qty"
+                                          className="w-24 h-8"
+                                          value={selectedData?.quantity || ''}
+                                          onClick={(e) => e.stopPropagation()}
+                                          onChange={(e) => updateVariantQuantity(
+                                            itemIndex, 
+                                            variant.attribute, 
+                                            val.value, 
+                                            parseInt(e.target.value) || 0
+                                          )}
+                                        />
+                                      )}
+
+                                      {isSelected && hasSubVariants && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => toggleVariantExpanded(variantKey)}
+                                        >
+                                          {isExpanded ? (
+                                            <ChevronDown className="h-4 w-4" />
+                                          ) : (
+                                            <ChevronRight className="h-4 w-4" />
+                                          )}
+                                        </Button>
+                                      )}
+                                    </div>
+
+                                    {/* Sub-variants */}
+                                    {isSelected && hasSubVariants && isExpanded && (
+                                      <div className="ml-8 mt-2 space-y-1 border-l-2 border-muted pl-4">
+                                        {val.subVariants.map((subVar: any) => (
+                                          <div key={subVar.attribute} className="space-y-1">
+                                            <p className="text-xs font-medium text-muted-foreground">{subVar.attribute}</p>
+                                            {subVar.values?.map((subVal: any) => {
+                                              const isSubSelected = isSubVariantSelected(
+                                                itemIndex, 
+                                                variant.attribute, 
+                                                val.value, 
+                                                subVar.attribute, 
+                                                subVal.value
+                                              );
+                                              const subData = selectedData?.subVariants?.find(
+                                                s => s.attribute === subVar.attribute && s.value === subVal.value
+                                              );
+
+                                              return (
+                                                <div 
+                                                  key={subVal.value} 
+                                                  className="flex items-center gap-3 py-1 px-2 rounded hover:bg-muted/30"
+                                                >
+                                                  <Checkbox
+                                                    id={`sub-${itemIndex}-${variant.attribute}-${val.value}-${subVar.attribute}-${subVal.value}`}
+                                                    checked={isSubSelected}
+                                                    onCheckedChange={() => toggleSubVariantSelection(
+                                                      itemIndex,
+                                                      variant.attribute,
+                                                      val.value,
+                                                      subVar.attribute,
+                                                      subVal.value
+                                                    )}
+                                                  />
+                                                  <label
+                                                    htmlFor={`sub-${itemIndex}-${variant.attribute}-${val.value}-${subVar.attribute}-${subVal.value}`}
+                                                    className="flex-1 text-sm cursor-pointer"
+                                                  >
+                                                    {subVal.value}
+                                                  </label>
+                                                  
+                                                  {isSubSelected && (
+                                                    <Input
+                                                      type="number"
+                                                      min="1"
+                                                      placeholder="Qty"
+                                                      className="w-24 h-8"
+                                                      value={subData?.quantity || ''}
+                                                      onClick={(e) => e.stopPropagation()}
+                                                      onChange={(e) => updateSubVariantQuantity(
+                                                        itemIndex,
+                                                        variant.attribute,
+                                                        val.value,
+                                                        subVar.attribute,
+                                                        subVal.value,
+                                                        parseInt(e.target.value) || 0
+                                                      )}
+                                                    />
+                                                  )}
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
                                 );
-                                if (subVariant) {
-                                  const updated = [...checkOutItems];
-                                  updated[index] = {
-                                    ...updated[index],
-                                    sub_variant_attribute: subVariant.attribute,
-                                    sub_variant_value: value,
-                                  };
-                                  setCheckOutItems(updated);
-                                }
-                              }}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a sub-variant" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {subVariants.map((subVariant: any) =>
-                                  subVariant.values?.map((val: any) => (
-                                    <SelectItem key={`${subVariant.attribute}-${val.value}`} value={val.value}>
-                                      {subVariant.attribute}: {val.value}
-                                    </SelectItem>
-                                  ))
-                                )}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <Label>Quantity *</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      placeholder="Enter quantity"
-                      value={item.quantity || ''}
-                      onChange={(e) =>
-                        updateCheckOutItem(index, 'quantity', parseInt(e.target.value) || 0)
-                      }
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                              })}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })
           )}
 
           <div className="space-y-2">
