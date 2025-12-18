@@ -269,16 +269,17 @@ export const ClientRequests: React.FC = () => {
     setSelectedCheckOutRequest(request);
     
     const normalizeItemForDisplay = (item: any) => {
-      if (!item.variant) return item;
+      if (!item.variant_attribute) return item;
       return {
         ...item,
-        variants: item.variant ? [{ attribute: item.variant, value: item.variantValue, quantity: item.quantity }] : [],
+        variants: item.variant_attribute ? [{ attribute: item.variant_attribute, value: item.variant_value, quantity: item.quantity }] : [],
       };
     };
     
     const items = request.requested_items;
     if (Array.isArray(items) && items.length > 0) {
-      const productIds = items.map((i: any) => i.productId).filter(Boolean);
+      // Check-out items use product_id (snake_case)
+      const productIds = items.map((i: any) => i.product_id).filter(Boolean);
       if (productIds.length > 0) {
         const { data } = await supabase
           .from('client_products')
@@ -287,17 +288,17 @@ export const ClientRequests: React.FC = () => {
         
         if (data) {
           const enrichedItems = items.map((item: any) => {
-            const productInfo = data.find(d => d.id === item.productId);
+            const productInfo = data.find(d => d.id === item.product_id);
             return normalizeItemForDisplay({
               ...item,
-              productName: productInfo?.name || item.name || 'Unknown Product',
+              productName: productInfo?.name || item.product_name || 'Unknown Product',
               sku: productInfo?.sku,
             });
           });
           setCheckOutItemDetails(enrichedItems);
         }
       } else {
-        setCheckOutItemDetails(items.map((i: any) => normalizeItemForDisplay({ ...i, productName: i.name || 'Unknown Product' })));
+        setCheckOutItemDetails(items.map((i: any) => normalizeItemForDisplay({ ...i, productName: i.product_name || 'Unknown Product' })));
       }
     } else {
       setCheckOutItemDetails([]);
