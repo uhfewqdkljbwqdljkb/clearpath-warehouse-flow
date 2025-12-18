@@ -103,8 +103,8 @@ const VariantValuesDisplay: React.FC<{
 };
 
 // Helper to merge variants coming from check-ins into a product's configured variants
-// - merges by attribute/value (case-insensitive)
-// - idempotent: never double-counts on repeated syncs (uses max quantity)
+// - ONLY adds new variant structures (attribute/value combinations that don't exist)
+// - NEVER overwrites or changes existing quantities to prevent undoing deductions
 const mergeVariants = (existingVariants: any[], newVariants: any[]): any[] => {
   if (!newVariants || newVariants.length === 0) return existingVariants || [];
   if (!existingVariants || existingVariants.length === 0) return newVariants;
@@ -123,17 +123,20 @@ const mergeVariants = (existingVariants: any[], newVariants: any[]): any[] => {
         );
 
         if (existingValue) {
-          // Use max so opening the dialog repeatedly doesn't inflate quantities
-          existingValue.quantity = Math.max(existingValue.quantity || 0, newValue.quantity || 0);
+          // PRESERVE existing quantity - don't overwrite with check-in values
+          // This prevents undoing deductions from checkouts/shipments
+          // Only merge sub-variants structure if new ones exist
           if (newValue.subVariants && newValue.subVariants.length > 0) {
             existingValue.subVariants = mergeVariants(existingValue.subVariants || [], newValue.subVariants);
           }
         } else {
+          // Only ADD new variant values that don't exist yet
           existingVariant.values = existingVariant.values || [];
           existingVariant.values.push(JSON.parse(JSON.stringify(newValue)));
         }
       }
     } else {
+      // Only ADD new variant attributes that don't exist yet
       merged.push(JSON.parse(JSON.stringify(newVariant)));
     }
   }
