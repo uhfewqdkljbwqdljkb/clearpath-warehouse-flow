@@ -62,7 +62,7 @@ const VariantValuesDisplay: React.FC<{ values: any[]; depth: number }> = ({ valu
 
 // Helper to merge variants coming from check-ins into a product's configured variants
 // - merges by attribute/value (case-insensitive)
-// - accumulates quantities (matching admin approval behavior)
+// - idempotent: never double-counts on repeated syncs (uses max quantity)
 const mergeVariants = (existingVariants: any[], newVariants: any[]): any[] => {
   if (!newVariants || newVariants.length === 0) return existingVariants || [];
   if (!existingVariants || existingVariants.length === 0) return newVariants;
@@ -81,7 +81,8 @@ const mergeVariants = (existingVariants: any[], newVariants: any[]): any[] => {
         );
 
         if (existingValue) {
-          existingValue.quantity = (existingValue.quantity || 0) + (newValue.quantity || 0);
+          // Use max so opening the dialog repeatedly doesn't inflate quantities
+          existingValue.quantity = Math.max(existingValue.quantity || 0, newValue.quantity || 0);
           if (newValue.subVariants && newValue.subVariants.length > 0) {
             existingValue.subVariants = mergeVariants(existingValue.subVariants || [], newValue.subVariants);
           }
@@ -443,12 +444,73 @@ export const ClientProducts: React.FC = () => {
       .select('*')
       .eq('id', product.id)
       .single();
-    
-    if (error || !freshProduct) {
-      setSelectedProduct(product);
-    } else {
-      setSelectedProduct(freshProduct as Product);
+
+    const baseProduct = (!error && freshProduct ? (freshProduct as Product) : product) as Product;
+    let nextProduct: Product = baseProduct;
+
+    // Auto-sync missing variants from approved check-ins (fixes "approved size but not showing")
+    if (profile?.company_id) {
+      try {
+        const normalize = (val: unknown) => String(val ?? '').trim().toLowerCase();
+
+        const { data: approvedRequests, error: reqError } = await supabase
+          .from('check_in_requests')
+          .select('requested_products, amended_products, was_amended, created_at')
+          .eq('company_id', profile.company_id)
+          .eq('status', 'approved')
+          .order('created_at', { ascending: false })
+          .limit(50);
+
+        if (reqError) throw reqError;
+
+        let mergedVariants: any[] = Array.isArray(baseProduct.variants) ? baseProduct.variants : [];
+        const originalJson = JSON.stringify(mergedVariants);
+
+        for (const req of approvedRequests || []) {
+          const productsToScan = (req as any).was_amended && (req as any).amended_products
+            ? (req as any).amended_products
+            : (req as any).requested_products;
+
+          if (!Array.isArray(productsToScan)) continue;
+
+          for (const reqProduct of productsToScan) {
+            const matchesId =
+              reqProduct?.existingProductId &&
+              String(reqProduct.existingProductId) === String(baseProduct.id);
+            const matchesName = !matchesId && normalize(reqProduct?.name) === normalize(baseProduct.name);
+
+            if (!matchesId && !matchesName) continue;
+            if (!Array.isArray(reqProduct?.variants) || reqProduct.variants.length === 0) continue;
+
+            mergedVariants = mergeVariants(mergedVariants, reqProduct.variants);
+          }
+        }
+
+        const mergedJson = JSON.stringify(mergedVariants);
+        if (mergedJson !== originalJson) {
+          const { error: updateError } = await supabase
+            .from('client_products')
+            .update({ variants: mergedVariants })
+            .eq('id', baseProduct.id);
+
+          if (updateError) {
+            console.error('Error syncing product variants:', updateError);
+            toast({
+              title: 'Could not sync variants',
+              description: 'We updated the view, but saving to the product failed.',
+              variant: 'destructive',
+            });
+          }
+
+          nextProduct = { ...baseProduct, variants: mergedVariants };
+          setProducts((prev) => prev.map((p) => (p.id === baseProduct.id ? { ...p, variants: mergedVariants } : p)));
+        }
+      } catch (syncError) {
+        console.error('Error syncing variants from check-ins:', syncError);
+      }
     }
+
+    setSelectedProduct(nextProduct);
     setIsViewDialogOpen(true);
   };
 
