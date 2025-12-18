@@ -30,6 +30,35 @@ import { Variant, calculateNestedVariantQuantity, getVariantBreakdown, hasNested
 import { VariantQuantityDisplay } from '@/components/VariantQuantityDisplay';
 import { ReassignProductDialog } from '@/components/ReassignProductDialog';
 
+// Recursive component to display variant values including nested subVariants
+const VariantValuesDisplay: React.FC<{ values: any[]; depth: number }> = ({ values, depth }) => {
+  if (!values || values.length === 0) return null;
+  
+  return (
+    <div className={`space-y-1 ${depth > 0 ? 'ml-4 pl-3 border-l border-border' : ''}`}>
+      {values.map((val: any, vIndex: number) => (
+        <div key={vIndex}>
+          <div className="flex justify-between text-sm">
+            <span>{val.value}</span>
+            {(!val.subVariants || val.subVariants.length === 0) && (
+              <span className="text-muted-foreground">Qty: {val.quantity}</span>
+            )}
+          </div>
+          {val.subVariants && val.subVariants.length > 0 && (
+            <div className="mt-1">
+              {val.subVariants.map((subVariant: any, svIndex: number) => (
+                <div key={svIndex} className="mt-1">
+                  <div className="text-xs font-medium text-muted-foreground mb-1">{subVariant.attribute}:</div>
+                  <VariantValuesDisplay values={subVariant.values} depth={depth + 1} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
 interface Product {
   id: string;
   name: string;
@@ -368,8 +397,19 @@ export const ClientProducts: React.FC = () => {
     setQuantity(0);
   };
 
-  const handleViewDetails = (product: Product) => {
-    setSelectedProduct(product);
+  const handleViewDetails = async (product: Product) => {
+    // Fetch fresh product data from database to get latest variants
+    const { data: freshProduct, error } = await supabase
+      .from('client_products')
+      .select('*')
+      .eq('id', product.id)
+      .single();
+    
+    if (error || !freshProduct) {
+      setSelectedProduct(product);
+    } else {
+      setSelectedProduct(freshProduct as Product);
+    }
     setIsViewDialogOpen(true);
   };
 
@@ -745,17 +785,10 @@ export const ClientProducts: React.FC = () => {
                 <div>
                   <Label className="text-muted-foreground">Variants</Label>
                   <div className="mt-2 space-y-3">
-                    {selectedProduct.variants.map((variant: any, index: number) => (
+              {selectedProduct.variants.map((variant: any, index: number) => (
                       <div key={index} className="border rounded-lg p-3 bg-muted/30">
                         <div className="font-medium mb-2">{variant.attribute}</div>
-                        <div className="space-y-1">
-                          {variant.values?.map((val: any, vIndex: number) => (
-                            <div key={vIndex} className="flex justify-between text-sm">
-                              <span>{val.value}</span>
-                              <span className="text-muted-foreground">Qty: {val.quantity}</span>
-                            </div>
-                          ))}
-                        </div>
+                        <VariantValuesDisplay values={variant.values} depth={0} />
                         {variant.sku && (
                           <div className="mt-2 text-xs text-muted-foreground">
                             SKU: <code className="bg-background px-1 py-0.5 rounded">{variant.sku}</code>
