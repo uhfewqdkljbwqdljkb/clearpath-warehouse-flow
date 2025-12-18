@@ -176,21 +176,24 @@ export const ClientCheckOut: React.FC = () => {
 
   // Get available quantity for a specific variant from client_products.variants
   const getVariantAvailableQuantity = (
-    productId: string, 
-    variantAttr: string, 
+    productId: string,
+    variantAttr: string,
     variantVal: string
   ): number => {
-    const product = products.find(p => p.id === productId);
+    const product = products.find((p) => p.id === productId);
     if (!product?.variants || !Array.isArray(product.variants)) return 0;
-    
+
+    const norm = (v: any) => String(v ?? '').trim();
+    const normAttr = (v: any) => norm(v).toLowerCase();
+
     // Find the variant attribute
-    const variant = product.variants.find((v: any) => v.attribute === variantAttr);
+    const variant = product.variants.find((v: any) => normAttr(v.attribute) === normAttr(variantAttr));
     if (!variant?.values) return 0;
-    
+
     // Find the specific value
-    const value = variant.values.find((val: any) => val.value === variantVal);
+    const value = variant.values.find((val: any) => norm(val.value) === norm(variantVal));
     if (!value) return 0;
-    
+
     // If has sub-variants, sum all sub-variant quantities
     if (value.subVariants && value.subVariants.length > 0) {
       let total = 0;
@@ -201,7 +204,7 @@ export const ClientCheckOut: React.FC = () => {
       }
       return total;
     }
-    
+
     return value.quantity || 0;
   };
 
@@ -213,19 +216,22 @@ export const ClientCheckOut: React.FC = () => {
     subVariantAttr: string,
     subVariantVal: string
   ): number => {
-    const product = products.find(p => p.id === productId);
+    const product = products.find((p) => p.id === productId);
     if (!product?.variants || !Array.isArray(product.variants)) return 0;
-    
-    const variant = product.variants.find((v: any) => v.attribute === variantAttr);
+
+    const norm = (v: any) => String(v ?? '').trim();
+    const normAttr = (v: any) => norm(v).toLowerCase();
+
+    const variant = product.variants.find((v: any) => normAttr(v.attribute) === normAttr(variantAttr));
     if (!variant?.values) return 0;
-    
-    const value = variant.values.find((val: any) => val.value === variantVal);
+
+    const value = variant.values.find((val: any) => norm(val.value) === norm(variantVal));
     if (!value?.subVariants) return 0;
-    
-    const subVariant = value.subVariants.find((sv: any) => sv.attribute === subVariantAttr);
+
+    const subVariant = value.subVariants.find((sv: any) => normAttr(sv.attribute) === normAttr(subVariantAttr));
     if (!subVariant?.values) return 0;
-    
-    const subValue = subVariant.values.find((sv: any) => sv.value === subVariantVal);
+
+    const subValue = subVariant.values.find((sv: any) => norm(sv.value) === norm(subVariantVal));
     return subValue?.quantity || 0;
   };
 

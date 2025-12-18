@@ -109,50 +109,53 @@ export const CheckOutRequests: React.FC = () => {
 
   // Helper function to deduct quantity from nested variants in client_products.variants
   const deductFromVariants = (
-    variants: any[], 
-    variantAttr: string, 
-    variantVal: string, 
-    subVariantAttr?: string, 
-    subVariantVal?: string, 
+    variants: any[],
+    variantAttr: string,
+    variantVal: string,
+    subVariantAttr?: string,
+    subVariantVal?: string,
     quantityToDeduct: number = 0
   ): any[] => {
     if (!variants || !Array.isArray(variants)) return [];
-    
-    return variants.map(variant => {
-      if (variant.attribute !== variantAttr) return variant;
-      
+
+    const norm = (v: any) => String(v ?? '').trim();
+    const normAttr = (v: any) => norm(v).toLowerCase();
+
+    return variants.map((variant) => {
+      if (normAttr(variant.attribute) !== normAttr(variantAttr)) return variant;
+
       return {
         ...variant,
         values: variant.values?.map((val: any) => {
-          if (val.value !== variantVal) return val;
-          
+          if (norm(val.value) !== norm(variantVal)) return val;
+
           // If we have sub-variants to deduct from
           if (subVariantAttr && subVariantVal && val.subVariants && val.subVariants.length > 0) {
             return {
               ...val,
               subVariants: val.subVariants.map((subVar: any) => {
-                if (subVar.attribute !== subVariantAttr) return subVar;
-                
+                if (normAttr(subVar.attribute) !== normAttr(subVariantAttr)) return subVar;
+
                 return {
                   ...subVar,
                   values: subVar.values?.map((subVal: any) => {
-                    if (subVal.value !== subVariantVal) return subVal;
+                    if (norm(subVal.value) !== norm(subVariantVal)) return subVal;
                     return {
                       ...subVal,
-                      quantity: Math.max(0, (subVal.quantity || 0) - quantityToDeduct)
+                      quantity: Math.max(0, (subVal.quantity || 0) - quantityToDeduct),
                     };
-                  })
+                  }),
                 };
-              })
+              }),
             };
           }
-          
+
           // No sub-variants, deduct from this variant value directly
           return {
             ...val,
-            quantity: Math.max(0, (val.quantity || 0) - quantityToDeduct)
+            quantity: Math.max(0, (val.quantity || 0) - quantityToDeduct),
           };
-        })
+        }),
       };
     });
   };
@@ -205,11 +208,13 @@ export const CheckOutRequests: React.FC = () => {
       for (const [productId, updateInfo] of Object.entries(productUpdates)) {
         // 1. Update variant quantities in client_products.variants JSON
         if (updateInfo.deductions.length > 0) {
-          const { data: product } = await supabase
+          const { data: product, error: productError } = await supabase
             .from('client_products')
             .select('variants')
             .eq('id', productId)
-            .single();
+            .maybeSingle();
+
+          if (productError) throw productError;
           
           if (product?.variants && Array.isArray(product.variants)) {
             let updatedVariants = [...product.variants];
@@ -227,10 +232,12 @@ export const CheckOutRequests: React.FC = () => {
               }
             }
             
-            await supabase
+            const { error: updateProductError } = await supabase
               .from('client_products')
               .update({ variants: updatedVariants })
               .eq('id', productId);
+
+            if (updateProductError) throw updateProductError;
           }
         }
         
