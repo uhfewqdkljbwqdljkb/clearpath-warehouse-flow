@@ -1004,6 +1004,8 @@ export type Database = {
       }
       shipments: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
           carrier: string | null
           company_id: string
           created_at: string | null
@@ -1013,6 +1015,8 @@ export type Database = {
           id: string
           notes: string | null
           order_id: string | null
+          requested_by_role: string | null
+          requires_approval: boolean | null
           shipment_date: string
           shipment_number: string
           shipped_by: string | null
@@ -1021,6 +1025,8 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
           carrier?: string | null
           company_id: string
           created_at?: string | null
@@ -1030,6 +1036,8 @@ export type Database = {
           id?: string
           notes?: string | null
           order_id?: string | null
+          requested_by_role?: string | null
+          requires_approval?: boolean | null
           shipment_date?: string
           shipment_number: string
           shipped_by?: string | null
@@ -1038,6 +1046,8 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
           carrier?: string | null
           company_id?: string
           created_at?: string | null
@@ -1047,6 +1057,8 @@ export type Database = {
           id?: string
           notes?: string | null
           order_id?: string | null
+          requested_by_role?: string | null
+          requires_approval?: boolean | null
           shipment_date?: string
           shipment_number?: string
           shipped_by?: string | null
