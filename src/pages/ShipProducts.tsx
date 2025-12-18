@@ -399,7 +399,7 @@ export const ShipProducts: React.FC = () => {
 
         if (itemError) throw itemError;
 
-        // Reduce inventory
+        // Reduce inventory_items
         let query = supabase
           .from('inventory_items')
           .select('id, quantity, variant_attribute, variant_value')
@@ -469,6 +469,33 @@ export const ShipProducts: React.FC = () => {
             }
 
             remainingToShip -= deductAmount;
+          }
+        }
+
+        // ALSO deduct from client_products.variants (source of truth for Client Products page)
+        if (item.variant_attribute && item.variant_value) {
+          const parsed = parseShipmentVariant(item.variant_attribute, item.variant_value);
+          
+          if (parsed.attr && parsed.value) {
+            const { data: product, error: productError } = await supabase
+              .from('client_products')
+              .select('variants')
+              .eq('id', item.product_id)
+              .maybeSingle();
+
+            if (!productError && product?.variants && Array.isArray(product.variants)) {
+              const updatedVariants = deductFromVariants(
+                product.variants,
+                parsed.attr,
+                parsed.value,
+                item.quantity
+              );
+
+              await supabase
+                .from('client_products')
+                .update({ variants: updatedVariants, updated_at: new Date().toISOString() })
+                .eq('id', item.product_id);
+            }
           }
         }
       }
