@@ -64,6 +64,47 @@ const mergeVariants = (existingVariants: any[], newVariants: any[]): any[] => {
   return merged;
 };
 
+// Recursive component to display nested variants
+const VariantDisplay: React.FC<{ variant: any; depth: number; isPrimary?: boolean }> = ({ 
+  variant, 
+  depth, 
+  isPrimary = false 
+}) => {
+  const borderClass = isPrimary ? 'border-primary/30' : 'border-muted';
+  const textClass = isPrimary ? 'text-primary' : '';
+  
+  return (
+    <div className={`ml-4 border-l-2 ${borderClass} pl-3`}>
+      <div className="font-medium text-sm">{variant.attribute}:</div>
+      <div className="ml-3 mt-1 space-y-1">
+        {variant.values?.map((val: any, valIndex: number) => (
+          <div key={valIndex}>
+            <div className="text-sm flex items-center gap-2">
+              <span className="text-muted-foreground">{val.value}:</span>
+              {(!val.subVariants || val.subVariants.length === 0) && (
+                <span className={`font-semibold ${textClass}`}>{val.quantity}</span>
+              )}
+            </div>
+            {/* Recursively render subVariants */}
+            {val.subVariants && val.subVariants.length > 0 && (
+              <div className="mt-1">
+                {val.subVariants.map((subVariant: any, svIndex: number) => (
+                  <VariantDisplay 
+                    key={svIndex} 
+                    variant={subVariant} 
+                    depth={depth + 1} 
+                    isPrimary={isPrimary}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 interface CheckInRequest {
   id: string;
   request_number: string;
@@ -1209,17 +1250,7 @@ export const CheckInRequests: React.FC = () => {
                           <div className="mt-3 space-y-2">
                             <div className="font-medium text-sm">Variants:</div>
                             {product.variants.map((variant: any, vIndex: number) => (
-                              <div key={vIndex} className="ml-4 border-l-2 border-muted pl-3">
-                                <div className="font-medium text-sm">{variant.attribute}:</div>
-                                <div className="ml-3 mt-1 space-y-1">
-                                  {variant.values?.map((val: any, valIndex: number) => (
-                                    <div key={valIndex} className="text-sm">
-                                      <span className="text-muted-foreground">{val.value}:</span>{' '}
-                                      <span className="font-semibold">{val.quantity}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
+                              <VariantDisplay key={vIndex} variant={variant} depth={0} />
                             ))}
                           </div>
                         )}
@@ -1268,17 +1299,7 @@ export const CheckInRequests: React.FC = () => {
                             <div className="mt-3 space-y-2">
                               <div className="font-medium text-sm">Variants:</div>
                               {product.variants.map((variant: any, vIndex: number) => (
-                                <div key={vIndex} className="ml-4 border-l-2 border-primary/30 pl-3">
-                                  <div className="font-medium text-sm">{variant.attribute}:</div>
-                                  <div className="ml-3 mt-1 space-y-1">
-                                    {variant.values?.map((val: any, valIndex: number) => (
-                                      <div key={valIndex} className="text-sm">
-                                        <span className="text-muted-foreground">{val.value}:</span>{' '}
-                                        <span className="font-semibold text-primary">{val.quantity}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
+                                <VariantDisplay key={vIndex} variant={variant} depth={0} isPrimary />
                               ))}
                             </div>
                           )}
