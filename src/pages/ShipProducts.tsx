@@ -586,6 +586,31 @@ export const ShipProducts: React.FC = () => {
                 .from('client_products')
                 .update({ variants: updatedVariants, updated_at: new Date().toISOString() })
                 .eq('id', item.product_id);
+
+              // Check if product quantity is now 0 and mark inactive if so
+              const calculateVariantTotal = (variants: any[]): number => {
+                if (!variants || !Array.isArray(variants)) return 0;
+                let total = 0;
+                for (const variant of variants) {
+                  for (const val of variant.values || []) {
+                    if (val.subVariants && val.subVariants.length > 0) {
+                      total += calculateVariantTotal(val.subVariants);
+                    } else {
+                      total += val.quantity || 0;
+                    }
+                  }
+                }
+                return total;
+              };
+
+              const totalQuantity = calculateVariantTotal(updatedVariants);
+              if (totalQuantity === 0) {
+                await supabase
+                  .from('client_products')
+                  .update({ is_active: false, updated_at: new Date().toISOString() })
+                  .eq('id', item.product_id);
+                console.log(`Product ${item.product_id} marked inactive due to zero quantity after shipment`);
+              }
             }
           }
         }

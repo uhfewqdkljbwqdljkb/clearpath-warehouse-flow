@@ -252,7 +252,7 @@ export const CheckInRequests: React.FC = () => {
           // Merge new variants into existing product variants and update value/minimum_quantity if provided
           const { data: productData } = await supabase
             .from('client_products')
-            .select('variants, value, minimum_quantity')
+            .select('variants, value, minimum_quantity, is_active')
             .eq('id', productId)
             .single();
           
@@ -279,6 +279,12 @@ export const CheckInRequests: React.FC = () => {
           // Update minimum_quantity if provided and not already set
           if (product.minimumQuantity && product.minimumQuantity > 0 && (!productData?.minimum_quantity || productData.minimum_quantity === 0)) {
             updateData.minimum_quantity = product.minimumQuantity;
+          }
+          
+          // Reactivate product if it was inactive (inventory is being added)
+          if (productData?.is_active === false) {
+            updateData.is_active = true;
+            console.log(`Product ${productId} reactivated due to check-in inventory addition`);
           }
           
           if (Object.keys(updateData).length > 0) {

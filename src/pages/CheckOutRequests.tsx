@@ -204,9 +204,26 @@ export const CheckOutRequests: React.FC = () => {
         }
       }
       
+      // Helper function to calculate total quantity from variants
+      const calculateVariantTotal = (variants: any[]): number => {
+        if (!variants || !Array.isArray(variants)) return 0;
+        let total = 0;
+        for (const variant of variants) {
+          for (const val of variant.values || []) {
+            if (val.subVariants && val.subVariants.length > 0) {
+              total += calculateVariantTotal(val.subVariants);
+            } else {
+              total += val.quantity || 0;
+            }
+          }
+        }
+        return total;
+      };
+
       // Process each product
       for (const [productId, updateInfo] of Object.entries(productUpdates)) {
         // 1. Update variant quantities in client_products.variants JSON
+        let updatedVariants: any[] = [];
         if (updateInfo.deductions.length > 0) {
           const { data: product, error: productError } = await supabase
             .from('client_products')
@@ -217,7 +234,7 @@ export const CheckOutRequests: React.FC = () => {
           if (productError) throw productError;
           
           if (product?.variants && Array.isArray(product.variants)) {
-            let updatedVariants = [...product.variants];
+            updatedVariants = [...product.variants];
             
             for (const deduction of updateInfo.deductions) {
               if (deduction.variantAttr && deduction.variantVal) {
@@ -281,6 +298,16 @@ export const CheckOutRequests: React.FC = () => {
               })
               .eq('id', anyInventory.id);
           }
+        }
+
+        // 3. Check if product quantity is now 0 and mark inactive if so
+        const totalVariantQuantity = calculateVariantTotal(updatedVariants);
+        if (totalVariantQuantity === 0) {
+          await supabase
+            .from('client_products')
+            .update({ is_active: false, updated_at: new Date().toISOString() })
+            .eq('id', productId);
+          console.log(`Product ${productId} marked inactive due to zero quantity after checkout`);
         }
       }
       
