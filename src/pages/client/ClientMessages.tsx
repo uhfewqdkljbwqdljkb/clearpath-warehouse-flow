@@ -166,37 +166,18 @@ export const ClientMessages: React.FC = () => {
 
   const fetchAdminUsers = async () => {
     try {
-      // Get all admin users (those with admin roles)
-      const { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .select('user_id, role')
-        .in('role', ['admin', 'super_admin', 'warehouse_manager', 'logistics_coordinator']);
+      // Use secure function to get staff members (only exposes name, not email/phone)
+      const { data: staffData, error } = await supabase
+        .rpc('get_staff_for_messaging');
 
-      if (roleError) throw roleError;
+      if (error) throw error;
 
-      if (!roleData || roleData.length === 0) {
-        setAdminUsers([]);
-        return;
-      }
-
-      const userIds = roleData.map(r => r.user_id);
-      
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, full_name, email')
-        .in('id', userIds);
-
-      if (profileError) throw profileError;
-
-      const admins: AdminUser[] = (profileData || []).map(p => {
-        const role = roleData.find(r => r.user_id === p.id)?.role || 'admin';
-        return {
-          id: p.id,
-          full_name: p.full_name,
-          email: p.email,
-          role: role
-        };
-      });
+      const admins: AdminUser[] = (staffData || []).map((staff: any) => ({
+        id: staff.user_id,
+        full_name: staff.full_name,
+        email: staff.full_name || 'Staff Member', // Don't expose actual email
+        role: staff.role
+      }));
 
       setAdminUsers(admins);
     } catch (error) {
