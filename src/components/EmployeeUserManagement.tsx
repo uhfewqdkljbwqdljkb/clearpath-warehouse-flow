@@ -139,7 +139,13 @@ export const EmployeeUserManagement: React.FC = () => {
       fetchEmployees();
     } catch (error: any) {
       console.error('Error creating employee:', error);
-      toast.error(error.message || 'Failed to create employee');
+      const errorMsg = error.message || 'Failed to create employee';
+      // Make common errors more user-friendly
+      if (errorMsg.includes('already been registered') || errorMsg.includes('email_exists')) {
+        toast.error('This email is already registered. Please use a different email address or edit the existing user.');
+      } else {
+        toast.error(errorMsg);
+      }
     } finally {
       setSubmitting(false);
     }
