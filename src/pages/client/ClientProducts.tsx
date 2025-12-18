@@ -106,6 +106,7 @@ interface Product {
   variants: any;
   is_active: boolean;
   created_at: string;
+  minimum_quantity?: number;
 }
 
 interface InventoryData {
@@ -137,6 +138,7 @@ export const ClientProducts: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [variants, setVariants] = useState<Variant[]>([]);
   const [quantity, setQuantity] = useState(0);
+  const [minimumQuantity, setMinimumQuantity] = useState(0);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
@@ -402,6 +404,7 @@ export const ClientProducts: React.FC = () => {
           name: productName,
           is_active: isActive,
           variants: variants as any,
+          minimum_quantity: minimumQuantity,
         }]);
 
       if (error) throw error;
@@ -435,6 +438,7 @@ export const ClientProducts: React.FC = () => {
     setIsActive(true);
     setVariants([]);
     setQuantity(0);
+    setMinimumQuantity(0);
   };
 
   const handleViewDetails = async (product: Product) => {
@@ -621,14 +625,26 @@ export const ClientProducts: React.FC = () => {
                         </code>
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium">{quantityInfo.total}</div>
-                        {quantityInfo.hasVariants && (
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {Object.entries(quantityInfo.variants || {}).map(([key, qty]) => (
-                              <div key={key}>{key}: {qty}</div>
-                            ))}
-                          </div>
-                        )}
+                        <div className="space-y-1">
+                          <div className="font-medium">{quantityInfo.total}</div>
+                          {product.minimum_quantity && product.minimum_quantity > 0 && quantityInfo.total <= product.minimum_quantity && (
+                            <Badge variant="destructive" className="text-xs">
+                              Low Stock
+                            </Badge>
+                          )}
+                          {product.minimum_quantity && product.minimum_quantity > 0 && quantityInfo.total > product.minimum_quantity && quantityInfo.total <= product.minimum_quantity * 1.2 && (
+                            <Badge variant="outline" className="text-xs border-yellow-500 text-yellow-600">
+                              Stock Warning
+                            </Badge>
+                          )}
+                          {quantityInfo.hasVariants && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {Object.entries(quantityInfo.variants || {}).map(([key, qty]) => (
+                                <div key={key}>{key}: {qty}</div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         {getVariantCount(product.variants) > 0 ? (
@@ -727,6 +743,23 @@ export const ClientProducts: React.FC = () => {
                 disabled={variants.length > 0}
                 className={variants.length > 0 ? 'bg-muted cursor-not-allowed' : ''}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="minimumQuantity">
+                Minimum Quantity (Low Stock Alert)
+              </Label>
+              <Input
+                id="minimumQuantity"
+                type="number"
+                min="0"
+                value={minimumQuantity}
+                onChange={(e) => setMinimumQuantity(parseInt(e.target.value) || 0)}
+                placeholder="Set minimum stock level"
+              />
+              <p className="text-xs text-muted-foreground">
+                You'll be notified when stock falls below this level
+              </p>
             </div>
 
             <div className="space-y-3">

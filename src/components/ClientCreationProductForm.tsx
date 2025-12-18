@@ -13,6 +13,7 @@ interface Product {
   name: string;
   variants: Variant[];
   quantity: number;
+  minimumQuantity: number;
 }
 
 interface ClientCreationProductFormProps {
@@ -35,12 +36,13 @@ export const ClientCreationProductForm: React.FC<ClientCreationProductFormProps>
             (sum: number, v: Variant) => sum + v.values.reduce((s, val) => s + val.quantity, 0),
             0
           ) || 0,
+          minimumQuantity: initialProduct.minimumQuantity || 0,
         }]
-      : [{ name: '', variants: [], quantity: 0 }]
+      : [{ name: '', variants: [], quantity: 0, minimumQuantity: 0 }]
   );
 
   const addProduct = () => {
-    setProducts([...products, { name: '', variants: [], quantity: 0 }]);
+    setProducts([...products, { name: '', variants: [], quantity: 0, minimumQuantity: 0 }]);
   };
 
   const removeProduct = (index: number) => {
@@ -155,6 +157,22 @@ export const ClientCreationProductForm: React.FC<ClientCreationProductFormProps>
                     onChange={(e) => updateProduct(productIndex, 'name', e.target.value)}
                     placeholder="Enter product name"
                   />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">
+                    Minimum Quantity (Low Stock Alert)
+                  </label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={product.minimumQuantity || 0}
+                    onChange={(e) => updateProduct(productIndex, 'minimumQuantity', parseInt(e.target.value) || 0)}
+                    placeholder="Set minimum stock level"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Get notified when stock falls below this level
+                  </p>
                 </div>
 
                 <div>

@@ -614,6 +614,7 @@ export type Database = {
           customer_id: string | null
           id: string
           is_active: boolean | null
+          minimum_quantity: number | null
           name: string
           sku: string | null
           supplier_id: string | null
@@ -626,6 +627,7 @@ export type Database = {
           customer_id?: string | null
           id?: string
           is_active?: boolean | null
+          minimum_quantity?: number | null
           name: string
           sku?: string | null
           supplier_id?: string | null
@@ -638,6 +640,7 @@ export type Database = {
           customer_id?: string | null
           id?: string
           is_active?: boolean | null
+          minimum_quantity?: number | null
           name?: string
           sku?: string | null
           supplier_id?: string | null
