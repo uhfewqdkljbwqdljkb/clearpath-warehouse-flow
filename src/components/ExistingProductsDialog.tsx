@@ -19,6 +19,7 @@ interface ProductEntry {
   name: string;
   quantity: number;
   existingProductId?: string;
+  minimumQuantity?: number;
   variants: Array<{
     attribute: string;
     values: Array<{
@@ -33,6 +34,7 @@ interface ExistingProduct {
   name: string;
   sku: string;
   variants: any;
+  minimum_quantity: number | null;
 }
 
 interface ExistingProductsDialogProps {
@@ -87,7 +89,7 @@ export const ExistingProductsDialog: React.FC<ExistingProductsDialogProps> = ({
     try {
       const { data, error } = await supabase
         .from('client_products')
-        .select('id, name, sku, variants')
+        .select('id, name, sku, variants, minimum_quantity')
         .eq('company_id', companyId)
         .eq('is_active', true)
         .order('name');
@@ -106,7 +108,7 @@ export const ExistingProductsDialog: React.FC<ExistingProductsDialogProps> = ({
     }
   };
 
-  const updateProductQuantity = (productId: string, productName: string, quantity: number, variants: any) => {
+  const updateProductQuantity = (productId: string, productName: string, quantity: number, variants: any, minimumQuantity?: number | null) => {
     const updated = new Map(selectedProducts);
     
     if (quantity > 0) {
@@ -127,6 +129,7 @@ export const ExistingProductsDialog: React.FC<ExistingProductsDialogProps> = ({
         name: productName,
         quantity: parsedVariants.length > 0 ? 0 : quantity,
         existingProductId: productId,
+        minimumQuantity: minimumQuantity || 0,
         variants: parsedVariants
       });
     } else {
@@ -142,7 +145,8 @@ export const ExistingProductsDialog: React.FC<ExistingProductsDialogProps> = ({
     variants: any,
     variantIndex: number,
     valueIndex: number,
-    quantity: number
+    quantity: number,
+    minimumQuantity?: number | null
   ) => {
     const updated = new Map(selectedProducts);
     let product = updated.get(productId);
@@ -165,6 +169,7 @@ export const ExistingProductsDialog: React.FC<ExistingProductsDialogProps> = ({
         name: productName,
         quantity: 0,
         existingProductId: productId,
+        minimumQuantity: minimumQuantity || 0,
         variants: parsedVariants
       };
     }
@@ -295,6 +300,7 @@ export const ExistingProductsDialog: React.FC<ExistingProductsDialogProps> = ({
               name: product.name,
               quantity: totalNewQty,
               existingProductId: productId,
+              minimumQuantity: product.minimum_quantity || 0,
               variants: validVariants
             });
           }
@@ -393,7 +399,8 @@ export const ExistingProductsDialog: React.FC<ExistingProductsDialogProps> = ({
                             product.id,
                             product.name,
                             parseInt(e.target.value) || 0,
-                            product.variants
+                            product.variants,
+                            product.minimum_quantity
                           )}
                         />
                       </div>
@@ -424,7 +431,8 @@ export const ExistingProductsDialog: React.FC<ExistingProductsDialogProps> = ({
                                           product.variants,
                                           variantIndex,
                                           valueIndex,
-                                          parseInt(e.target.value) || 0
+                                          parseInt(e.target.value) || 0,
+                                          product.minimum_quantity
                                         );
                                       }}
                                     />
