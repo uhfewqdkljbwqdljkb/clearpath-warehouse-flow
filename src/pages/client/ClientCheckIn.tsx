@@ -28,6 +28,7 @@ interface ProductEntry {
   existingProductId?: string; // For existing products
   supplierId?: string; // B2B: assigned supplier
   customerId?: string; // B2B: designated customer
+  minimumQuantity?: number; // Minimum recommended stock level
 }
 
 export const ClientCheckIn: React.FC = () => {
@@ -97,6 +98,7 @@ export const ClientCheckIn: React.FC = () => {
       variants: [],
       supplierId: '',
       customerId: '',
+      minimumQuantity: 0,
     }]);
   };
 
@@ -435,15 +437,31 @@ export const ClientCheckIn: React.FC = () => {
                   </div>
                 )}
 
-                <div className="space-y-2">
-                  <Label>Quantity {product.variants.length > 0 && '(Auto-calculated from variants)'}</Label>
-                  <Input
-                    type="number"
-                    placeholder="Enter quantity"
-                    value={calculateTotalQuantity(productIndex)}
-                    onChange={(e) => updateProduct(productIndex, 'quantity', parseInt(e.target.value) || 0)}
-                    disabled={product.variants.length > 0}
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Quantity {product.variants.length > 0 && '(Auto-calculated from variants)'}</Label>
+                    <Input
+                      type="number"
+                      placeholder="Enter quantity"
+                      value={calculateTotalQuantity(productIndex)}
+                      onChange={(e) => updateProduct(productIndex, 'quantity', parseInt(e.target.value) || 0)}
+                      disabled={product.variants.length > 0}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Minimum Stock Level</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      placeholder="Set low stock alert threshold"
+                      value={product.minimumQuantity || ''}
+                      onChange={(e) => updateProduct(productIndex, 'minimumQuantity', parseInt(e.target.value) || 0)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      You'll be alerted when stock falls below this level
+                    </p>
+                  </div>
                 </div>
 
                 <NestedVariantEditor
