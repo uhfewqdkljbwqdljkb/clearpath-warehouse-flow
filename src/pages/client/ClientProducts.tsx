@@ -203,6 +203,39 @@ export const ClientProducts: React.FC = () => {
       logActivity('products_access', 'User accessed products page', {
         timestamp: new Date().toISOString()
       });
+
+      // Subscribe to realtime updates for client_products (e.g., shipments deduct from variants)
+      const channel = supabase
+        .channel('client-products-realtime')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'client_products',
+            filter: `company_id=eq.${profile.company_id}`,
+          },
+          () => {
+            fetchProducts();
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'inventory_items',
+            filter: `company_id=eq.${profile.company_id}`,
+          },
+          () => {
+            fetchInventory();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
   }, [profile?.company_id]);
 
