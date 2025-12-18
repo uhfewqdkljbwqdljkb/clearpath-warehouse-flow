@@ -117,17 +117,70 @@ export const ClientRequests: React.FC = () => {
   const handleViewDetails = async (request: CheckInRequest) => {
     setSelectedRequest(request);
     
-    // Helper to normalize variants into a flat list of { attribute, value, quantity }
+    // Helper to recursively flatten nested variants into a displayable format
+    const flattenVariants = (variants: any[], parentPath: string = ''): any[] => {
+      const flattened: any[] = [];
+      
+      if (!Array.isArray(variants)) return flattened;
+      
+      for (const variant of variants) {
+        const attribute = variant.attribute || '';
+        const values = variant.values || [];
+        
+        for (const val of values) {
+          const valueName = typeof val === 'string' ? val : val.value ?? '';
+          const currentPath = parentPath 
+            ? `${parentPath} → ${attribute}: ${valueName}`
+            : `${attribute}: ${valueName}`;
+          
+          // Check for subVariants (nested structure)
+          if (val.subVariants && Array.isArray(val.subVariants) && val.subVariants.length > 0) {
+            // Recursively process subVariants
+            const nestedFlattened = flattenVariants(val.subVariants, currentPath);
+            flattened.push(...nestedFlattened);
+          } else {
+            // Leaf node - add to flattened list
+            const quantity = typeof val === 'object' && val !== null && 'quantity' in val
+              ? val.quantity ?? 0
+              : 0;
+            
+            flattened.push({
+              attribute: currentPath,
+              value: '',
+              quantity,
+            });
+          }
+        }
+      }
+      
+      return flattened;
+    };
+    
+    // Helper to normalize variants into a flat list for display
     const normalizeProductForDisplay = (product: any) => {
       if (!Array.isArray(product.variants) || product.variants.length === 0) {
         return product;
       }
 
+      // Check if variants have nested subVariants
+      const hasSubVariants = product.variants.some(
+        (v: any) => v.values?.some((val: any) => val.subVariants && val.subVariants.length > 0)
+      );
+
+      if (hasSubVariants) {
+        // Use recursive flattening for nested variants
+        const flatVariants = flattenVariants(product.variants);
+        return {
+          ...product,
+          variants: flatVariants,
+        };
+      }
+
+      // Check if variants are stored as { attribute, values: [{ value, quantity }] }
       const hasNestedValues = product.variants.some(
         (v: any) => Array.isArray(v.values)
       );
 
-      // If variants are stored as { attribute, values: [{ value, quantity }] }
       if (hasNestedValues) {
         const flatVariants = product.variants.flatMap((variant: any) =>
           (variant.values || []).map((val: any) => ({
@@ -637,7 +690,10 @@ export const ClientRequests: React.FC = () => {
                             {product.variants.map((variant: any, vIdx: number) => (
                               <div key={vIdx} className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">
-                                  {variant.attribute}: <span className="font-medium text-foreground">{variant.value}</span>
+                                  {variant.value 
+                                    ? <>{variant.attribute}: <span className="font-medium text-foreground">{variant.value}</span></>
+                                    : <span className="font-medium text-foreground">{variant.attribute}</span>
+                                  }
                                 </span>
                                 <Badge variant="secondary" className="ml-2">Qty: {variant.quantity}</Badge>
                               </div>
