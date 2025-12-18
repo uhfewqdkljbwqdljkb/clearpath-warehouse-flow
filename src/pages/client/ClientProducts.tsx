@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIntegration } from '@/contexts/IntegrationContext';
@@ -43,6 +43,14 @@ interface InventoryData {
   [productId: string]: number;
 }
 
+interface InventoryRow {
+  id: string;
+  product_id: string;
+  quantity: number;
+  location_id: string | null;
+  variant_attribute: string | null;
+}
+
 export const ClientProducts: React.FC = () => {
   const navigate = useNavigate();
   const { profile } = useAuth();
@@ -52,6 +60,8 @@ export const ClientProducts: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [inventoryData, setInventoryData] = useState<InventoryData>({});
+  const [inventoryRows, setInventoryRows] = useState<InventoryRow[]>([]);
+  const reconciledInventoryIdsRef = useRef<Set<string>>(new Set());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [productName, setProductName] = useState('');
   const [isActive, setIsActive] = useState(true);
@@ -122,26 +132,88 @@ export const ClientProducts: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('inventory_items')
-        .select('product_id, quantity')
+        .select('id, product_id, quantity, location_id, variant_attribute')
         .eq('company_id', profile.company_id);
 
       if (error) throw error;
-
-      // Aggregate quantities by product_id
-      const inventoryMap: InventoryData = {};
-      data?.forEach((item) => {
-        if (inventoryMap[item.product_id]) {
-          inventoryMap[item.product_id] += item.quantity;
-        } else {
-          inventoryMap[item.product_id] = item.quantity;
-        }
-      });
-
-      setInventoryData(inventoryMap);
+      setInventoryRows((data as InventoryRow[]) || []);
     } catch (error) {
       console.error('Error fetching inventory:', error);
     }
   };
+
+  useEffect(() => {
+    // Aggregate quantities by product_id
+    const inventoryMap: InventoryData = {};
+    inventoryRows.forEach((item) => {
+      if (inventoryMap[item.product_id]) {
+        inventoryMap[item.product_id] += item.quantity;
+      } else {
+        inventoryMap[item.product_id] = item.quantity;
+      }
+    });
+    setInventoryData(inventoryMap);
+  }, [inventoryRows]);
+
+  useEffect(() => {
+    // One-time reconciliation for older approvals that created inventory from only the new check-in quantity.
+    // If a product has a base inventory row but its configured variant quantities are higher, we treat
+    // those variant quantities as the pre-existing stock and add them to the inventory row.
+    if (!profile?.company_id) return;
+    if (products.length === 0) return;
+    if (inventoryRows.length === 0) return;
+
+    const baseRowsByProductId = new Map<string, InventoryRow>();
+    const hasVariantLevelInventory = new Set<string>();
+
+    for (const row of inventoryRows) {
+      if (row.location_id !== null) continue;
+      if (row.variant_attribute) hasVariantLevelInventory.add(row.product_id);
+      if (!row.variant_attribute && !baseRowsByProductId.has(row.product_id)) {
+        baseRowsByProductId.set(row.product_id, row);
+      }
+    }
+
+    const reconcile = async () => {
+      for (const product of products) {
+        const baseRow = baseRowsByProductId.get(product.id);
+        if (!baseRow) continue;
+        if (hasVariantLevelInventory.has(product.id)) continue;
+        if (reconciledInventoryIdsRef.current.has(baseRow.id)) continue;
+
+        let variantsTotal = 0;
+        if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
+          variantsTotal = calculateNestedVariantQuantity(product.variants);
+        }
+
+        if (variantsTotal <= 0) continue;
+        if (baseRow.quantity >= variantsTotal) continue;
+
+        reconciledInventoryIdsRef.current.add(baseRow.id);
+        const correctedQuantity = baseRow.quantity + variantsTotal;
+
+        const { error } = await supabase
+          .from('inventory_items')
+          .update({
+            quantity: correctedQuantity,
+            last_updated: new Date().toISOString(),
+          })
+          .eq('id', baseRow.id);
+
+        if (error) {
+          console.error('Error reconciling inventory quantity:', error);
+          reconciledInventoryIdsRef.current.delete(baseRow.id);
+          continue;
+        }
+
+        setInventoryRows((prev) =>
+          prev.map((r) => (r.id === baseRow.id ? { ...r, quantity: correctedQuantity } : r))
+        );
+      }
+    };
+
+    void reconcile();
+  }, [profile?.company_id, products, inventoryRows]);
 
   const getProductQuantity = (product: Product) => {
     const inventoryTotal = inventoryData[product.id] ?? 0;
