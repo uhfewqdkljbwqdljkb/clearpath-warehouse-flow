@@ -107,6 +107,56 @@ export const CheckOutRequests: React.FC = () => {
     }
   };
 
+  // Helper function to deduct quantity from nested variants in client_products.variants
+  const deductFromVariants = (
+    variants: any[], 
+    variantAttr: string, 
+    variantVal: string, 
+    subVariantAttr?: string, 
+    subVariantVal?: string, 
+    quantityToDeduct: number = 0
+  ): any[] => {
+    if (!variants || !Array.isArray(variants)) return [];
+    
+    return variants.map(variant => {
+      if (variant.attribute !== variantAttr) return variant;
+      
+      return {
+        ...variant,
+        values: variant.values?.map((val: any) => {
+          if (val.value !== variantVal) return val;
+          
+          // If we have sub-variants to deduct from
+          if (subVariantAttr && subVariantVal && val.subVariants && val.subVariants.length > 0) {
+            return {
+              ...val,
+              subVariants: val.subVariants.map((subVar: any) => {
+                if (subVar.attribute !== subVariantAttr) return subVar;
+                
+                return {
+                  ...subVar,
+                  values: subVar.values?.map((subVal: any) => {
+                    if (subVal.value !== subVariantVal) return subVal;
+                    return {
+                      ...subVal,
+                      quantity: Math.max(0, (subVal.quantity || 0) - quantityToDeduct)
+                    };
+                  })
+                };
+              })
+            };
+          }
+          
+          // No sub-variants, deduct from this variant value directly
+          return {
+            ...val,
+            quantity: Math.max(0, (val.quantity || 0) - quantityToDeduct)
+          };
+        })
+      };
+    });
+  };
+
   const handleApprove = async (request: CheckOutRequest) => {
     setIsProcessing(true);
     try {
@@ -115,64 +165,96 @@ export const CheckOutRequests: React.FC = () => {
       // Deduct inventory for each requested item
       const items = Array.isArray(request.requested_items) ? request.requested_items : [];
       
+      // Group items by product_id to batch updates to client_products.variants
+      const productUpdates: Record<string, { 
+        deductions: Array<{
+          variantAttr?: string;
+          variantVal?: string;
+          subVariantAttr?: string;
+          subVariantVal?: string;
+          quantity: number;
+        }>;
+        totalDeduction: number;
+      }> = {};
+      
       for (const item of items) {
         const productId = item.product_id;
         const quantityToDeduct = item.quantity || 0;
         
         if (!productId || quantityToDeduct <= 0) continue;
         
-        let deducted = false;
+        if (!productUpdates[productId]) {
+          productUpdates[productId] = { deductions: [], totalDeduction: 0 };
+        }
         
-        // First, try to find variant-level inventory if variant info exists
+        productUpdates[productId].totalDeduction += quantityToDeduct;
+        
+        // Track variant-level deduction info
         if (item.variant_attribute && item.variant_value) {
-          const { data: variantInventory } = await supabase
-            .from('inventory_items')
-            .select('id, quantity')
-            .eq('product_id', productId)
-            .eq('company_id', request.company_id)
-            .eq('variant_attribute', item.variant_attribute)
-            .eq('variant_value', item.variant_value)
-            .maybeSingle();
+          productUpdates[productId].deductions.push({
+            variantAttr: item.variant_attribute,
+            variantVal: item.variant_value,
+            subVariantAttr: item.sub_variant_attribute,
+            subVariantVal: item.sub_variant_value,
+            quantity: quantityToDeduct
+          });
+        }
+      }
+      
+      // Process each product
+      for (const [productId, updateInfo] of Object.entries(productUpdates)) {
+        // 1. Update variant quantities in client_products.variants JSON
+        if (updateInfo.deductions.length > 0) {
+          const { data: product } = await supabase
+            .from('client_products')
+            .select('variants')
+            .eq('id', productId)
+            .single();
           
-          if (variantInventory) {
-            const newQuantity = Math.max(0, variantInventory.quantity - quantityToDeduct);
+          if (product?.variants && Array.isArray(product.variants)) {
+            let updatedVariants = [...product.variants];
+            
+            for (const deduction of updateInfo.deductions) {
+              if (deduction.variantAttr && deduction.variantVal) {
+                updatedVariants = deductFromVariants(
+                  updatedVariants,
+                  deduction.variantAttr,
+                  deduction.variantVal,
+                  deduction.subVariantAttr,
+                  deduction.subVariantVal,
+                  deduction.quantity
+                );
+              }
+            }
+            
             await supabase
-              .from('inventory_items')
-              .update({ 
-                quantity: newQuantity,
-                last_updated: new Date().toISOString()
-              })
-              .eq('id', variantInventory.id);
-            deducted = true;
+              .from('client_products')
+              .update({ variants: updatedVariants })
+              .eq('id', productId);
           }
         }
         
-        // If no variant inventory found (or no variant specified), try base inventory
-        if (!deducted) {
-          const { data: baseInventory } = await supabase
-            .from('inventory_items')
-            .select('id, quantity')
-            .eq('product_id', productId)
-            .eq('company_id', request.company_id)
-            .is('variant_attribute', null)
-            .is('variant_value', null)
-            .maybeSingle();
-          
-          if (baseInventory) {
-            const newQuantity = Math.max(0, baseInventory.quantity - quantityToDeduct);
-            await supabase
-              .from('inventory_items')
-              .update({ 
-                quantity: newQuantity,
-                last_updated: new Date().toISOString()
-              })
-              .eq('id', baseInventory.id);
-            deducted = true;
-          }
-        }
+        // 2. Deduct from base inventory_items record
+        const { data: baseInventory } = await supabase
+          .from('inventory_items')
+          .select('id, quantity')
+          .eq('product_id', productId)
+          .eq('company_id', request.company_id)
+          .is('variant_attribute', null)
+          .is('variant_value', null)
+          .maybeSingle();
         
-        // Final fallback: find any inventory record for this product
-        if (!deducted) {
+        if (baseInventory) {
+          const newQuantity = Math.max(0, baseInventory.quantity - updateInfo.totalDeduction);
+          await supabase
+            .from('inventory_items')
+            .update({ 
+              quantity: newQuantity,
+              last_updated: new Date().toISOString()
+            })
+            .eq('id', baseInventory.id);
+        } else {
+          // Fallback: find any inventory record for this product
           const { data: anyInventory } = await supabase
             .from('inventory_items')
             .select('id, quantity')
@@ -183,7 +265,7 @@ export const CheckOutRequests: React.FC = () => {
             .maybeSingle();
           
           if (anyInventory) {
-            const newQuantity = Math.max(0, anyInventory.quantity - quantityToDeduct);
+            const newQuantity = Math.max(0, anyInventory.quantity - updateInfo.totalDeduction);
             await supabase
               .from('inventory_items')
               .update({ 
