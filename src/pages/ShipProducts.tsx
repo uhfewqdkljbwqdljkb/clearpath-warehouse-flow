@@ -508,32 +508,42 @@ const fetchProducts = async () => {
       yPos += 4;
       
       const tableData = (items || []).map(item => {
-        let description = '';
+        let variantDetails = '-';
         if (item.variant_attribute && item.variant_value) {
-          description = `${item.variant_attribute}: ${item.variant_value}`;
+          // Format variant clearly with bold-like emphasis
+          variantDetails = `${item.variant_attribute.toUpperCase()}: ${item.variant_value}`;
         }
         return [
           item.client_products?.name || 'Unknown',
           item.client_products?.sku || '-',
-          description || '-',
+          variantDetails,
           item.quantity.toString()
         ];
       });
       
       autoTable(doc, {
         startY: yPos,
-        head: [['Product Name', 'SKU', 'Variant Details', 'Quantity']],
+        head: [['Product Name', 'SKU', 'Variant', 'Qty']],
         body: tableData,
         theme: 'grid',
-        headStyles: { fillColor: [66, 66, 66], fontSize: 9 },
-        bodyStyles: { fontSize: 9 },
-        columnStyles: {
-          0: { cellWidth: 60 },
-          1: { cellWidth: 35 },
-          2: { cellWidth: 55 },
-          3: { cellWidth: 25, halign: 'center' }
+        headStyles: { 
+          fillColor: [50, 50, 50], 
+          fontSize: 10, 
+          fontStyle: 'bold',
+          cellPadding: 4
         },
-        margin: { left: 14, right: 14 }
+        bodyStyles: { 
+          fontSize: 10,
+          cellPadding: 4
+        },
+        columnStyles: {
+          0: { cellWidth: 55, fontStyle: 'bold' },
+          1: { cellWidth: 30 },
+          2: { cellWidth: 65, fontStyle: 'normal' },
+          3: { cellWidth: 20, halign: 'center', fontStyle: 'bold' }
+        },
+        margin: { left: 14, right: 14 },
+        alternateRowStyles: { fillColor: [245, 245, 245] }
       });
       
       // Get the Y position after the table
