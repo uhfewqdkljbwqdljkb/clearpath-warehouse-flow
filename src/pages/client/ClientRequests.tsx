@@ -816,12 +816,12 @@ export const ClientRequests: React.FC = () => {
                           <Badge variant="secondary">Qty: {item.quantity}</Badge>
                         </div>
                         
-                        {item.variant && (
+                        {item.variant_attribute && (
                           <div className="pl-4 border-l-2 border-border space-y-1">
                             <p className="text-xs font-semibold text-muted-foreground">Variant:</p>
                             <div className="flex justify-between text-sm">
                               <span className="text-muted-foreground">
-                                {item.variant}: <span className="font-medium text-foreground">{item.variantValue}</span>
+                                {item.variant_attribute}: <span className="font-medium text-foreground">{item.variant_value}</span>
                               </span>
                             </div>
                           </div>
