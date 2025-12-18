@@ -333,16 +333,21 @@ export const ClientProducts: React.FC = () => {
   const getProductQuantity = (product: Product) => {
     const inventoryTotal = inventoryData[product.id] ?? 0;
 
+    const hasVariantStructure =
+      !!product.variants && Array.isArray(product.variants) && product.variants.length > 0;
+
     let variantsTotal = 0;
     let variantQuantities: { [key: string]: number } | null = null;
 
-    if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
+    if (hasVariantStructure) {
       // Use nested variant calculation
       variantsTotal = calculateNestedVariantQuantity(product.variants);
       variantQuantities = getVariantBreakdown(product.variants);
     }
 
-    const total = inventoryTotal > 0 ? inventoryTotal : variantsTotal;
+    // For products with variants, the displayed total should match the sum of variant quantities.
+    // For products without variants, use inventory_items when available (fallback to 0).
+    const total = hasVariantStructure ? variantsTotal : inventoryTotal;
 
     return {
       total,
