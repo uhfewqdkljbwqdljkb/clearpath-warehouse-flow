@@ -21,7 +21,7 @@ export const NestedVariantEditor: React.FC<NestedVariantEditorProps> = ({
   const addVariant = () => {
     onChange([
       ...variants,
-      { attribute: '', values: [{ value: '', quantity: 0 }] },
+      { attribute: '', values: [{ value: '', quantity: 0, minimumQuantity: 0 }] },
     ]);
   };
 
@@ -94,7 +94,7 @@ const VariantCard: React.FC<VariantCardProps> = ({
   const canAddSubVariants = depth < maxDepth - 1;
 
   const addValue = () => {
-    onValuesChange([...variant.values, { value: '', quantity: 0 }]);
+    onValuesChange([...variant.values, { value: '', quantity: 0, minimumQuantity: 0 }]);
   };
 
   const removeValue = (valueIndex: number) => {
@@ -112,10 +112,11 @@ const VariantCard: React.FC<VariantCardProps> = ({
     const currentSubVariants = newValues[valueIndex].subVariants || [];
     newValues[valueIndex].subVariants = [
       ...currentSubVariants,
-      { attribute: '', values: [{ value: '', quantity: 0 }] },
+      { attribute: '', values: [{ value: '', quantity: 0, minimumQuantity: 0 }] },
     ];
     // Clear quantity when adding sub-variants (quantity is on leaf nodes only)
     newValues[valueIndex].quantity = 0;
+    newValues[valueIndex].minimumQuantity = 0;
     onValuesChange(newValues);
   };
 
@@ -168,7 +169,10 @@ const VariantCard: React.FC<VariantCardProps> = ({
       </div>
 
       <div className="space-y-2 pl-3 border-l-2 border-muted-foreground/20">
-        <Label className="text-xs text-muted-foreground">Values</Label>
+        <div className="flex justify-between items-center">
+          <Label className="text-xs text-muted-foreground">Values</Label>
+          <span className="text-xs text-muted-foreground">Qty / Min Stock</span>
+        </div>
         
         {variant.values.map((val, valueIndex) => (
           <ValueRow
@@ -255,14 +259,26 @@ const ValueRow: React.FC<ValueRowProps> = ({
         />
         
         {!hasSubVariants && (
-          <Input
-            type="number"
-            min="0"
-            value={value.quantity}
-            onChange={(e) => onUpdate({ quantity: parseInt(e.target.value) || 0 })}
-            placeholder="Qty"
-            className="w-24"
-          />
+          <div className="flex gap-1 items-center">
+            <Input
+              type="number"
+              min="0"
+              value={value.quantity}
+              onChange={(e) => onUpdate({ quantity: parseInt(e.target.value) || 0 })}
+              placeholder="Qty"
+              className="w-20"
+              title="Current quantity"
+            />
+            <Input
+              type="number"
+              min="0"
+              value={value.minimumQuantity || 0}
+              onChange={(e) => onUpdate({ minimumQuantity: parseInt(e.target.value) || 0 })}
+              placeholder="Min"
+              className="w-20 border-amber-300 dark:border-amber-700"
+              title="Minimum stock level"
+            />
+          </div>
         )}
 
         {canAddSubVariants && !hasSubVariants && (
