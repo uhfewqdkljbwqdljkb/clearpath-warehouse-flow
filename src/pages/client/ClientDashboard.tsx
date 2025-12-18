@@ -6,6 +6,7 @@ import { DashboardMetrics } from '@/components/client/DashboardMetrics';
 import { RecentActivity } from '@/components/client/RecentActivity';
 import { StorageAllocationCard } from '@/components/client/StorageAllocationCard';
 import { QuickActions } from '@/components/client/QuickActions';
+import { LowStockAlerts } from '@/components/client/LowStockAlerts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -48,10 +49,38 @@ export const ClientDashboard: React.FC = () => {
       // Fetch inventory items
       const { data: inventoryData } = await supabase
         .from('inventory_items')
-        .select('quantity')
+        .select('quantity, product_id')
         .eq('company_id', profile.company_id);
 
       const totalInventory = inventoryData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+
+      // Create inventory map by product_id
+      const inventoryByProduct: { [key: string]: number } = {};
+      inventoryData?.forEach((item) => {
+        if (inventoryByProduct[item.product_id]) {
+          inventoryByProduct[item.product_id] += item.quantity;
+        } else {
+          inventoryByProduct[item.product_id] = item.quantity;
+        }
+      });
+
+      // Fetch products with minimum_quantity to calculate low stock alerts
+      const { data: productsData } = await supabase
+        .from('client_products')
+        .select('id, minimum_quantity, variants')
+        .eq('company_id', profile.company_id)
+        .eq('is_active', true);
+
+      // Calculate low stock alerts
+      let lowStockCount = 0;
+      productsData?.forEach((product) => {
+        if (product.minimum_quantity && product.minimum_quantity > 0) {
+          const currentStock = inventoryByProduct[product.id] || 0;
+          if (currentStock <= product.minimum_quantity) {
+            lowStockCount++;
+          }
+        }
+      });
 
       // Fetch pending orders
       const { count: pendingCount } = await supabase
@@ -65,7 +94,7 @@ export const ClientDashboard: React.FC = () => {
         totalInventory,
         pendingOrders: pendingCount || 0,
         totalValue: 0, // Calculate based on your business logic
-        lowStockAlerts: 0, // Calculate based on your business logic
+        lowStockAlerts: lowStockCount,
       });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -136,6 +165,9 @@ export const ClientDashboard: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Storage & Quick Actions */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Low Stock Alerts */}
+          <LowStockAlerts />
+          
           {/* Storage Allocation */}
           {company && company.location_type && (
             <StorageAllocationCard
