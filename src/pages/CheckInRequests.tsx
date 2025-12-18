@@ -249,14 +249,17 @@ export const CheckInRequests: React.FC = () => {
           // Use existing product
           productId = existingProduct.id;
           
-          // Merge new variants into existing product variants
+          // Merge new variants into existing product variants and update value/minimum_quantity if provided
+          const { data: productData } = await supabase
+            .from('client_products')
+            .select('variants, value, minimum_quantity')
+            .eq('id', productId)
+            .single();
+          
+          const updateData: any = {};
+          
+          // Merge variants if provided
           if (product.variants && product.variants.length > 0) {
-            const { data: productData } = await supabase
-              .from('client_products')
-              .select('variants')
-              .eq('id', productId)
-              .single();
-            
             const existingVariants = productData?.variants || [];
             const mergedVariants = mergeVariants(existingVariants as any[], product.variants);
             
@@ -265,13 +268,27 @@ export const CheckInRequests: React.FC = () => {
             console.log('New variants from check-in:', product.variants);
             console.log('Merged result:', mergedVariants);
             
+            updateData.variants = mergedVariants;
+          }
+          
+          // Update value if provided and not already set
+          if (product.value && product.value > 0 && (!productData?.value || productData.value === 0)) {
+            updateData.value = product.value;
+          }
+          
+          // Update minimum_quantity if provided and not already set
+          if (product.minimumQuantity && product.minimumQuantity > 0 && (!productData?.minimum_quantity || productData.minimum_quantity === 0)) {
+            updateData.minimum_quantity = product.minimumQuantity;
+          }
+          
+          if (Object.keys(updateData).length > 0) {
             const { error: updateError } = await supabase
               .from('client_products')
-              .update({ variants: mergedVariants })
+              .update(updateData)
               .eq('id', productId);
             
             if (updateError) {
-              console.error('Error updating variants:', updateError);
+              console.error('Error updating product:', updateError);
             }
           }
         } else {
@@ -283,6 +300,8 @@ export const CheckInRequests: React.FC = () => {
               name: product.name,
               variants: product.variants || [],
               is_active: true,
+              value: product.value || null,
+              minimum_quantity: product.minimumQuantity || 0,
             })
             .select('id')
             .single();
