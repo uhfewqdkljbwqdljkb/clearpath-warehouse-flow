@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Trash2, Package, TruckIcon, ChevronDown, Printer, Edit } from 'lucide-react';
+import { Plus, Trash2, Package, TruckIcon, ChevronDown, Printer, Edit, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { calculateNestedVariantQuantity, getVariantBreakdown, Variant } from '@/types/variants';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ShipmentStatsOverview } from '@/components/shipments/ShipmentStatsOverview';
@@ -55,6 +55,10 @@ interface Shipment {
   status: string;
   destination_address: string;
   items_count: number;
+  requires_approval?: boolean;
+  requested_by_role?: string;
+  shipped_by?: string;
+  shipped_by_name?: string;
 }
 
 interface ShipmentStats {
@@ -62,6 +66,7 @@ interface ShipmentStats {
   delivered: number;
   returned: number;
   pending: number;
+  pendingApproval: number;
   today: number;
   thisWeek: number;
   thisMonth: number;
@@ -89,6 +94,7 @@ export const ShipProducts: React.FC = () => {
     delivered: 0,
     returned: 0,
     pending: 0,
+    pendingApproval: 0,
     today: 0,
     thisWeek: 0,
     thisMonth: 0,
@@ -287,8 +293,12 @@ export const ShipProducts: React.FC = () => {
         carrier,
         status,
         destination_address,
+        requires_approval,
+        requested_by_role,
+        shipped_by,
         companies!inner(name),
-        shipment_items(id)
+        shipment_items(id),
+        profiles!shipments_shipped_by_fkey(full_name)
       `)
       .order('created_at', { ascending: false });
 
@@ -308,6 +318,10 @@ export const ShipProducts: React.FC = () => {
       status: shipment.status,
       destination_address: shipment.destination_address,
       items_count: shipment.shipment_items?.length || 0,
+      requires_approval: shipment.requires_approval,
+      requested_by_role: shipment.requested_by_role,
+      shipped_by: shipment.shipped_by,
+      shipped_by_name: shipment.profiles?.full_name || 'Unknown',
     })) || [];
 
     setShipments(formattedShipments);
@@ -326,6 +340,7 @@ export const ShipProducts: React.FC = () => {
       delivered: 0,
       returned: 0,
       pending: 0,
+      pendingApproval: 0,
       today: 0,
       thisWeek: 0,
       thisMonth: 0,
@@ -338,6 +353,7 @@ export const ShipProducts: React.FC = () => {
         case 'delivered': newStats.delivered++; break;
         case 'returned': newStats.returned++; break;
         case 'pending': newStats.pending++; break;
+        case 'pending_approval': newStats.pendingApproval++; break;
       }
 
       // Time-based counts
@@ -457,6 +473,10 @@ export const ShipProducts: React.FC = () => {
 
       if (shipmentNumberError) throw shipmentNumberError;
 
+      // Check if user is warehouse_manager - they need approval
+      const isWarehouseManager = profile?.role === 'warehouse_manager';
+      const shipmentStatus = isWarehouseManager ? 'pending_approval' : 'pending';
+
       const { data: shipmentData, error: shipmentError } = await supabase
         .from('shipments')
         .insert({
@@ -470,13 +490,16 @@ export const ShipProducts: React.FC = () => {
           destination_phone: destinationPhone || null,
           notes: notes || null,
           shipped_by: profile?.id,
-          status: 'pending',
+          status: shipmentStatus,
+          requires_approval: isWarehouseManager,
+          requested_by_role: profile?.role || null,
         })
         .select()
         .single();
 
       if (shipmentError) throw shipmentError;
 
+      // Insert shipment items
       for (const item of shipmentItems) {
         const { error: itemError } = await supabase
           .from('shipment_items')
@@ -490,136 +513,23 @@ export const ShipProducts: React.FC = () => {
 
         if (itemError) throw itemError;
 
-        // Reduce inventory_items
-        let query = supabase
-          .from('inventory_items')
-          .select('id, quantity, variant_attribute, variant_value')
-          .eq('product_id', item.product_id)
-          .eq('company_id', selectedCompanyId)
-          .gt('quantity', 0);
-
-        if (item.variant_attribute && item.variant_value) {
-          query = query
-            .eq('variant_attribute', item.variant_attribute)
-            .eq('variant_value', item.variant_value);
-        }
-
-        const { data: inventoryItems, error: fetchError } = await query.order('received_date', { ascending: true });
-
-        if (fetchError) throw fetchError;
-
-        let remainingToShip = item.quantity;
-        
-        for (const invItem of inventoryItems || []) {
-          if (remainingToShip <= 0) break;
-
-          const deductAmount = Math.min(invItem.quantity, remainingToShip);
-          const newQuantity = invItem.quantity - deductAmount;
-
-          if (newQuantity > 0) {
-            await supabase
-              .from('inventory_items')
-              .update({ quantity: newQuantity, last_updated: new Date().toISOString() })
-              .eq('id', invItem.id);
-          } else {
-            await supabase
-              .from('inventory_items')
-              .delete()
-              .eq('id', invItem.id);
-          }
-
-          remainingToShip -= deductAmount;
-        }
-
-        if (remainingToShip > 0 && item.variant_attribute && item.variant_value) {
-          const { data: baseInventory } = await supabase
-            .from('inventory_items')
-            .select('id, quantity')
-            .eq('product_id', item.product_id)
-            .eq('company_id', selectedCompanyId)
-            .is('variant_attribute', null)
-            .gt('quantity', 0)
-            .order('received_date', { ascending: true });
-
-          for (const invItem of baseInventory || []) {
-            if (remainingToShip <= 0) break;
-
-            const deductAmount = Math.min(invItem.quantity, remainingToShip);
-            const newQuantity = invItem.quantity - deductAmount;
-
-            if (newQuantity > 0) {
-              await supabase
-                .from('inventory_items')
-                .update({ quantity: newQuantity, last_updated: new Date().toISOString() })
-                .eq('id', invItem.id);
-            } else {
-              await supabase
-                .from('inventory_items')
-                .delete()
-                .eq('id', invItem.id);
-            }
-
-            remainingToShip -= deductAmount;
-          }
-        }
-
-        // ALSO deduct from client_products.variants (source of truth for Client Products page)
-        if (item.variant_attribute && item.variant_value) {
-          const parsed = parseShipmentVariant(item.variant_attribute, item.variant_value);
-          
-          if (parsed.attr && parsed.value) {
-            const { data: product, error: productError } = await supabase
-              .from('client_products')
-              .select('variants')
-              .eq('id', item.product_id)
-              .maybeSingle();
-
-            if (!productError && product?.variants && Array.isArray(product.variants)) {
-              const updatedVariants = deductFromVariants(
-                product.variants,
-                parsed.attr,
-                parsed.value,
-                item.quantity
-              );
-
-              await supabase
-                .from('client_products')
-                .update({ variants: updatedVariants, updated_at: new Date().toISOString() })
-                .eq('id', item.product_id);
-
-              // Check if product quantity is now 0 and mark inactive if so
-              const calculateVariantTotal = (variants: any[]): number => {
-                if (!variants || !Array.isArray(variants)) return 0;
-                let total = 0;
-                for (const variant of variants) {
-                  for (const val of variant.values || []) {
-                    if (val.subVariants && val.subVariants.length > 0) {
-                      total += calculateVariantTotal(val.subVariants);
-                    } else {
-                      total += val.quantity || 0;
-                    }
-                  }
-                }
-                return total;
-              };
-
-              const totalQuantity = calculateVariantTotal(updatedVariants);
-              if (totalQuantity === 0) {
-                await supabase
-                  .from('client_products')
-                  .update({ is_active: false, updated_at: new Date().toISOString() })
-                  .eq('id', item.product_id);
-                console.log(`Product ${item.product_id} marked inactive due to zero quantity after shipment`);
-              }
-            }
-          }
+        // Only deduct inventory if NOT warehouse_manager (admins ship directly)
+        if (!isWarehouseManager) {
+          await deductInventoryForItem(item, selectedCompanyId);
         }
       }
 
-      toast({
-        title: 'Shipment Created',
-        description: `Shipment ${shipmentNumberData} created successfully`,
-      });
+      if (isWarehouseManager) {
+        toast({
+          title: 'Shipment Request Submitted',
+          description: `Shipment request ${shipmentNumberData} submitted for admin approval`,
+        });
+      } else {
+        toast({
+          title: 'Shipment Created',
+          description: `Shipment ${shipmentNumberData} created successfully`,
+        });
+      }
 
       resetForm();
       fetchAllShipments();
@@ -630,6 +540,225 @@ export const ShipProducts: React.FC = () => {
       toast({
         title: 'Error',
         description: error.message || 'Failed to create shipment',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Helper function to deduct inventory for a shipment item
+  const deductInventoryForItem = async (item: ShipmentItem, companyId: string) => {
+    // Reduce inventory_items
+    let query = supabase
+      .from('inventory_items')
+      .select('id, quantity, variant_attribute, variant_value')
+      .eq('product_id', item.product_id)
+      .eq('company_id', companyId)
+      .gt('quantity', 0);
+
+    if (item.variant_attribute && item.variant_value) {
+      query = query
+        .eq('variant_attribute', item.variant_attribute)
+        .eq('variant_value', item.variant_value);
+    }
+
+    const { data: inventoryItems, error: fetchError } = await query.order('received_date', { ascending: true });
+
+    if (fetchError) throw fetchError;
+
+    let remainingToShip = item.quantity;
+    
+    for (const invItem of inventoryItems || []) {
+      if (remainingToShip <= 0) break;
+
+      const deductAmount = Math.min(invItem.quantity, remainingToShip);
+      const newQuantity = invItem.quantity - deductAmount;
+
+      if (newQuantity > 0) {
+        await supabase
+          .from('inventory_items')
+          .update({ quantity: newQuantity, last_updated: new Date().toISOString() })
+          .eq('id', invItem.id);
+      } else {
+        await supabase
+          .from('inventory_items')
+          .delete()
+          .eq('id', invItem.id);
+      }
+
+      remainingToShip -= deductAmount;
+    }
+
+    if (remainingToShip > 0 && item.variant_attribute && item.variant_value) {
+      const { data: baseInventory } = await supabase
+        .from('inventory_items')
+        .select('id, quantity')
+        .eq('product_id', item.product_id)
+        .eq('company_id', companyId)
+        .is('variant_attribute', null)
+        .gt('quantity', 0)
+        .order('received_date', { ascending: true });
+
+      for (const invItem of baseInventory || []) {
+        if (remainingToShip <= 0) break;
+
+        const deductAmount = Math.min(invItem.quantity, remainingToShip);
+        const newQuantity = invItem.quantity - deductAmount;
+
+        if (newQuantity > 0) {
+          await supabase
+            .from('inventory_items')
+            .update({ quantity: newQuantity, last_updated: new Date().toISOString() })
+            .eq('id', invItem.id);
+        } else {
+          await supabase
+            .from('inventory_items')
+            .delete()
+            .eq('id', invItem.id);
+        }
+
+        remainingToShip -= deductAmount;
+      }
+    }
+
+    // ALSO deduct from client_products.variants (source of truth for Client Products page)
+    if (item.variant_attribute && item.variant_value) {
+      const parsed = parseShipmentVariant(item.variant_attribute, item.variant_value);
+      
+      if (parsed.attr && parsed.value) {
+        const { data: product, error: productError } = await supabase
+          .from('client_products')
+          .select('variants')
+          .eq('id', item.product_id)
+          .maybeSingle();
+
+        if (!productError && product?.variants && Array.isArray(product.variants)) {
+          const updatedVariants = deductFromVariants(
+            product.variants,
+            parsed.attr,
+            parsed.value,
+            item.quantity
+          );
+
+          await supabase
+            .from('client_products')
+            .update({ variants: updatedVariants, updated_at: new Date().toISOString() })
+            .eq('id', item.product_id);
+
+          // Check if product quantity is now 0 and mark inactive if so
+          const calculateVariantTotal = (variants: any[]): number => {
+            if (!variants || !Array.isArray(variants)) return 0;
+            let total = 0;
+            for (const variant of variants) {
+              for (const val of variant.values || []) {
+                if (val.subVariants && val.subVariants.length > 0) {
+                  total += calculateVariantTotal(val.subVariants);
+                } else {
+                  total += val.quantity || 0;
+                }
+              }
+            }
+            return total;
+          };
+
+          const totalQuantity = calculateVariantTotal(updatedVariants);
+          if (totalQuantity === 0) {
+            await supabase
+              .from('client_products')
+              .update({ is_active: false, updated_at: new Date().toISOString() })
+              .eq('id', item.product_id);
+            console.log(`Product ${item.product_id} marked inactive due to zero quantity after shipment`);
+          }
+        }
+      }
+    }
+  };
+
+  // Approve a shipment request (admin/super_admin only)
+  const approveShipmentRequest = async (shipmentId: string) => {
+    setIsLoading(true);
+    try {
+      // Get shipment details
+      const { data: shipment, error: shipmentError } = await supabase
+        .from('shipments')
+        .select(`
+          *,
+          shipment_items(*)
+        `)
+        .eq('id', shipmentId)
+        .single();
+
+      if (shipmentError) throw shipmentError;
+
+      // Deduct inventory for each item
+      for (const item of shipment.shipment_items || []) {
+        const shipmentItem: ShipmentItem = {
+          product_id: item.product_id,
+          product_name: '',
+          variant_attribute: item.variant_attribute,
+          variant_value: item.variant_value,
+          quantity: item.quantity,
+          available: 0,
+        };
+        await deductInventoryForItem(shipmentItem, shipment.company_id);
+      }
+
+      // Update shipment status to approved
+      const { error: updateError } = await supabase
+        .from('shipments')
+        .update({
+          status: 'pending',
+          approved_by: profile?.id,
+          approved_at: new Date().toISOString(),
+        })
+        .eq('id', shipmentId);
+
+      if (updateError) throw updateError;
+
+      toast({
+        title: 'Shipment Approved',
+        description: 'Shipment request has been approved and inventory deducted',
+      });
+
+      fetchAllShipments();
+      fetchProducts();
+    } catch (error: any) {
+      console.error('Error approving shipment:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to approve shipment',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Reject a shipment request (admin/super_admin only)
+  const rejectShipmentRequest = async (shipmentId: string) => {
+    setIsLoading(true);
+    try {
+      const { error } = await supabase
+        .from('shipments')
+        .update({
+          status: 'cancelled',
+        })
+        .eq('id', shipmentId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Shipment Rejected',
+        description: 'Shipment request has been rejected',
+      });
+
+      fetchAllShipments();
+    } catch (error: any) {
+      console.error('Error rejecting shipment:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to reject shipment',
         variant: 'destructive',
       });
     } finally {
@@ -931,7 +1060,7 @@ export const ShipProducts: React.FC = () => {
       </div>
 
       <Tabs defaultValue="ship" className="space-y-6">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className={`grid w-full max-w-lg ${['admin', 'super_admin'].includes(profile?.role || '') ? 'grid-cols-3' : 'grid-cols-2'}`}>
           <TabsTrigger value="ship">
             <Package className="h-4 w-4 mr-2" />
             Ship a Product
@@ -940,6 +1069,17 @@ export const ShipProducts: React.FC = () => {
             <TruckIcon className="h-4 w-4 mr-2" />
             Shipment Requests
           </TabsTrigger>
+          {['admin', 'super_admin'].includes(profile?.role || '') && (
+            <TabsTrigger value="approvals">
+              <Clock className="h-4 w-4 mr-2" />
+              Pending Approvals
+              {stats.pendingApproval > 0 && (
+                <Badge variant="destructive" className="ml-2 h-5 min-w-5 text-xs">
+                  {stats.pendingApproval}
+                </Badge>
+              )}
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Ship a Product Tab */}
@@ -1281,6 +1421,90 @@ export const ShipProducts: React.FC = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Pending Approvals Tab - Admin/Super Admin only */}
+        {['admin', 'super_admin'].includes(profile?.role || '') && (
+          <TabsContent value="approvals" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-5 w-5" />
+                  Pending Shipment Approvals
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Shipment #</TableHead>
+                      <TableHead>Client</TableHead>
+                      <TableHead>Items</TableHead>
+                      <TableHead>Requested By</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Destination</TableHead>
+                      <TableHead className="w-[150px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {shipments.filter(s => s.status === 'pending_approval').length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                          No pending shipment requests
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      shipments.filter(s => s.status === 'pending_approval').map(shipment => (
+                        <TableRow key={shipment.id}>
+                          <TableCell className="font-medium">{shipment.shipment_number}</TableCell>
+                          <TableCell>{shipment.company_name}</TableCell>
+                          <TableCell>{shipment.items_count}</TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="text-sm">{shipment.shipped_by_name}</p>
+                              <Badge variant="outline" className="text-xs">{shipment.requested_by_role}</Badge>
+                            </div>
+                          </TableCell>
+                          <TableCell>{new Date(shipment.shipment_date).toLocaleDateString()}</TableCell>
+                          <TableCell className="max-w-[200px] truncate">{shipment.destination_address}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                variant="default"
+                                onClick={() => approveShipmentRequest(shipment.id)}
+                                disabled={isLoading}
+                                title="Approve"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => rejectShipmentRequest(shipment.id)}
+                                disabled={isLoading}
+                                title="Reject"
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => generateShipmentPDF(shipment.id)}
+                                title="Print"
+                              >
+                                <Printer className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Status Update Dialog */}

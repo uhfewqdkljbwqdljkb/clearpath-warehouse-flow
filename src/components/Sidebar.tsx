@@ -22,8 +22,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     '/dashboard/clients': ['admin', 'super_admin'],
     '/dashboard/products': ['admin', 'super_admin', 'warehouse_manager'],
     '/dashboard/check-in-requests': ['admin', 'super_admin', 'warehouse_manager'],
-    '/dashboard/check-out-requests': ['admin', 'super_admin', 'logistics_coordinator'],
-    '/dashboard/ship-products': ['admin', 'super_admin', 'logistics_coordinator'],
+    '/dashboard/check-out-requests': ['admin', 'super_admin', 'warehouse_manager', 'logistics_coordinator'],
+    '/dashboard/ship-products': ['admin', 'super_admin', 'warehouse_manager', 'logistics_coordinator'],
     '/dashboard/jarde': ['admin', 'super_admin', 'warehouse_manager'],
     '/dashboard/ai-assistant': ['admin', 'super_admin', 'warehouse_manager', 'logistics_coordinator'],
     '/dashboard/users': ['super_admin'], // Only super_admin can access
