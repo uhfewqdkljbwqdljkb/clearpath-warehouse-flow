@@ -180,15 +180,29 @@ export const CheckInRequests: React.FC = () => {
         : request.requested_products;
 
       for (const product of productsToProcess) {
-        // Check if product already exists for this company
-        const { data: existingProduct } = await supabase
-          .from('client_products')
-          .select('id')
-          .eq('company_id', request.company_id)
-          .eq('name', product.name)
-          .maybeSingle();
-
         let productId: string;
+        let existingProduct: { id: string } | null = null;
+
+        // First, check if we have an existing product ID from the check-in request
+        if (product.existingProductId) {
+          const { data: productById } = await supabase
+            .from('client_products')
+            .select('id')
+            .eq('id', product.existingProductId)
+            .maybeSingle();
+          existingProduct = productById;
+        }
+        
+        // Fallback to name search if no existing product ID
+        if (!existingProduct) {
+          const { data: productByName } = await supabase
+            .from('client_products')
+            .select('id')
+            .eq('company_id', request.company_id)
+            .eq('name', product.name)
+            .maybeSingle();
+          existingProduct = productByName;
+        }
 
         if (existingProduct) {
           // Use existing product
@@ -205,10 +219,19 @@ export const CheckInRequests: React.FC = () => {
             const existingVariants = productData?.variants || [];
             const mergedVariants = mergeVariants(existingVariants as any[], product.variants);
             
-            await supabase
+            console.log('Merging variants for product:', productId);
+            console.log('Existing variants:', existingVariants);
+            console.log('New variants from check-in:', product.variants);
+            console.log('Merged result:', mergedVariants);
+            
+            const { error: updateError } = await supabase
               .from('client_products')
               .update({ variants: mergedVariants })
               .eq('id', productId);
+            
+            if (updateError) {
+              console.error('Error updating variants:', updateError);
+            }
           }
         } else {
           // Create new product
@@ -499,15 +522,29 @@ export const CheckInRequests: React.FC = () => {
 
       // Create/update inventory with amended quantities
       for (const product of amendedProducts) {
-        // Check if product already exists for this company
-        const { data: existingProduct } = await supabase
-          .from('client_products')
-          .select('id')
-          .eq('company_id', selectedRequest.company_id)
-          .eq('name', product.name)
-          .maybeSingle();
-
         let productId: string;
+        let existingProduct: { id: string } | null = null;
+
+        // First, check if we have an existing product ID from the check-in request
+        if (product.existingProductId) {
+          const { data: productById } = await supabase
+            .from('client_products')
+            .select('id')
+            .eq('id', product.existingProductId)
+            .maybeSingle();
+          existingProduct = productById;
+        }
+        
+        // Fallback to name search if no existing product ID
+        if (!existingProduct) {
+          const { data: productByName } = await supabase
+            .from('client_products')
+            .select('id')
+            .eq('company_id', selectedRequest.company_id)
+            .eq('name', product.name)
+            .maybeSingle();
+          existingProduct = productByName;
+        }
 
         if (existingProduct) {
           // Use existing product
@@ -524,10 +561,19 @@ export const CheckInRequests: React.FC = () => {
             const existingVariants = productData?.variants || [];
             const mergedVariants = mergeVariants(existingVariants as any[], product.variants);
             
-            await supabase
+            console.log('Amend - Merging variants for product:', productId);
+            console.log('Amend - Existing variants:', existingVariants);
+            console.log('Amend - New variants from check-in:', product.variants);
+            console.log('Amend - Merged result:', mergedVariants);
+            
+            const { error: updateError } = await supabase
               .from('client_products')
               .update({ variants: mergedVariants })
               .eq('id', productId);
+            
+            if (updateError) {
+              console.error('Error updating variants:', updateError);
+            }
           }
         } else {
           // Create new product
