@@ -222,43 +222,44 @@ export const CheckOutRequests: React.FC = () => {
 
       // Process each product
       for (const [productId, updateInfo] of Object.entries(productUpdates)) {
-        // 1. Update variant quantities in client_products.variants JSON
-        let updatedVariants: any[] = [];
-        if (updateInfo.deductions.length > 0) {
-          const { data: product, error: productError } = await supabase
-            .from('client_products')
-            .select('variants')
-            .eq('id', productId)
-            .maybeSingle();
+        // 1. Fetch current product state
+        const { data: product, error: productError } = await supabase
+          .from('client_products')
+          .select('variants, is_active')
+          .eq('id', productId)
+          .maybeSingle();
 
-          if (productError) throw productError;
-          
-          if (product?.variants && Array.isArray(product.variants)) {
-            updatedVariants = [...product.variants];
-            
-            for (const deduction of updateInfo.deductions) {
-              if (deduction.variantAttr && deduction.variantVal) {
-                updatedVariants = deductFromVariants(
-                  updatedVariants,
-                  deduction.variantAttr,
-                  deduction.variantVal,
-                  deduction.subVariantAttr,
-                  deduction.subVariantVal,
-                  deduction.quantity
-                );
-              }
+        if (productError) throw productError;
+        
+        // 2. Update variant quantities in client_products.variants JSON
+        let updatedVariants: any[] = product?.variants && Array.isArray(product.variants) 
+          ? [...product.variants] 
+          : [];
+        
+        if (updateInfo.deductions.length > 0 && updatedVariants.length > 0) {
+          for (const deduction of updateInfo.deductions) {
+            if (deduction.variantAttr && deduction.variantVal) {
+              updatedVariants = deductFromVariants(
+                updatedVariants,
+                deduction.variantAttr,
+                deduction.variantVal,
+                deduction.subVariantAttr,
+                deduction.subVariantVal,
+                deduction.quantity
+              );
             }
-            
-            const { error: updateProductError } = await supabase
-              .from('client_products')
-              .update({ variants: updatedVariants })
-              .eq('id', productId);
-
-            if (updateProductError) throw updateProductError;
           }
+          
+          const { error: updateProductError } = await supabase
+            .from('client_products')
+            .update({ variants: updatedVariants, updated_at: new Date().toISOString() })
+            .eq('id', productId);
+
+          if (updateProductError) throw updateProductError;
+          console.log(`Updated variants for product ${productId}:`, updatedVariants);
         }
         
-        // 2. Deduct from base inventory_items record
+        // 3. Deduct from base inventory_items record
         const { data: baseInventory } = await supabase
           .from('inventory_items')
           .select('id, quantity')
@@ -268,15 +269,22 @@ export const CheckOutRequests: React.FC = () => {
           .is('variant_value', null)
           .maybeSingle();
         
+        let inventoryUpdated = false;
+        let finalInventoryQuantity = 0;
+        
         if (baseInventory) {
-          const newQuantity = Math.max(0, baseInventory.quantity - updateInfo.totalDeduction);
-          await supabase
+          finalInventoryQuantity = Math.max(0, baseInventory.quantity - updateInfo.totalDeduction);
+          const { error: invError } = await supabase
             .from('inventory_items')
             .update({ 
-              quantity: newQuantity,
+              quantity: finalInventoryQuantity,
               last_updated: new Date().toISOString()
             })
             .eq('id', baseInventory.id);
+          
+          if (invError) throw invError;
+          inventoryUpdated = true;
+          console.log(`Updated base inventory for product ${productId}: ${baseInventory.quantity} -> ${finalInventoryQuantity}`);
         } else {
           // Fallback: find any inventory record for this product
           const { data: anyInventory } = await supabase
@@ -289,24 +297,35 @@ export const CheckOutRequests: React.FC = () => {
             .maybeSingle();
           
           if (anyInventory) {
-            const newQuantity = Math.max(0, anyInventory.quantity - updateInfo.totalDeduction);
-            await supabase
+            finalInventoryQuantity = Math.max(0, anyInventory.quantity - updateInfo.totalDeduction);
+            const { error: invError } = await supabase
               .from('inventory_items')
               .update({ 
-                quantity: newQuantity,
+                quantity: finalInventoryQuantity,
                 last_updated: new Date().toISOString()
               })
               .eq('id', anyInventory.id);
+            
+            if (invError) throw invError;
+            inventoryUpdated = true;
+            console.log(`Updated fallback inventory for product ${productId}: ${anyInventory.quantity} -> ${finalInventoryQuantity}`);
           }
         }
 
-        // 3. Check if product quantity is now 0 and mark inactive if so
+        // 4. Check if product quantity is now 0 and mark inactive if so
+        // Calculate from variants if they exist, otherwise use inventory quantity
         const totalVariantQuantity = calculateVariantTotal(updatedVariants);
-        if (totalVariantQuantity === 0) {
-          await supabase
+        const effectiveQuantity = updatedVariants.length > 0 ? totalVariantQuantity : finalInventoryQuantity;
+        
+        console.log(`Product ${productId} - Variant qty: ${totalVariantQuantity}, Inventory qty: ${finalInventoryQuantity}, Effective: ${effectiveQuantity}`);
+        
+        if (effectiveQuantity === 0 && (updatedVariants.length > 0 || inventoryUpdated)) {
+          const { error: inactiveError } = await supabase
             .from('client_products')
             .update({ is_active: false, updated_at: new Date().toISOString() })
             .eq('id', productId);
+          
+          if (inactiveError) throw inactiveError;
           console.log(`Product ${productId} marked inactive due to zero quantity after checkout`);
         }
       }
