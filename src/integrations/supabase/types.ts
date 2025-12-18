@@ -1183,6 +1183,26 @@ export type Database = {
       generate_check_out_request_number: { Args: never; Returns: string }
       generate_client_code: { Args: never; Returns: string }
       generate_shipment_number: { Args: never; Returns: string }
+      get_my_company_info: {
+        Args: never
+        Returns: {
+          address: string
+          assigned_floor_zone_id: string
+          assigned_row_id: string
+          client_code: string
+          client_type: string
+          contact_email: string
+          contact_phone: string
+          contract_end_date: string
+          contract_start_date: string
+          created_at: string
+          id: string
+          is_active: boolean
+          location_type: Database["public"]["Enums"]["location_type"]
+          name: string
+          updated_at: string
+        }[]
+      }
       get_staff_for_messaging: {
         Args: never
         Returns: {

@@ -85,17 +85,34 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       // Fetch company if user has one
       if (profileData.company_id) {
-        const { data: companyData } = await supabase
-          .from('companies')
-          .select('*')
-          .eq('id', profileData.company_id)
-          .single();
+        // Check if user is admin or client_admin (can query directly)
+        const isAdmin = ['admin', 'super_admin', 'warehouse_manager', 'logistics_coordinator', 'client_admin'].includes(role);
+        
+        if (isAdmin) {
+          // Admin roles can query companies directly
+          const { data: companyData } = await supabase
+            .from('companies')
+            .select('*')
+            .eq('id', profileData.company_id)
+            .single();
 
-        if (companyData) {
-          setCompany({
-            ...companyData,
-            client_type: companyData.client_type || 'ecommerce'
-          } as Company);
+          if (companyData) {
+            setCompany({
+              ...companyData,
+              client_type: companyData.client_type || 'ecommerce'
+            } as Company);
+          }
+        } else {
+          // Regular client_user uses secure function (excludes billing_address, contract_document_url)
+          const { data: companyData } = await supabase
+            .rpc('get_my_company_info');
+
+          if (companyData && companyData.length > 0) {
+            setCompany({
+              ...companyData[0],
+              client_type: companyData[0].client_type || 'ecommerce'
+            } as Company);
+          }
         }
       }
     } catch (error) {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { Building2, MapPin } from 'lucide-react';
 
 interface StorageAllocationProps {
@@ -13,26 +14,41 @@ export const StorageAllocationCard: React.FC<StorageAllocationProps> = ({
   companyId,
   locationType,
 }) => {
+  const { company, profile } = useAuth();
   const [allocation, setAllocation] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     fetchAllocation();
-  }, [companyId]);
+  }, [companyId, company]);
 
   const fetchAllocation = async () => {
     try {
-      const { data: company } = await supabase
-        .from('companies')
-        .select(`
-          *,
-          warehouse_zones:assigned_floor_zone_id(id, code, name, color),
-          warehouse_rows:assigned_row_id(id, code, row_number)
-        `)
-        .eq('id', companyId)
-        .single();
-
-      setAllocation(company);
+      // Use company from auth context if it matches, otherwise fetch warehouse zone/row details
+      if (company && company.id === companyId) {
+        // Fetch just the warehouse zone/row details
+        let warehouseData: any = { ...company };
+        
+        if (company.assigned_floor_zone_id) {
+          const { data: zone } = await supabase
+            .from('warehouse_zones')
+            .select('id, code, name, color')
+            .eq('id', company.assigned_floor_zone_id)
+            .single();
+          warehouseData.warehouse_zones = zone;
+        }
+        
+        if (company.assigned_row_id) {
+          const { data: row } = await supabase
+            .from('warehouse_rows')
+            .select('id, code, row_number')
+            .eq('id', company.assigned_row_id)
+            .single();
+          warehouseData.warehouse_rows = row;
+        }
+        
+        setAllocation(warehouseData);
+      }
     } catch (error) {
       console.error('Error fetching allocation:', error);
     } finally {

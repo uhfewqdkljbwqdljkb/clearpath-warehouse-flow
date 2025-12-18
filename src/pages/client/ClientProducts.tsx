@@ -166,7 +166,7 @@ interface InventoryRow {
 
 export const ClientProducts: React.FC = () => {
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, company } = useAuth();
   const { logActivity } = useIntegration();
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
@@ -207,19 +207,13 @@ export const ClientProducts: React.FC = () => {
   }, [profile?.company_id]);
 
   const fetchCompanyInfo = async () => {
-    if (!profile?.company_id) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('companies')
-        .select('name, client_code, client_type')
-        .eq('id', profile.company_id)
-        .single();
-
-      if (error) throw error;
-      setCompanyInfo(data);
-    } catch (error) {
-      console.error('Error fetching company info:', error);
+    // Use company from auth context instead of direct query (more secure)
+    if (company) {
+      setCompanyInfo({
+        name: company.name,
+        client_code: company.client_code,
+        client_type: company.client_type
+      });
     }
   };
 
