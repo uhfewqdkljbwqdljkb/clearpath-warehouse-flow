@@ -161,17 +161,24 @@ export const ShipProducts: React.FC = () => {
 
     const productsWithInventory = await Promise.all(
       (productsData || []).map(async (product) => {
-        const { data: inventoryData } = await supabase
-          .from('inventory_items')
-          .select('quantity')
-          .eq('product_id', product.id)
-          .eq('company_id', selectedCompanyId);
-
-        const inventoryTotal = inventoryData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+        // For products WITH variants, use client_products.variants as source of truth
+        // This ensures we read the correct deducted quantities after checkouts/shipments
+        const hasVariants = product.variants && Array.isArray(product.variants) && product.variants.length > 0;
         
-        let totalQuantity = inventoryTotal;
-        if (inventoryTotal === 0 && product.variants && Array.isArray(product.variants)) {
+        let totalQuantity = 0;
+        
+        if (hasVariants) {
+          // Variants are the source of truth - sum all variant quantities
           totalQuantity = calculateNestedVariantQuantity(product.variants as unknown as Variant[]);
+        } else {
+          // No variants - use inventory_items as fallback
+          const { data: inventoryData } = await supabase
+            .from('inventory_items')
+            .select('quantity')
+            .eq('product_id', product.id)
+            .eq('company_id', selectedCompanyId);
+
+          totalQuantity = inventoryData?.reduce((sum, item) => sum + item.quantity, 0) || 0;
         }
 
         return {
