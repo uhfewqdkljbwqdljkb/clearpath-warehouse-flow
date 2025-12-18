@@ -174,25 +174,59 @@ export const ClientCheckOut: React.FC = () => {
     return variantTotal;
   };
 
-  // Get available quantity for a specific variant
+  // Get available quantity for a specific variant from client_products.variants
   const getVariantAvailableQuantity = (
     productId: string, 
     variantAttr: string, 
     variantVal: string
   ): number => {
-    // First try to find exact variant match
-    const variantInventory = inventory.find(
-      i => i.product_id === productId && 
-           i.variant_attribute === variantAttr && 
-           i.variant_value === variantVal
-    );
-    if (variantInventory) return variantInventory.quantity;
+    const product = products.find(p => p.id === productId);
+    if (!product?.variants || !Array.isArray(product.variants)) return 0;
+    
+    // Find the variant attribute
+    const variant = product.variants.find((v: any) => v.attribute === variantAttr);
+    if (!variant?.values) return 0;
+    
+    // Find the specific value
+    const value = variant.values.find((val: any) => val.value === variantVal);
+    if (!value) return 0;
+    
+    // If has sub-variants, sum all sub-variant quantities
+    if (value.subVariants && value.subVariants.length > 0) {
+      let total = 0;
+      for (const subVar of value.subVariants) {
+        if (subVar.values) {
+          total += subVar.values.reduce((sum: number, sv: any) => sum + (sv.quantity || 0), 0);
+        }
+      }
+      return total;
+    }
+    
+    return value.quantity || 0;
+  };
 
-    // Fall back to base inventory divided equally (or just show base)
-    const baseInventory = inventory.find(
-      i => i.product_id === productId && !i.variant_attribute && !i.variant_value
-    );
-    return baseInventory?.quantity || 0;
+  // Get available quantity for a specific sub-variant
+  const getSubVariantAvailableQuantity = (
+    productId: string,
+    variantAttr: string,
+    variantVal: string,
+    subVariantAttr: string,
+    subVariantVal: string
+  ): number => {
+    const product = products.find(p => p.id === productId);
+    if (!product?.variants || !Array.isArray(product.variants)) return 0;
+    
+    const variant = product.variants.find((v: any) => v.attribute === variantAttr);
+    if (!variant?.values) return 0;
+    
+    const value = variant.values.find((val: any) => val.value === variantVal);
+    if (!value?.subVariants) return 0;
+    
+    const subVariant = value.subVariants.find((sv: any) => sv.attribute === subVariantAttr);
+    if (!subVariant?.values) return 0;
+    
+    const subValue = subVariant.values.find((sv: any) => sv.value === subVariantVal);
+    return subValue?.quantity || 0;
   };
 
   const addItemDraft = () => {
@@ -712,10 +746,20 @@ export const ClientCheckOut: React.FC = () => {
                                                   />
                                                   <label
                                                     htmlFor={`sub-${itemIndex}-${variant.attribute}-${val.value}-${subVar.attribute}-${subVal.value}`}
-                                                    className="flex-1 text-sm cursor-pointer"
+                                                    className="text-sm cursor-pointer"
                                                   >
                                                     {subVal.value}
                                                   </label>
+                                                  
+                                                  <span className="text-xs text-muted-foreground px-2 py-0.5 bg-muted rounded flex-shrink-0">
+                                                    {getSubVariantAvailableQuantity(
+                                                      draft.product_id,
+                                                      variant.attribute,
+                                                      val.value,
+                                                      subVar.attribute,
+                                                      subVal.value
+                                                    )} available
+                                                  </span>
                                                   
                                                   {isSubSelected && (
                                                     <Input
