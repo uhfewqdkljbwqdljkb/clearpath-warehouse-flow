@@ -6,12 +6,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, Package, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { calculateNestedVariantQuantity } from '@/types/variants';
+import { VariantValue, Variant } from '@/types/variants';
 
-interface LowStockProduct {
+interface LowStockItem {
   id: string;
-  name: string;
+  productId: string;
+  productName: string;
   sku: string | null;
+  variantPath: string | null; // e.g., "Size: Large → Color: Red"
   currentStock: number;
   minimumQuantity: number;
   isCritical: boolean;
@@ -20,67 +22,151 @@ interface LowStockProduct {
 export const LowStockAlerts: React.FC = () => {
   const { profile } = useAuth();
   const navigate = useNavigate();
-  const [lowStockProducts, setLowStockProducts] = useState<LowStockProduct[]>([]);
+  const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (profile?.company_id) {
-      fetchLowStockProducts();
+      fetchLowStockItems();
     }
   }, [profile?.company_id]);
 
-  const fetchLowStockProducts = async () => {
+  const fetchLowStockItems = async () => {
     if (!profile?.company_id) return;
 
     try {
-      // Fetch products with minimum_quantity set
+      // Fetch all active products
       const { data: products, error: productsError } = await supabase
         .from('client_products')
         .select('id, name, sku, minimum_quantity, variants')
         .eq('company_id', profile.company_id)
-        .eq('is_active', true)
-        .gt('minimum_quantity', 0);
+        .eq('is_active', true);
 
       if (productsError) throw productsError;
 
-      // Fetch inventory for these products
+      // Fetch inventory
       const { data: inventory, error: inventoryError } = await supabase
         .from('inventory_items')
-        .select('product_id, quantity')
+        .select('product_id, quantity, variant_attribute, variant_value')
         .eq('company_id', profile.company_id);
 
       if (inventoryError) throw inventoryError;
 
-      // Create inventory map
+      // Create inventory map by product_id and variant
       const inventoryMap: { [key: string]: number } = {};
       inventory?.forEach((item) => {
-        if (inventoryMap[item.product_id]) {
-          inventoryMap[item.product_id] += item.quantity;
-        } else {
-          inventoryMap[item.product_id] = item.quantity;
-        }
+        const key = item.variant_attribute && item.variant_value
+          ? `${item.product_id}:${item.variant_attribute}:${item.variant_value}`
+          : item.product_id;
+        inventoryMap[key] = (inventoryMap[key] || 0) + item.quantity;
       });
 
-      // Filter for low stock products
-      const lowStock: LowStockProduct[] = [];
+      // Check variants for low stock
+      const lowStock: LowStockItem[] = [];
+
+      const checkVariantValues = (
+        productId: string,
+        productName: string,
+        sku: string | null,
+        values: VariantValue[],
+        parentPath: string,
+        attributeName: string
+      ) => {
+        for (const val of values) {
+          const currentPath = parentPath
+            ? `${parentPath} → ${attributeName}: ${val.value}`
+            : `${attributeName}: ${val.value}`;
+
+          if (val.subVariants && val.subVariants.length > 0) {
+            // Has sub-variants, check them instead
+            for (const subVariant of val.subVariants) {
+              checkVariantValues(
+                productId,
+                productName,
+                sku,
+                subVariant.values,
+                currentPath,
+                subVariant.attribute
+              );
+            }
+          } else {
+            // Leaf node - check if it has a minimum quantity set
+            const minQty = val.minimumQuantity || 0;
+            if (minQty > 0) {
+              // Get current stock for this variant
+              const inventoryKey = `${productId}:${attributeName}:${val.value}`;
+              let currentStock = inventoryMap[inventoryKey] || 0;
+              
+              // Fallback to variant quantity if no inventory record
+              if (currentStock === 0) {
+                currentStock = val.quantity || 0;
+              }
+
+              if (currentStock <= minQty) {
+                lowStock.push({
+                  id: `${productId}-${currentPath}`,
+                  productId,
+                  productName,
+                  sku,
+                  variantPath: currentPath,
+                  currentStock,
+                  minimumQuantity: minQty,
+                  isCritical: currentStock === 0 || currentStock < minQty * 0.5,
+                });
+              }
+            }
+          }
+        }
+      };
+
       products?.forEach((product) => {
-        let currentStock = inventoryMap[product.id] || 0;
-        
-        // If no inventory record, fallback to variant quantities
-        if (currentStock === 0 && product.variants && Array.isArray(product.variants)) {
-          currentStock = calculateNestedVariantQuantity(product.variants as any);
+        // Check product-level minimum quantity
+        const productMinQty = product.minimum_quantity || 0;
+        if (productMinQty > 0) {
+          let totalStock = inventoryMap[product.id] || 0;
+          
+          // Calculate from variants if no direct inventory
+          if (totalStock === 0 && product.variants && Array.isArray(product.variants)) {
+            const calcTotal = (vals: VariantValue[]): number => {
+              return vals.reduce((sum, v) => {
+                if (v.subVariants && v.subVariants.length > 0) {
+                  return sum + v.subVariants.reduce((s, sv) => s + calcTotal(sv.values), 0);
+                }
+                return sum + (v.quantity || 0);
+              }, 0);
+            };
+            totalStock = (product.variants as unknown as Variant[]).reduce(
+              (sum, variant) => sum + calcTotal(variant.values),
+              0
+            );
+          }
+
+          if (totalStock <= productMinQty) {
+            lowStock.push({
+              id: product.id,
+              productId: product.id,
+              productName: product.name,
+              sku: product.sku,
+              variantPath: null,
+              currentStock: totalStock,
+              minimumQuantity: productMinQty,
+              isCritical: totalStock === 0 || totalStock < productMinQty * 0.5,
+            });
+          }
         }
 
-        const minQty = product.minimum_quantity || 0;
-        if (currentStock <= minQty) {
-          lowStock.push({
-            id: product.id,
-            name: product.name,
-            sku: product.sku,
-            currentStock,
-            minimumQuantity: minQty,
-            isCritical: currentStock === 0 || currentStock < minQty * 0.5,
-          });
+        // Check variant-level minimum quantities
+        if (product.variants && Array.isArray(product.variants)) {
+          for (const variant of product.variants as unknown as Variant[]) {
+            checkVariantValues(
+              product.id,
+              product.name,
+              product.sku,
+              variant.values,
+              '',
+              variant.attribute
+            );
+          }
         }
       });
 
@@ -91,9 +177,9 @@ export const LowStockAlerts: React.FC = () => {
         return a.currentStock - b.currentStock;
       });
 
-      setLowStockProducts(lowStock);
+      setLowStockItems(lowStock);
     } catch (error) {
-      console.error('Error fetching low stock products:', error);
+      console.error('Error fetching low stock items:', error);
     } finally {
       setIsLoading(false);
     }
@@ -103,7 +189,7 @@ export const LowStockAlerts: React.FC = () => {
     return null;
   }
 
-  if (lowStockProducts.length === 0) {
+  if (lowStockItems.length === 0) {
     return null;
   }
 
@@ -115,43 +201,46 @@ export const LowStockAlerts: React.FC = () => {
             <AlertTriangle className="h-5 w-5 text-destructive" />
             <CardTitle className="text-lg">Low Stock Alerts</CardTitle>
           </div>
-          <Badge variant="destructive">{lowStockProducts.length} items</Badge>
+          <Badge variant="destructive">{lowStockItems.length} items</Badge>
         </div>
         <CardDescription>
-          These products need to be restocked soon
+          These items need to be restocked soon
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        {lowStockProducts.slice(0, 5).map((product) => (
+        {lowStockItems.slice(0, 5).map((item) => (
           <div
-            key={product.id}
+            key={item.id}
             className="flex items-center justify-between p-3 rounded-lg bg-background border"
           >
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${product.isCritical ? 'bg-destructive/10' : 'bg-yellow-500/10'}`}>
-                <Package className={`h-4 w-4 ${product.isCritical ? 'text-destructive' : 'text-yellow-600'}`} />
+              <div className={`p-2 rounded-lg ${item.isCritical ? 'bg-destructive/10' : 'bg-yellow-500/10'}`}>
+                <Package className={`h-4 w-4 ${item.isCritical ? 'text-destructive' : 'text-yellow-600'}`} />
               </div>
               <div>
-                <p className="font-medium text-sm">{product.name}</p>
-                {product.sku && (
-                  <p className="text-xs text-muted-foreground">SKU: {product.sku}</p>
+                <p className="font-medium text-sm">{item.productName}</p>
+                {item.variantPath && (
+                  <p className="text-xs text-muted-foreground">{item.variantPath}</p>
+                )}
+                {!item.variantPath && item.sku && (
+                  <p className="text-xs text-muted-foreground">SKU: {item.sku}</p>
                 )}
               </div>
             </div>
             <div className="text-right">
-              <p className={`font-bold ${product.isCritical ? 'text-destructive' : 'text-yellow-600'}`}>
-                {product.currentStock} left
+              <p className={`font-bold ${item.isCritical ? 'text-destructive' : 'text-yellow-600'}`}>
+                {item.currentStock} left
               </p>
               <p className="text-xs text-muted-foreground">
-                Min: {product.minimumQuantity}
+                Min: {item.minimumQuantity}
               </p>
             </div>
           </div>
         ))}
         
-        {lowStockProducts.length > 5 && (
+        {lowStockItems.length > 5 && (
           <p className="text-sm text-muted-foreground text-center">
-            +{lowStockProducts.length - 5} more items with low stock
+            +{lowStockItems.length - 5} more items with low stock
           </p>
         )}
 

@@ -4,6 +4,7 @@
 export interface VariantValue {
   value: string;
   quantity: number;
+  minimumQuantity?: number; // Low stock threshold for this variant
   subVariants?: Variant[]; // Nested variants under this value
 }
 

@@ -31,17 +31,54 @@ import { VariantQuantityDisplay } from '@/components/VariantQuantityDisplay';
 import { ReassignProductDialog } from '@/components/ReassignProductDialog';
 
 // Recursive component to display variant values including nested subVariants
-const VariantValuesDisplay: React.FC<{ values: any[]; depth: number }> = ({ values, depth }) => {
+const VariantValuesDisplay: React.FC<{ 
+  values: any[]; 
+  depth: number;
+  editable?: boolean;
+  onUpdate?: (values: any[]) => void;
+}> = ({ values, depth, editable = false, onUpdate }) => {
   if (!values || values.length === 0) return null;
+
+  const handleValueUpdate = (index: number, field: string, newValue: any) => {
+    if (!onUpdate) return;
+    const updated = [...values];
+    updated[index] = { ...updated[index], [field]: newValue };
+    onUpdate(updated);
+  };
+
+  const handleSubVariantsUpdate = (valueIndex: number, subVariantIndex: number, newSubVariantValues: any[]) => {
+    if (!onUpdate) return;
+    const updated = [...values];
+    updated[valueIndex].subVariants[subVariantIndex].values = newSubVariantValues;
+    onUpdate(updated);
+  };
   
   return (
-    <div className={`space-y-1 ${depth > 0 ? 'ml-4 pl-3 border-l border-border' : ''}`}>
+    <div className={`space-y-2 ${depth > 0 ? 'ml-4 pl-3 border-l border-border' : ''}`}>
       {values.map((val: any, vIndex: number) => (
         <div key={vIndex}>
-          <div className="flex justify-between text-sm">
-            <span>{val.value}</span>
+          <div className="flex justify-between items-center text-sm gap-2">
+            <span className="font-medium">{val.value}</span>
             {(!val.subVariants || val.subVariants.length === 0) && (
-              <span className="text-muted-foreground">Qty: {val.quantity}</span>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <span>Qty: {val.quantity}</span>
+                {editable ? (
+                  <div className="flex items-center gap-1">
+                    <span className="text-amber-600 dark:text-amber-400">Min:</span>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={val.minimumQuantity || 0}
+                      onChange={(e) => handleValueUpdate(vIndex, 'minimumQuantity', parseInt(e.target.value) || 0)}
+                      className="w-16 h-7 text-sm border-amber-300 dark:border-amber-700"
+                    />
+                  </div>
+                ) : (
+                  val.minimumQuantity > 0 && (
+                    <span className="text-amber-600 dark:text-amber-400">Min: {val.minimumQuantity}</span>
+                  )
+                )}
+              </div>
             )}
           </div>
           {val.subVariants && val.subVariants.length > 0 && (
@@ -49,7 +86,12 @@ const VariantValuesDisplay: React.FC<{ values: any[]; depth: number }> = ({ valu
               {val.subVariants.map((subVariant: any, svIndex: number) => (
                 <div key={svIndex} className="mt-1">
                   <div className="text-xs font-medium text-muted-foreground mb-1">{subVariant.attribute}:</div>
-                  <VariantValuesDisplay values={subVariant.values} depth={depth + 1} />
+                  <VariantValuesDisplay 
+                    values={subVariant.values} 
+                    depth={depth + 1}
+                    editable={editable}
+                    onUpdate={(newVals) => handleSubVariantsUpdate(vIndex, svIndex, newVals)}
+                  />
                 </div>
               ))}
             </div>
@@ -146,6 +188,8 @@ export const ClientProducts: React.FC = () => {
   const [showReassignDialog, setShowReassignDialog] = useState(false);
   const [editMinQuantity, setEditMinQuantity] = useState<number>(0);
   const [isSavingMinQuantity, setIsSavingMinQuantity] = useState(false);
+  const [editVariants, setEditVariants] = useState<any[]>([]);
+  const [isSavingVariants, setIsSavingVariants] = useState(false);
 
   useEffect(() => {
     if (profile?.company_id) {
@@ -518,7 +562,40 @@ export const ClientProducts: React.FC = () => {
 
     setSelectedProduct(nextProduct);
     setEditMinQuantity(nextProduct.minimum_quantity || 0);
+    setEditVariants(nextProduct.variants && Array.isArray(nextProduct.variants) ? JSON.parse(JSON.stringify(nextProduct.variants)) : []);
     setIsViewDialogOpen(true);
+  };
+
+  const handleSaveVariantMinQuantities = async () => {
+    if (!selectedProduct) return;
+    
+    setIsSavingVariants(true);
+    try {
+      const { error } = await supabase
+        .from('client_products')
+        .update({ variants: editVariants })
+        .eq('id', selectedProduct.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Variant minimum quantities updated successfully",
+      });
+
+      // Update local state
+      setSelectedProduct({ ...selectedProduct, variants: editVariants });
+      fetchProducts();
+    } catch (error) {
+      console.error('Error updating variant minimum quantities:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update variant minimum quantities",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingVariants(false);
+    }
   };
 
   const handleSaveMinQuantity = async () => {
@@ -973,17 +1050,38 @@ export const ClientProducts: React.FC = () => {
                 </p>
               </div>
 
-              {selectedProduct.variants && Array.isArray(selectedProduct.variants) && selectedProduct.variants.length > 0 && (
-                <div>
-                  <Label className="text-muted-foreground">Variants</Label>
-                  <div className="mt-2 space-y-3">
-              {selectedProduct.variants.map((variant: any, index: number) => (
-                      <div key={index} className="border rounded-lg p-3 bg-muted/30">
+              {editVariants && editVariants.length > 0 && (
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center justify-between mb-3">
+                    <Label className="text-muted-foreground">Variant Minimum Stock Levels</Label>
+                    <Button 
+                      size="sm" 
+                      onClick={handleSaveVariantMinQuantities}
+                      disabled={isSavingVariants || JSON.stringify(editVariants) === JSON.stringify(selectedProduct.variants)}
+                    >
+                      {isSavingVariants ? 'Saving...' : 'Save Changes'}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Set minimum stock levels for each variant to receive low stock alerts
+                  </p>
+                  <div className="space-y-3">
+                    {editVariants.map((variant: any, index: number) => (
+                      <div key={index} className="border rounded-lg p-3 bg-background">
                         <div className="font-medium mb-2">{variant.attribute}</div>
-                        <VariantValuesDisplay values={variant.values} depth={0} />
+                        <VariantValuesDisplay 
+                          values={variant.values} 
+                          depth={0}
+                          editable={true}
+                          onUpdate={(newValues) => {
+                            const updated = [...editVariants];
+                            updated[index].values = newValues;
+                            setEditVariants(updated);
+                          }}
+                        />
                         {variant.sku && (
                           <div className="mt-2 text-xs text-muted-foreground">
-                            SKU: <code className="bg-background px-1 py-0.5 rounded">{variant.sku}</code>
+                            SKU: <code className="bg-muted px-1 py-0.5 rounded">{variant.sku}</code>
                           </div>
                         )}
                       </div>
