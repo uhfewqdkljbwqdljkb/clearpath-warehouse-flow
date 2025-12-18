@@ -22,6 +22,48 @@ import autoTable from 'jspdf-autotable';
 import { calculateNestedVariantQuantity, getVariantBreakdown, hasNestedVariants, Variant, VariantValue } from '@/types/variants';
 import { NestedVariantEditor } from '@/components/NestedVariantEditor';
 
+// Helper function to merge new variants into existing variants
+// Adds new variant types or new values to existing types, accumulating quantities
+const mergeVariants = (existingVariants: any[], newVariants: any[]): any[] => {
+  if (!newVariants || newVariants.length === 0) return existingVariants || [];
+  if (!existingVariants || existingVariants.length === 0) return newVariants;
+
+  const merged = JSON.parse(JSON.stringify(existingVariants));
+
+  for (const newVariant of newVariants) {
+    const existingVariant = merged.find(
+      (v: any) => v.attribute?.toLowerCase().trim() === newVariant.attribute?.toLowerCase().trim()
+    );
+
+    if (existingVariant) {
+      // Merge values into existing variant
+      for (const newValue of newVariant.values || []) {
+        const existingValue = existingVariant.values?.find(
+          (v: any) => v.value?.toLowerCase().trim() === newValue.value?.toLowerCase().trim()
+        );
+
+        if (existingValue) {
+          // Add quantity to existing value
+          existingValue.quantity = (existingValue.quantity || 0) + (newValue.quantity || 0);
+          // Recursively merge sub-variants if they exist
+          if (newValue.subVariants && newValue.subVariants.length > 0) {
+            existingValue.subVariants = mergeVariants(existingValue.subVariants || [], newValue.subVariants);
+          }
+        } else {
+          // Add new value to existing variant
+          existingVariant.values = existingVariant.values || [];
+          existingVariant.values.push(JSON.parse(JSON.stringify(newValue)));
+        }
+      }
+    } else {
+      // Add completely new variant type
+      merged.push(JSON.parse(JSON.stringify(newVariant)));
+    }
+  }
+
+  return merged;
+};
+
 interface CheckInRequest {
   id: string;
   request_number: string;
@@ -151,6 +193,23 @@ export const CheckInRequests: React.FC = () => {
         if (existingProduct) {
           // Use existing product
           productId = existingProduct.id;
+          
+          // Merge new variants into existing product variants
+          if (product.variants && product.variants.length > 0) {
+            const { data: productData } = await supabase
+              .from('client_products')
+              .select('variants')
+              .eq('id', productId)
+              .single();
+            
+            const existingVariants = productData?.variants || [];
+            const mergedVariants = mergeVariants(existingVariants as any[], product.variants);
+            
+            await supabase
+              .from('client_products')
+              .update({ variants: mergedVariants })
+              .eq('id', productId);
+          }
         } else {
           // Create new product
           const { data: newProduct, error: insertError } = await supabase
@@ -451,16 +510,25 @@ export const CheckInRequests: React.FC = () => {
         let productId: string;
 
         if (existingProduct) {
-          // Use existing product, optionally update variants
+          // Use existing product
           productId = existingProduct.id;
           
-          // Update variants if they changed
-          await supabase
-            .from('client_products')
-            .update({
-              variants: product.variants || [],
-            })
-            .eq('id', productId);
+          // Merge new variants into existing product variants
+          if (product.variants && product.variants.length > 0) {
+            const { data: productData } = await supabase
+              .from('client_products')
+              .select('variants')
+              .eq('id', productId)
+              .single();
+            
+            const existingVariants = productData?.variants || [];
+            const mergedVariants = mergeVariants(existingVariants as any[], product.variants);
+            
+            await supabase
+              .from('client_products')
+              .update({ variants: mergedVariants })
+              .eq('id', productId);
+          }
         } else {
           // Create new product
           const { data: newProduct, error: insertError } = await supabase
