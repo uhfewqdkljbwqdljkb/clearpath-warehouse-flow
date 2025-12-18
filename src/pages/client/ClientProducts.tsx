@@ -758,6 +758,7 @@ export const ClientProducts: React.FC = () => {
                   <TableHead>Product Name</TableHead>
                   <TableHead>SKU</TableHead>
                   <TableHead>Quantity</TableHead>
+                  <TableHead>Value</TableHead>
                   <TableHead>Variants</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Created</TableHead>
@@ -796,6 +797,13 @@ export const ClientProducts: React.FC = () => {
                             </div>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {product.value ? (
+                          <span className="font-medium text-green-600">${product.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         {getVariantCount(product.variants) > 0 ? (

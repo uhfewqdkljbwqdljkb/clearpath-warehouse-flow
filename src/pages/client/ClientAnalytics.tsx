@@ -45,10 +45,10 @@ export const ClientAnalytics: React.FC = () => {
     if (!profile?.company_id) return;
 
     try {
-      // Fetch all products
+      // Fetch all products with value
       const { data: productsData, error: productsError } = await supabase
         .from('client_products')
-        .select('id, name, sku')
+        .select('id, name, sku, value, minimum_quantity')
         .eq('company_id', profile.company_id)
         .eq('is_active', true);
 
@@ -74,13 +74,17 @@ export const ClientAnalytics: React.FC = () => {
         // Get total quantity from inventory map
         const totalQuantity = inventoryMap.get(product.id) || 0;
         
-        const totalValue = 0; // Value calculation removed since unit_value field was removed
+        // Calculate total value based on product value * quantity
+        const productValue = product.value || 0;
+        const totalValue = productValue * totalQuantity;
         
-        // Simple stock status calculation
+        // Stock status calculation based on minimum_quantity or default thresholds
         let stockStatus: 'healthy' | 'low' | 'critical' | 'out' = 'healthy';
+        const minQty = product.minimum_quantity || 10;
+        
         if (totalQuantity === 0) stockStatus = 'out';
-        else if (totalQuantity <= 10) stockStatus = 'critical';
-        else if (totalQuantity <= 50) stockStatus = 'low';
+        else if (totalQuantity <= minQty * 0.5) stockStatus = 'critical';
+        else if (totalQuantity <= minQty) stockStatus = 'low';
 
         return {
           id: product.id,
@@ -88,13 +92,13 @@ export const ClientAnalytics: React.FC = () => {
           name: product.name,
           totalQuantity,
           totalValue,
-          averageMovement: Math.floor(Math.random() * 20) + 1, // Mock data
+          averageMovement: Math.floor(Math.random() * 20) + 1, // Mock data for movement
           stockStatus,
           reorderSuggestion: stockStatus === 'critical' ? 500 : stockStatus === 'low' ? 200 : 0
         };
       });
 
-      // Create top products from analytics
+      // Create top products from analytics - sorted by value
       const topProductsData: TopProduct[] = processedAnalytics
         .sort((a, b) => b.totalValue - a.totalValue)
         .slice(0, 10)
