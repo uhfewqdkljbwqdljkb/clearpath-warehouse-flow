@@ -144,6 +144,8 @@ export const ClientProducts: React.FC = () => {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [companyInfo, setCompanyInfo] = useState<{ name: string; client_code: string; client_type: string } | null>(null);
   const [showReassignDialog, setShowReassignDialog] = useState(false);
+  const [editMinQuantity, setEditMinQuantity] = useState<number>(0);
+  const [isSavingMinQuantity, setIsSavingMinQuantity] = useState(false);
 
   useEffect(() => {
     if (profile?.company_id) {
@@ -515,7 +517,40 @@ export const ClientProducts: React.FC = () => {
     }
 
     setSelectedProduct(nextProduct);
+    setEditMinQuantity(nextProduct.minimum_quantity || 0);
     setIsViewDialogOpen(true);
+  };
+
+  const handleSaveMinQuantity = async () => {
+    if (!selectedProduct) return;
+    
+    setIsSavingMinQuantity(true);
+    try {
+      const { error } = await supabase
+        .from('client_products')
+        .update({ minimum_quantity: editMinQuantity })
+        .eq('id', selectedProduct.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Minimum quantity updated successfully",
+      });
+
+      // Update local state
+      setSelectedProduct({ ...selectedProduct, minimum_quantity: editMinQuantity });
+      fetchProducts();
+    } catch (error) {
+      console.error('Error updating minimum quantity:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update minimum quantity",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingMinQuantity(false);
+    }
   };
 
   const handleDelete = async (product: Product) => {
@@ -913,6 +948,29 @@ export const ClientProducts: React.FC = () => {
               <div>
                 <Label className="text-muted-foreground">Created</Label>
                 <p>{new Date(selectedProduct.created_at).toLocaleString()}</p>
+              </div>
+
+              <div className="border rounded-lg p-4 bg-muted/30">
+                <Label className="text-muted-foreground">Minimum Stock Level (Low Stock Alert)</Label>
+                <div className="flex items-center gap-3 mt-2">
+                  <Input
+                    type="number"
+                    min="0"
+                    value={editMinQuantity}
+                    onChange={(e) => setEditMinQuantity(parseInt(e.target.value) || 0)}
+                    className="w-32"
+                  />
+                  <Button 
+                    size="sm" 
+                    onClick={handleSaveMinQuantity}
+                    disabled={isSavingMinQuantity || editMinQuantity === (selectedProduct.minimum_quantity || 0)}
+                  >
+                    {isSavingMinQuantity ? 'Saving...' : 'Save'}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  You'll be notified when stock falls below this level
+                </p>
               </div>
 
               {selectedProduct.variants && Array.isArray(selectedProduct.variants) && selectedProduct.variants.length > 0 && (
