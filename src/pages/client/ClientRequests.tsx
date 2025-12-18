@@ -35,6 +35,7 @@ interface CheckOutRequest {
   notes: string | null;
   created_at: string;
   reviewed_at: string | null;
+  reviewed_by: string | null;
   rejection_reason: string | null;
 }
 
@@ -44,12 +45,22 @@ export const ClientRequests: React.FC = () => {
   const [checkInRequests, setCheckInRequests] = useState<CheckInRequest[]>([]);
   const [checkOutRequests, setCheckOutRequests] = useState<CheckOutRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Check-in dialog state
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<CheckInRequest | null>(null);
   const [productDetails, setProductDetails] = useState<any[]>([]);
   const [editProducts, setEditProducts] = useState<any[]>([]);
   const [editNotes, setEditNotes] = useState('');
+  
+  // Check-out dialog state
+  const [checkOutViewDialogOpen, setCheckOutViewDialogOpen] = useState(false);
+  const [checkOutEditDialogOpen, setCheckOutEditDialogOpen] = useState(false);
+  const [selectedCheckOutRequest, setSelectedCheckOutRequest] = useState<CheckOutRequest | null>(null);
+  const [checkOutItemDetails, setCheckOutItemDetails] = useState<any[]>([]);
+  const [editCheckOutItems, setEditCheckOutItems] = useState<any[]>([]);
+  const [editCheckOutNotes, setEditCheckOutNotes] = useState('');
 
   useEffect(() => {
     if (profile?.company_id) {
@@ -97,6 +108,10 @@ export const ClientRequests: React.FC = () => {
       !request.reviewed_by &&
       !request.was_amended
     );
+  };
+
+  const isCheckOutEditable = (request: CheckOutRequest) => {
+    return request.status === 'pending' && !request.reviewed_by;
   };
 
   const handleViewDetails = async (request: CheckInRequest) => {
@@ -249,6 +264,100 @@ export const ClientRequests: React.FC = () => {
     setEditProducts(updated);
   };
 
+  // Check-out handlers
+  const handleViewCheckOutDetails = async (request: CheckOutRequest) => {
+    setSelectedCheckOutRequest(request);
+    
+    const normalizeItemForDisplay = (item: any) => {
+      if (!item.variant) return item;
+      return {
+        ...item,
+        variants: item.variant ? [{ attribute: item.variant, value: item.variantValue, quantity: item.quantity }] : [],
+      };
+    };
+    
+    const items = request.requested_items;
+    if (Array.isArray(items) && items.length > 0) {
+      const productIds = items.map((i: any) => i.productId).filter(Boolean);
+      if (productIds.length > 0) {
+        const { data } = await supabase
+          .from('client_products')
+          .select('id, name, sku')
+          .in('id', productIds);
+        
+        if (data) {
+          const enrichedItems = items.map((item: any) => {
+            const productInfo = data.find(d => d.id === item.productId);
+            return normalizeItemForDisplay({
+              ...item,
+              productName: productInfo?.name || item.name || 'Unknown Product',
+              sku: productInfo?.sku,
+            });
+          });
+          setCheckOutItemDetails(enrichedItems);
+        }
+      } else {
+        setCheckOutItemDetails(items.map((i: any) => normalizeItemForDisplay({ ...i, productName: i.name || 'Unknown Product' })));
+      }
+    } else {
+      setCheckOutItemDetails([]);
+    }
+    
+    setCheckOutViewDialogOpen(true);
+  };
+
+  const handleEditCheckOutRequest = (request: CheckOutRequest) => {
+    setSelectedCheckOutRequest(request);
+    setEditCheckOutItems(JSON.parse(JSON.stringify(request.requested_items || [])));
+    setEditCheckOutNotes(request.notes || '');
+    setCheckOutEditDialogOpen(true);
+  };
+
+  const handleSaveCheckOutEdit = async () => {
+    if (!selectedCheckOutRequest) return;
+
+    try {
+      const { error } = await supabase
+        .from('check_out_requests')
+        .update({
+          requested_items: editCheckOutItems,
+          notes: editCheckOutNotes,
+        })
+        .eq('id', selectedCheckOutRequest.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Check-out request updated successfully",
+      });
+      
+      setCheckOutEditDialogOpen(false);
+      fetchRequests();
+    } catch (error) {
+      console.error('Error updating check-out request:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update request",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const addCheckOutItemToEdit = () => {
+    setEditCheckOutItems([...editCheckOutItems, { productId: '', quantity: 0, variant: '', variantValue: '' }]);
+  };
+
+  const removeCheckOutItemFromEdit = (index: number) => {
+    setEditCheckOutItems(editCheckOutItems.filter((_, i) => i !== index));
+  };
+
+  const updateEditCheckOutItem = (index: number, field: string, value: any) => {
+    const updated = [...editCheckOutItems];
+    updated[index] = { ...updated[index], [field]: value };
+    setEditCheckOutItems(updated);
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
@@ -393,6 +502,7 @@ export const ClientRequests: React.FC = () => {
                       <TableHead>Items</TableHead>
                       <TableHead>Submitted</TableHead>
                       <TableHead>Notes</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -416,6 +526,28 @@ export const ClientRequests: React.FC = () => {
                           ) : (
                             request.notes || '-'
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewCheckOutDetails(request)}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              View
+                            </Button>
+                            {isCheckOutEditable(request) && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditCheckOutRequest(request)}
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                Edit
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -627,6 +759,172 @@ export const ClientRequests: React.FC = () => {
                 Cancel
               </Button>
               <Button onClick={handleSaveEdit}>
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Check-Out View Details Dialog */}
+      <Dialog open={checkOutViewDialogOpen} onOpenChange={setCheckOutViewDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Check-Out Request Details</DialogTitle>
+            <DialogDescription>
+              {selectedCheckOutRequest?.request_number} - {selectedCheckOutRequest && getStatusBadge(selectedCheckOutRequest.status)}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm font-semibold">Submitted Date</Label>
+              <p className="text-sm text-muted-foreground">
+                {selectedCheckOutRequest && new Date(selectedCheckOutRequest.created_at).toLocaleString()}
+              </p>
+            </div>
+
+            {selectedCheckOutRequest?.notes && (
+              <div>
+                <Label className="text-sm font-semibold">Notes</Label>
+                <p className="text-sm text-muted-foreground">{selectedCheckOutRequest.notes}</p>
+              </div>
+            )}
+
+            {selectedCheckOutRequest?.rejection_reason && (
+              <div>
+                <Label className="text-sm font-semibold text-red-600">Rejection Reason</Label>
+                <p className="text-sm text-red-600">{selectedCheckOutRequest.rejection_reason}</p>
+              </div>
+            )}
+
+            <div>
+              <Label className="text-sm font-semibold mb-2 block">Items to Check Out</Label>
+              <div className="space-y-3">
+                {checkOutItemDetails.map((item, idx) => (
+                  <Card key={idx}>
+                    <CardContent className="pt-4">
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-medium">{item.productName}</p>
+                            {item.sku && (
+                              <p className="text-xs text-muted-foreground font-mono">{item.sku}</p>
+                            )}
+                          </div>
+                          <Badge variant="secondary">Qty: {item.quantity}</Badge>
+                        </div>
+                        
+                        {item.variant && (
+                          <div className="pl-4 border-l-2 border-border space-y-1">
+                            <p className="text-xs font-semibold text-muted-foreground">Variant:</p>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">
+                                {item.variant}: <span className="font-medium text-foreground">{item.variantValue}</span>
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Check-Out Edit Request Dialog */}
+      <Dialog open={checkOutEditDialogOpen} onOpenChange={setCheckOutEditDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Check-Out Request</DialogTitle>
+            <DialogDescription>
+              {selectedCheckOutRequest?.request_number} - Modify items and notes
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label>Notes</Label>
+              <Textarea
+                value={editCheckOutNotes}
+                onChange={(e) => setEditCheckOutNotes(e.target.value)}
+                placeholder="Add any notes for this request"
+                rows={3}
+              />
+            </div>
+
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <Label className="text-sm font-semibold">Items</Label>
+                <Button onClick={addCheckOutItemToEdit} size="sm" variant="outline">
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Item
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                {editCheckOutItems.map((item, idx) => (
+                  <Card key={idx}>
+                    <CardContent className="pt-4 space-y-3">
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <Label className="text-xs">Product ID</Label>
+                          <Input
+                            value={item.productId}
+                            onChange={(e) => updateEditCheckOutItem(idx, 'productId', e.target.value)}
+                            placeholder="Product ID"
+                          />
+                        </div>
+                        <div className="w-24">
+                          <Label className="text-xs">Quantity</Label>
+                          <Input
+                            type="number"
+                            value={item.quantity}
+                            onChange={(e) => updateEditCheckOutItem(idx, 'quantity', parseInt(e.target.value) || 0)}
+                          />
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeCheckOutItemFromEdit(idx)}
+                          className="mt-5"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <Label className="text-xs">Variant Attribute (optional)</Label>
+                          <Input
+                            value={item.variant || ''}
+                            onChange={(e) => updateEditCheckOutItem(idx, 'variant', e.target.value)}
+                            placeholder="e.g., Size"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <Label className="text-xs">Variant Value</Label>
+                          <Input
+                            value={item.variantValue || ''}
+                            onChange={(e) => updateEditCheckOutItem(idx, 'variantValue', e.target.value)}
+                            placeholder="e.g., Large"
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => setCheckOutEditDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveCheckOutEdit}>
                 Save Changes
               </Button>
             </div>
