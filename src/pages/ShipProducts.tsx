@@ -509,9 +509,21 @@ const fetchProducts = async () => {
       
       const tableData = (items || []).map(item => {
         let variantDetails = '-';
-        if (item.variant_attribute && item.variant_value) {
-          // Format variant clearly with bold-like emphasis
-          variantDetails = `${item.variant_attribute.toUpperCase()}: ${item.variant_value}`;
+        if (item.variant_value) {
+          // Check if it's a nested variant path (contains " → ")
+          if (item.variant_value.includes(' → ')) {
+            // Format nested variants with clear hierarchy
+            const parts = item.variant_value.split(' → ');
+            variantDetails = parts.map(p => p.trim()).join('\n→ ');
+          } else if (item.variant_value.includes(':')) {
+            // Already formatted as "Attribute: Value"
+            variantDetails = item.variant_value;
+          } else if (item.variant_attribute) {
+            // Simple variant
+            variantDetails = `${item.variant_attribute}: ${item.variant_value}`;
+          } else {
+            variantDetails = item.variant_value;
+          }
         }
         return [
           item.client_products?.name || 'Unknown',
@@ -537,9 +549,9 @@ const fetchProducts = async () => {
           cellPadding: 4
         },
         columnStyles: {
-          0: { cellWidth: 55, fontStyle: 'bold' },
-          1: { cellWidth: 30 },
-          2: { cellWidth: 65, fontStyle: 'normal' },
+          0: { cellWidth: 50, fontStyle: 'bold' },
+          1: { cellWidth: 25 },
+          2: { cellWidth: 75 },
           3: { cellWidth: 20, halign: 'center', fontStyle: 'bold' }
         },
         margin: { left: 14, right: 14 },
