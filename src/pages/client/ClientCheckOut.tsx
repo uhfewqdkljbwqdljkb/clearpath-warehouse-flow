@@ -31,6 +31,8 @@ interface CheckOutItem {
   product_name: string;
   variant_attribute?: string;
   variant_value?: string;
+  sub_variant_attribute?: string;
+  sub_variant_value?: string;
   quantity: number;
   customer_id?: string; // Auto-assigned from product's designated customer
   customer_name?: string;
@@ -316,34 +318,94 @@ export const ClientCheckOut: React.FC = () => {
                   )}
 
                   {item.product_id && getProductVariants(item.product_id).length > 0 && (
-                    <div className="space-y-2">
-                      <Label>Variant</Label>
-                      <Select
-                        value={item.variant_value || ''}
-                        onValueChange={(value) => {
-                          const variants = getProductVariants(item.product_id);
-                          const selectedVariant = variants.find((v: any) =>
-                            v.values?.some((val: any) => val.value === value)
-                          );
-                          if (selectedVariant) {
-                            updateCheckOutItem(index, 'variant_attribute', selectedVariant.attribute);
-                            updateCheckOutItem(index, 'variant_value', value);
-                          }
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a variant" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {getProductVariants(item.product_id).map((variant: any) =>
-                            variant.values?.map((val: any) => (
-                              <SelectItem key={val.value} value={val.value}>
-                                {variant.attribute}: {val.value}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
+                    <div className="space-y-4">
+                      {/* Primary Variant Selection */}
+                      <div className="space-y-2">
+                        <Label>Variant</Label>
+                        <Select
+                          value={item.variant_value || ''}
+                          onValueChange={(value) => {
+                            const variants = getProductVariants(item.product_id);
+                            const selectedVariant = variants.find((v: any) =>
+                              v.values?.some((val: any) => val.value === value)
+                            );
+                            if (selectedVariant) {
+                              const updated = [...checkOutItems];
+                              updated[index] = {
+                                ...updated[index],
+                                variant_attribute: selectedVariant.attribute,
+                                variant_value: value,
+                                sub_variant_attribute: undefined,
+                                sub_variant_value: undefined,
+                              };
+                              setCheckOutItems(updated);
+                            }
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a variant" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getProductVariants(item.product_id).map((variant: any) =>
+                              variant.values?.map((val: any) => (
+                                <SelectItem key={`${variant.attribute}-${val.value}`} value={val.value}>
+                                  {variant.attribute}: {val.value}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Sub-Variant Selection - shows if selected variant has subVariants */}
+                      {item.variant_value && (() => {
+                        const variants = getProductVariants(item.product_id);
+                        const selectedVariant = variants.find((v: any) =>
+                          v.values?.some((val: any) => val.value === item.variant_value)
+                        );
+                        const selectedValue = selectedVariant?.values?.find(
+                          (val: any) => val.value === item.variant_value
+                        );
+                        const subVariants = selectedValue?.subVariants || [];
+                        
+                        if (subVariants.length === 0) return null;
+                        
+                        return (
+                          <div className="space-y-2">
+                            <Label>Sub-Variant</Label>
+                            <Select
+                              value={item.sub_variant_value || ''}
+                              onValueChange={(value) => {
+                                const subVariant = subVariants.find((sv: any) =>
+                                  sv.values?.some((val: any) => val.value === value)
+                                );
+                                if (subVariant) {
+                                  const updated = [...checkOutItems];
+                                  updated[index] = {
+                                    ...updated[index],
+                                    sub_variant_attribute: subVariant.attribute,
+                                    sub_variant_value: value,
+                                  };
+                                  setCheckOutItems(updated);
+                                }
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a sub-variant" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {subVariants.map((subVariant: any) =>
+                                  subVariant.values?.map((val: any) => (
+                                    <SelectItem key={`${subVariant.attribute}-${val.value}`} value={val.value}>
+                                      {subVariant.attribute}: {val.value}
+                                    </SelectItem>
+                                  ))
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
 
