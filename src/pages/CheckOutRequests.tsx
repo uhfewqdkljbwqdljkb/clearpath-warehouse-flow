@@ -121,10 +121,11 @@ export const CheckOutRequests: React.FC = () => {
         
         if (!productId || quantityToDeduct <= 0) continue;
         
-        // Check if it's a variant-level item
+        let deducted = false;
+        
+        // First, try to find variant-level inventory if variant info exists
         if (item.variant_attribute && item.variant_value) {
-          // Find inventory item with matching variant
-          const { data: existingInventory } = await supabase
+          const { data: variantInventory } = await supabase
             .from('inventory_items')
             .select('id, quantity')
             .eq('product_id', productId)
@@ -133,19 +134,22 @@ export const CheckOutRequests: React.FC = () => {
             .eq('variant_value', item.variant_value)
             .maybeSingle();
           
-          if (existingInventory) {
-            const newQuantity = Math.max(0, existingInventory.quantity - quantityToDeduct);
+          if (variantInventory) {
+            const newQuantity = Math.max(0, variantInventory.quantity - quantityToDeduct);
             await supabase
               .from('inventory_items')
               .update({ 
                 quantity: newQuantity,
                 last_updated: new Date().toISOString()
               })
-              .eq('id', existingInventory.id);
+              .eq('id', variantInventory.id);
+            deducted = true;
           }
-        } else {
-          // Find base inventory item (no variant)
-          const { data: existingInventory } = await supabase
+        }
+        
+        // If no variant inventory found (or no variant specified), try base inventory
+        if (!deducted) {
+          const { data: baseInventory } = await supabase
             .from('inventory_items')
             .select('id, quantity')
             .eq('product_id', productId)
@@ -154,36 +158,39 @@ export const CheckOutRequests: React.FC = () => {
             .is('variant_value', null)
             .maybeSingle();
           
-          if (existingInventory) {
-            const newQuantity = Math.max(0, existingInventory.quantity - quantityToDeduct);
+          if (baseInventory) {
+            const newQuantity = Math.max(0, baseInventory.quantity - quantityToDeduct);
             await supabase
               .from('inventory_items')
               .update({ 
                 quantity: newQuantity,
                 last_updated: new Date().toISOString()
               })
-              .eq('id', existingInventory.id);
-          } else {
-            // Fallback: try to find any inventory item for this product and deduct from it
-            const { data: anyInventory } = await supabase
+              .eq('id', baseInventory.id);
+            deducted = true;
+          }
+        }
+        
+        // Final fallback: find any inventory record for this product
+        if (!deducted) {
+          const { data: anyInventory } = await supabase
+            .from('inventory_items')
+            .select('id, quantity')
+            .eq('product_id', productId)
+            .eq('company_id', request.company_id)
+            .order('quantity', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          
+          if (anyInventory) {
+            const newQuantity = Math.max(0, anyInventory.quantity - quantityToDeduct);
+            await supabase
               .from('inventory_items')
-              .select('id, quantity')
-              .eq('product_id', productId)
-              .eq('company_id', request.company_id)
-              .order('quantity', { ascending: false })
-              .limit(1)
-              .maybeSingle();
-            
-            if (anyInventory) {
-              const newQuantity = Math.max(0, anyInventory.quantity - quantityToDeduct);
-              await supabase
-                .from('inventory_items')
-                .update({ 
-                  quantity: newQuantity,
-                  last_updated: new Date().toISOString()
-                })
-                .eq('id', anyInventory.id);
-            }
+              .update({ 
+                quantity: newQuantity,
+                last_updated: new Date().toISOString()
+              })
+              .eq('id', anyInventory.id);
           }
         }
       }
