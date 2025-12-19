@@ -131,3 +131,25 @@ All colors MUST be HSL.
 .activity-dot {
   @apply w-2 h-2 bg-accent rounded-full;
 }
+
+/* Table responsive utilities */
+.table-container {
+  @apply w-full overflow-x-auto;
+}
+
+/* Ensure tables fit within cards properly */
+.table-card-content {
+  @apply -mx-6 px-0;
+}
+
+/* Better mobile table styling */
+@media (max-width: 768px) {
+  .responsive-table td,
+  .responsive-table th {
+    @apply text-sm px-2 py-2;
+  }
+  
+  .responsive-table .hide-mobile {
+    @apply hidden;
+  }
+}
