@@ -60,15 +60,23 @@ export const ExistingProductsDialog: React.FC<ExistingProductsDialogProps> = ({
   const [expandedNewVariants, setExpandedNewVariants] = useState<Set<string>>(new Set());
   const [newVariants, setNewVariants] = useState<Map<string, Array<{ attribute: string; values: Array<{ value: string; quantity: number }> }>>>(new Map());
 
-  // Filter products based on search query
+  // Filter products based on search query and limit for performance
   const filteredProducts = useMemo(() => {
-    if (!searchQuery.trim()) return existingProducts;
-    const query = searchQuery.toLowerCase();
-    return existingProducts.filter(
-      (p) =>
-        p.name.toLowerCase().includes(query) ||
-        (p.sku && p.sku.toLowerCase().includes(query))
-    );
+    let filtered = existingProducts;
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = existingProducts.filter(
+        (p) =>
+          p.name.toLowerCase().includes(query) ||
+          (p.sku && p.sku.toLowerCase().includes(query))
+      );
+    }
+    // Limit to 30 products for performance - show message if more exist
+    return {
+      products: filtered.slice(0, 30),
+      total: filtered.length,
+      hasMore: filtered.length > 30
+    };
   }, [existingProducts, searchQuery]);
 
   useEffect(() => {
@@ -366,7 +374,7 @@ export const ExistingProductsDialog: React.FC<ExistingProductsDialogProps> = ({
             <p className="text-muted-foreground">No products found</p>
             <p className="text-sm text-muted-foreground">Add products first to check in inventory</p>
           </div>
-        ) : filteredProducts.length === 0 ? (
+        ) : filteredProducts.products.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <Search className="h-12 w-12 text-muted-foreground mb-4" />
             <p className="text-muted-foreground">No products match your search</p>
@@ -375,10 +383,16 @@ export const ExistingProductsDialog: React.FC<ExistingProductsDialogProps> = ({
         ) : (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Showing {filteredProducts.length} of {existingProducts.length} products
+              Showing {filteredProducts.products.length} of {filteredProducts.total} products
+              {filteredProducts.hasMore && (
+                <span className="text-amber-600 ml-1">
+                  (use search to find more)
+                </span>
+              )}
             </p>
-            {filteredProducts.map((product) => {
-              const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
+            {filteredProducts.products.map((product) => {
+              const hasVariants = Array.isArray(product.variants) && product.variants.length > 0 && 
+                product.variants.some((v: any) => v && v.attribute && v.values && Array.isArray(v.values) && v.values.length > 0);
               const selectedProduct = selectedProducts.get(product.id);
               const isNewVariantExpanded = expandedNewVariants.has(product.id);
               const productNewVariants = newVariants.get(product.id) || [];
@@ -414,11 +428,13 @@ export const ExistingProductsDialog: React.FC<ExistingProductsDialogProps> = ({
                     ) : (
                       <div className="space-y-3">
                         <Label>Select Variants and Quantities</Label>
-                        {product.variants.map((variant: any, variantIndex: number) => (
+                        {product.variants
+                          .filter((variant: any) => variant && variant.attribute && variant.values && Array.isArray(variant.values))
+                          .map((variant: any, variantIndex: number) => (
                           <div key={variantIndex} className="space-y-2">
                             <p className="text-sm font-medium">{variant.attribute}</p>
                             <div className="grid grid-cols-2 gap-2">
-                              {variant.values?.map((value: any, valueIndex: number) => {
+                              {variant.values.filter((value: any) => value).map((value: any, valueIndex: number) => {
                                 const variantValue = typeof value === 'string' ? value : value.value || value;
                                 const currentQty = selectedProduct?.variants[variantIndex]?.values[valueIndex]?.quantity || 0;
                                 

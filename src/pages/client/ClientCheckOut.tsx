@@ -84,6 +84,7 @@ export const ClientCheckOut: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedVariants, setExpandedVariants] = useState<Record<string, boolean>>({});
+  const [productSearchQuery, setProductSearchQuery] = useState('');
   
   // B2B-specific state
   const [customers, setCustomers] = useState<any[]>([]);
@@ -273,9 +274,26 @@ export const ClientCheckOut: React.FC = () => {
 
   const getProductVariants = (productId: string) => {
     const product = products.find(p => p.id === productId);
-    if (!product || !product.variants || !Array.isArray(product.variants)) return [];
-    return product.variants;
+    if (!product || !product.variants || !Array.isArray(product.variants) || product.variants.length === 0) return [];
+    // Filter out invalid variants
+    return product.variants.filter((v: any) => 
+      v && v.attribute && v.values && Array.isArray(v.values) && v.values.length > 0
+    );
   };
+
+  // Filter products for dropdown based on search query - limit to 50 for performance
+  const filteredProducts = React.useMemo(() => {
+    if (!productSearchQuery.trim()) {
+      return products.slice(0, 50);
+    }
+    const query = productSearchQuery.toLowerCase();
+    return products
+      .filter(p => 
+        p.name.toLowerCase().includes(query) || 
+        (p.sku && p.sku.toLowerCase().includes(query))
+      )
+      .slice(0, 50);
+  }, [products, productSearchQuery]);
 
   const toggleVariantSelection = (
     itemIndex: number, 
@@ -604,17 +622,43 @@ export const ClientCheckOut: React.FC = () => {
                       <Label>Product *</Label>
                       <Select
                         value={draft.product_id}
-                        onValueChange={(value) => updateItemProduct(itemIndex, value)}
+                        onValueChange={(value) => {
+                          updateItemProduct(itemIndex, value);
+                          setProductSearchQuery('');
+                        }}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select a product" />
                         </SelectTrigger>
                         <SelectContent>
-                          {products.map((product) => (
-                            <SelectItem key={product.id} value={product.id}>
-                              {product.name} {product.sku && `(${product.sku})`}
-                            </SelectItem>
-                          ))}
+                          <div className="p-2 sticky top-0 bg-popover z-10">
+                            <Input
+                              placeholder="Search products..."
+                              value={productSearchQuery}
+                              onChange={(e) => setProductSearchQuery(e.target.value)}
+                              onClick={(e) => e.stopPropagation()}
+                              onKeyDown={(e) => e.stopPropagation()}
+                              className="h-8"
+                            />
+                          </div>
+                          {filteredProducts.length === 0 ? (
+                            <div className="py-6 text-center text-sm text-muted-foreground">
+                              No products found
+                            </div>
+                          ) : (
+                            <>
+                              {filteredProducts.map((product) => (
+                                <SelectItem key={product.id} value={product.id}>
+                                  {product.name} {product.sku && `(${product.sku})`}
+                                </SelectItem>
+                              ))}
+                              {products.length > 50 && !productSearchQuery && (
+                                <div className="py-2 px-3 text-xs text-muted-foreground border-t">
+                                  Showing 50 of {products.length} products. Type to search for more.
+                                </div>
+                              )}
+                            </>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -655,13 +699,17 @@ export const ClientCheckOut: React.FC = () => {
                         </p>
                         
                         <div className="space-y-2 border rounded-lg p-3 bg-muted/20">
-                          {variants.map((variant: any) => (
+                          {variants.map((variant: any) => {
+                            if (!variant || !variant.attribute || !variant.values || !Array.isArray(variant.values)) {
+                              return null;
+                            }
+                            return (
                             <div key={variant.attribute} className="space-y-2">
                               <p className="text-sm font-medium text-muted-foreground">{variant.attribute}</p>
-                              {variant.values?.map((val: any) => {
+                              {variant.values.filter((val: any) => val && val.value).map((val: any) => {
                                 const isSelected = isVariantSelected(itemIndex, variant.attribute, val.value);
                                 const selectedData = getSelectedVariantData(itemIndex, variant.attribute, val.value);
-                                const hasSubVariants = val.subVariants && val.subVariants.length > 0;
+                                const hasSubVariants = val.subVariants && Array.isArray(val.subVariants) && val.subVariants.length > 0;
                                 const variantKey = `${itemIndex}-${variant.attribute}-${val.value}`;
                                 const isExpanded = expandedVariants[variantKey];
 
@@ -719,10 +767,10 @@ export const ClientCheckOut: React.FC = () => {
                                     {/* Sub-variants */}
                                     {isSelected && hasSubVariants && isExpanded && (
                                       <div className="ml-8 mt-2 space-y-1 border-l-2 border-muted pl-4">
-                                        {val.subVariants.map((subVar: any) => (
+                                        {val.subVariants.filter((subVar: any) => subVar && subVar.attribute && subVar.values).map((subVar: any) => (
                                           <div key={subVar.attribute} className="space-y-1">
                                             <p className="text-xs font-medium text-muted-foreground">{subVar.attribute}</p>
-                                            {subVar.values?.map((subVal: any) => {
+                                            {subVar.values.filter((subVal: any) => subVal && subVal.value).map((subVal: any) => {
                                               const isSubSelected = isSubVariantSelected(
                                                 itemIndex, 
                                                 variant.attribute, 
@@ -796,7 +844,7 @@ export const ClientCheckOut: React.FC = () => {
                                 );
                               })}
                             </div>
-                          ))}
+                          );})}
                         </div>
                       </div>
                     )}
