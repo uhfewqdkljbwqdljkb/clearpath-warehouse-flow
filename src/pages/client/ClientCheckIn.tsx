@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Upload, Plus, X, Package } from 'lucide-react';
-import { ProductImportDialog } from '@/components/ProductImportDialog';
+import { ProductImportDialog, ImportedProduct } from '@/components/ProductImportDialog';
 import { ExistingProductsDialog } from '@/components/ExistingProductsDialog';
 import {
   Select,
@@ -130,12 +130,35 @@ export const ClientCheckIn: React.FC = () => {
     return product.quantity || 0;
   };
 
-  const handleImportComplete = () => {
+  const handleImportComplete = (importedProducts?: ImportedProduct[]) => {
     setShowImportDialog(false);
-    toast({
-      title: "Success",
-      description: "Products imported successfully. They will be added after approval.",
-    });
+    
+    if (importedProducts && importedProducts.length > 0) {
+      // Convert imported products to ProductEntry format
+      const newProducts: ProductEntry[] = importedProducts.map((p) => ({
+        name: p.name,
+        quantity: p.quantity,
+        variants: p.variants.map((v) => ({
+          attribute: v.attribute,
+          values: v.values.map((val) => ({
+            value: val.value,
+            quantity: val.quantity,
+            subVariants: [],
+          })),
+        })),
+        supplierId: '',
+        customerId: '',
+        minimumQuantity: 0,
+        value: 0,
+      }));
+      
+      setProducts([...products, ...newProducts]);
+      
+      toast({
+        title: "Success",
+        description: `${importedProducts.length} product(s) added to check-in form.`,
+      });
+    }
   };
 
   const handleExistingProductsSelected = async (newProducts: ProductEntry[]) => {
@@ -517,9 +540,10 @@ export const ClientCheckIn: React.FC = () => {
           open={showImportDialog}
           onOpenChange={setShowImportDialog}
           clientId={profile.company_id}
-          clientName=""
-          clientCode=""
+          clientName={company?.name || ''}
+          clientCode={company?.client_code || ''}
           onImportComplete={handleImportComplete}
+          mode="checkin"
         />
       )}
 

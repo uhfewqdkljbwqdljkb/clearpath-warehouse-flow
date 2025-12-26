@@ -14,7 +14,17 @@ interface ProductImportDialogProps {
   clientId: string;
   clientName: string;
   clientCode: string;
-  onImportComplete: () => void;
+  onImportComplete: (products?: ImportedProduct[]) => void;
+  mode?: 'database' | 'checkin'; // 'database' = save to DB, 'checkin' = return products for check-in form
+}
+
+export interface ImportedProduct {
+  name: string;
+  quantity: number;
+  variants: Array<{
+    attribute: string;
+    values: Array<{ value: string; quantity: number }>;
+  }>;
 }
 
 interface ParsedProduct {
@@ -51,6 +61,7 @@ export function ProductImportDialog({
   clientName,
   clientCode,
   onImportComplete,
+  mode = 'database',
 }: ProductImportDialogProps) {
   const [step, setStep] = useState<'upload' | 'preview' | 'importing' | 'complete'>('upload');
   const [parsedProducts, setParsedProducts] = useState<ParsedProduct[]>([]);
@@ -349,6 +360,28 @@ export function ProductImportDialog({
       return;
     }
 
+    // For check-in mode, return products to parent instead of saving to database
+    if (mode === 'checkin') {
+      const importedProducts: ImportedProduct[] = validProducts.map((product) => ({
+        name: product.name,
+        quantity: product.totalQuantity,
+        variants: product.variants.map((v) => ({
+          attribute: v.attribute,
+          values: v.values,
+        })),
+      }));
+
+      toast({
+        title: 'Products Ready',
+        description: `${importedProducts.length} product(s) added to check-in form`,
+      });
+
+      onImportComplete(importedProducts);
+      handleClose();
+      return;
+    }
+
+    // Database mode: save products directly to database
     setStep('importing');
     setImportProgress(0);
 
