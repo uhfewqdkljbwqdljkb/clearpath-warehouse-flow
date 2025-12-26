@@ -14,21 +14,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Package, Search, Plus, X } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-
-interface ProductEntry {
-  name: string;
-  quantity: number;
-  existingProductId?: string;
-  minimumQuantity?: number;
-  value?: number;
-  variants: Array<{
-    attribute: string;
-    values: Array<{
-      value: string;
-      quantity: number;
-    }>;
-  }>;
-}
+import { 
+  ProductEntry, 
+  Variant, 
+  parseVariantsFromDb, 
+  cloneVariantsWithZeroQuantity,
+  calculateNestedVariantQuantity 
+} from '@/types/variants';
 
 interface ExistingProduct {
   id: string;
@@ -37,6 +29,8 @@ interface ExistingProduct {
   variants: any;
   minimum_quantity: number | null;
   value: number | null;
+  supplier_id?: string | null;
+  customer_id?: string | null;
 }
 
 interface ExistingProductsDialogProps {
@@ -99,7 +93,7 @@ export const ExistingProductsDialog: React.FC<ExistingProductsDialogProps> = ({
     try {
       const { data, error } = await supabase
         .from('client_products')
-        .select('id, name, sku, variants, minimum_quantity, value')
+        .select('id, name, sku, variants, minimum_quantity, value, supplier_id, customer_id')
         .eq('company_id', companyId)
         .eq('is_active', true)
         .order('name');
@@ -118,85 +112,65 @@ export const ExistingProductsDialog: React.FC<ExistingProductsDialogProps> = ({
     }
   };
 
-  const updateProductQuantity = (productId: string, productName: string, quantity: number, variants: any, minimumQuantity?: number | null, productValue?: number | null) => {
+  const updateProductQuantity = (
+    product: ExistingProduct,
+    quantity: number
+  ) => {
     const updated = new Map(selectedProducts);
     
     if (quantity > 0) {
-      // Parse variants to match ProductEntry format
-      const parsedVariants = Array.isArray(variants) && variants.length > 0
-        ? variants.map((v: any) => ({
-            attribute: v.attribute || '',
-            values: Array.isArray(v.values) 
-              ? v.values.map((val: any) => ({
-                  value: typeof val === 'string' ? val : val.value || '',
-                  quantity: 0
-                }))
-              : []
-          }))
-        : [];
+      // Parse variants preserving subVariants structure
+      const parsedVariants = parseVariantsFromDb(product.variants);
 
-      updated.set(productId, {
-        name: productName,
+      updated.set(product.id, {
+        name: product.name,
         quantity: parsedVariants.length > 0 ? 0 : quantity,
-        existingProductId: productId,
-        minimumQuantity: minimumQuantity || 0,
-        value: productValue || 0,
-        variants: parsedVariants
+        existingProductId: product.id,
+        minimumQuantity: product.minimum_quantity || 0,
+        value: product.value || 0,
+        variants: parsedVariants.length > 0 ? cloneVariantsWithZeroQuantity(parsedVariants) : [],
+        supplierId: product.supplier_id || '',
+        customerId: product.customer_id || '',
       });
     } else {
-      updated.delete(productId);
+      updated.delete(product.id);
     }
     
     setSelectedProducts(updated);
   };
 
   const updateVariantQuantity = (
-    productId: string,
-    productName: string,
-    variants: any,
+    product: ExistingProduct,
     variantIndex: number,
     valueIndex: number,
-    quantity: number,
-    minimumQuantity?: number | null,
-    productValue?: number | null
+    quantity: number
   ) => {
     const updated = new Map(selectedProducts);
-    let product = updated.get(productId);
+    let entry = updated.get(product.id);
     
     // Initialize product if it doesn't exist
-    if (!product) {
-      const parsedVariants = Array.isArray(variants) && variants.length > 0
-        ? variants.map((v: any) => ({
-            attribute: v.attribute || '',
-            values: Array.isArray(v.values) 
-              ? v.values.map((val: any) => ({
-                  value: typeof val === 'string' ? val : val.value || '',
-                  quantity: 0
-                }))
-              : []
-          }))
-        : [];
+    if (!entry) {
+      const parsedVariants = parseVariantsFromDb(product.variants);
       
-      product = {
-        name: productName,
+      entry = {
+        name: product.name,
         quantity: 0,
-        existingProductId: productId,
-        minimumQuantity: minimumQuantity || 0,
-        value: productValue || 0,
-        variants: parsedVariants
+        existingProductId: product.id,
+        minimumQuantity: product.minimum_quantity || 0,
+        value: product.value || 0,
+        variants: cloneVariantsWithZeroQuantity(parsedVariants),
+        supplierId: product.supplier_id || '',
+        customerId: product.customer_id || '',
       };
     }
     
-    if (product.variants[variantIndex]) {
-      product.variants[variantIndex].values[valueIndex].quantity = quantity;
+    if (entry.variants[variantIndex] && entry.variants[variantIndex].values[valueIndex]) {
+      entry.variants[variantIndex].values[valueIndex].quantity = quantity;
       
-      // Recalculate total quantity
-      const totalQty = product.variants.reduce((sum, variant) => 
-        sum + variant.values.reduce((vSum, val) => vSum + (val.quantity || 0), 0), 0
-      );
-      product.quantity = totalQty;
+      // Recalculate total quantity using nested calculation
+      entry.quantity = calculateNestedVariantQuantity(entry.variants);
       
-      updated.set(productId, product);
+      updated.set(product.id, entry);
       setSelectedProducts(updated);
     }
   };
@@ -277,7 +251,10 @@ export const ExistingProductsDialog: React.FC<ExistingProductsDialogProps> = ({
     // First, add products selected from existing variants
     Array.from(selectedProducts.values()).forEach(p => {
       if (p.variants.length > 0) {
-        if (p.variants.some(v => v.values.some(val => val.quantity > 0))) {
+        const hasQuantity = p.variants.some(v => 
+          v.values?.some(val => val.quantity > 0 || (val.subVariants && val.subVariants.length > 0))
+        );
+        if (hasQuantity || calculateNestedVariantQuantity(p.variants) > 0) {
           productsToAdd.push(p);
         }
       } else if (p.quantity > 0) {
@@ -287,9 +264,16 @@ export const ExistingProductsDialog: React.FC<ExistingProductsDialogProps> = ({
 
     // Then, add products with new variants
     newVariants.forEach((variants, productId) => {
-      const validVariants = variants.filter(v => 
-        v.attribute.trim() && v.values.some(val => val.value.trim() && val.quantity > 0)
-      );
+      const validVariants: Variant[] = variants
+        .filter(v => v.attribute.trim() && v.values.some(val => val.value.trim() && val.quantity > 0))
+        .map(v => ({
+          attribute: v.attribute,
+          values: v.values.map(val => ({
+            value: val.value,
+            quantity: val.quantity,
+            subVariants: [], // New variants don't have sub-variants
+          })),
+        }));
 
       if (validVariants.length > 0) {
         const product = existingProducts.find(p => p.id === productId);
@@ -315,7 +299,9 @@ export const ExistingProductsDialog: React.FC<ExistingProductsDialogProps> = ({
               existingProductId: productId,
               minimumQuantity: product.minimum_quantity || 0,
               value: product.value || 0,
-              variants: validVariants
+              variants: validVariants,
+              supplierId: product.supplier_id || '',
+              customerId: product.customer_id || '',
             });
           }
         }
@@ -416,31 +402,24 @@ export const ExistingProductsDialog: React.FC<ExistingProductsDialogProps> = ({
                           min="0"
                           value={selectedProduct?.quantity || ''}
                           onChange={(e) => updateProductQuantity(
-                            product.id,
-                            product.name,
-                            parseInt(e.target.value) || 0,
-                            product.variants,
-                            product.minimum_quantity,
-                            product.value
+                            product,
+                            parseInt(e.target.value) || 0
                           )}
                         />
                       </div>
                     ) : (
                       <div className="space-y-3">
                         <Label>Select Variants and Quantities</Label>
-                        {product.variants
-                          .filter((variant: any) => variant && variant.attribute && variant.values && Array.isArray(variant.values))
-                          .map((variant: any, variantIndex: number) => (
+                        {parseVariantsFromDb(product.variants).map((variant, variantIndex) => (
                           <div key={variantIndex} className="space-y-2">
                             <p className="text-sm font-medium">{variant.attribute}</p>
                             <div className="grid grid-cols-2 gap-2">
-                              {variant.values.filter((value: any) => value).map((value: any, valueIndex: number) => {
-                                const variantValue = typeof value === 'string' ? value : value.value || value;
+                              {variant.values.map((value, valueIndex) => {
                                 const currentQty = selectedProduct?.variants[variantIndex]?.values[valueIndex]?.quantity || 0;
                                 
                                 return (
                                   <div key={valueIndex} className="flex items-center gap-2">
-                                    <Label className="text-sm min-w-[100px]">{variantValue}</Label>
+                                    <Label className="text-sm min-w-[100px]">{value.value}</Label>
                                     <Input
                                       type="number"
                                       placeholder="Qty"
@@ -449,14 +428,10 @@ export const ExistingProductsDialog: React.FC<ExistingProductsDialogProps> = ({
                                       value={currentQty || ''}
                                       onChange={(e) => {
                                         updateVariantQuantity(
-                                          product.id,
-                                          product.name,
-                                          product.variants,
+                                          product,
                                           variantIndex,
                                           valueIndex,
-                                          parseInt(e.target.value) || 0,
-                                          product.minimum_quantity,
-                                          product.value
+                                          parseInt(e.target.value) || 0
                                         );
                                       }}
                                     />

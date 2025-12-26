@@ -14,6 +14,19 @@ export interface Variant {
   sku?: string;
 }
 
+// Unified ProductEntry interface for check-in flows
+// Used by ClientCheckIn, ExistingProductsDialog, and ProductImportDialog
+export interface ProductEntry {
+  name: string;
+  quantity: number;
+  variants: Variant[];
+  existingProductId?: string; // For existing products
+  supplierId?: string; // B2B: assigned supplier
+  customerId?: string; // B2B: designated customer
+  minimumQuantity?: number; // Minimum recommended stock level
+  value?: number; // Dollar value assigned to the product
+}
+
 // Legacy flat variant structure (for backward compatibility)
 export interface LegacyVariantValue {
   value: string;
@@ -35,6 +48,47 @@ export function hasNestedVariants(variants: any[]): boolean {
       val.subVariants && val.subVariants.length > 0
     )
   );
+}
+
+// Safely parse variants from database, handling malformed data
+export function parseVariantsFromDb(variants: any): Variant[] {
+  if (!variants || !Array.isArray(variants)) return [];
+  
+  return variants
+    .filter((v: any) => v && typeof v === 'object' && v.attribute)
+    .map((v: any) => ({
+      attribute: v.attribute || '',
+      values: Array.isArray(v.values) 
+        ? v.values
+            .filter((val: any) => val && (typeof val === 'string' || (typeof val === 'object' && val.value)))
+            .map((val: any) => {
+              if (typeof val === 'string') {
+                return { value: val, quantity: 0, subVariants: [] };
+              }
+              return {
+                value: val.value || '',
+                quantity: val.quantity || 0,
+                minimumQuantity: val.minimumQuantity,
+                subVariants: val.subVariants ? parseVariantsFromDb(val.subVariants) : [],
+              };
+            })
+        : [],
+      sku: v.sku,
+    }));
+}
+
+// Deep clone variants and reset quantities to zero (for check-in)
+export function cloneVariantsWithZeroQuantity(variants: Variant[]): Variant[] {
+  return variants.map(v => ({
+    attribute: v.attribute,
+    values: v.values.map(val => ({
+      value: val.value,
+      quantity: 0,
+      minimumQuantity: val.minimumQuantity,
+      subVariants: val.subVariants ? cloneVariantsWithZeroQuantity(val.subVariants) : [],
+    })),
+    sku: v.sku,
+  }));
 }
 
 // Calculate total quantity from nested variants

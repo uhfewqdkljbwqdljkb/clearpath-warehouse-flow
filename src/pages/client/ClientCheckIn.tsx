@@ -19,18 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { NestedVariantEditor } from '@/components/NestedVariantEditor';
-import { Variant, calculateNestedVariantQuantity } from '@/types/variants';
-
-interface ProductEntry {
-  name: string;
-  quantity: number;
-  variants: Variant[];
-  existingProductId?: string; // For existing products
-  supplierId?: string; // B2B: assigned supplier
-  customerId?: string; // B2B: designated customer
-  minimumQuantity?: number; // Minimum recommended stock level
-  value?: number; // Dollar value assigned to the product
-}
+import { Variant, ProductEntry, calculateNestedVariantQuantity } from '@/types/variants';
 
 export const ClientCheckIn: React.FC = () => {
   const navigate = useNavigate();
