@@ -55,12 +55,28 @@ export function parseVariantsFromDb(variants: any): Variant[] {
   if (!variants || !Array.isArray(variants)) return [];
   
   return variants
-    .filter((v: any) => v && typeof v === 'object' && v.attribute)
+    // Filter out completely empty or malformed objects, but allow empty attribute strings
+    .filter((v: any) => {
+      if (!v || typeof v !== 'object') return false;
+      // Skip if it's a completely empty object
+      if (Object.keys(v).length === 0) return false;
+      // Must have values array with at least one item to be useful
+      if (!Array.isArray(v.values) || v.values.length === 0) return false;
+      return true;
+    })
     .map((v: any) => ({
-      attribute: v.attribute || '',
+      attribute: v.attribute || 'Variant',  // Default to 'Variant' if empty
       values: Array.isArray(v.values) 
         ? v.values
-            .filter((val: any) => val && (typeof val === 'string' || (typeof val === 'object' && val.value)))
+            .filter((val: any) => {
+              if (!val) return false;
+              if (typeof val === 'string') return val.trim().length > 0;
+              if (typeof val === 'object') {
+                // Allow values even if value string is empty, as long as object has quantity
+                return val.value !== undefined || val.quantity !== undefined;
+              }
+              return false;
+            })
             .map((val: any) => {
               if (typeof val === 'string') {
                 return { value: val, quantity: 0, subVariants: [] };
@@ -74,7 +90,9 @@ export function parseVariantsFromDb(variants: any): Variant[] {
             })
         : [],
       sku: v.sku,
-    }));
+    }))
+    // Final filter: only keep variants that ended up with at least one valid value
+    .filter(v => v.values.length > 0);
 }
 
 // Deep clone variants and reset quantities to zero (for check-in)
