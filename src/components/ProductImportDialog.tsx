@@ -209,11 +209,18 @@ export function ProductImportDialog({
         if (!row.product_name && !row.quantity) return;
 
         // Validate product_name
-        if (!row.product_name || typeof row.product_name !== 'string' || row.product_name.trim() === '') {
+        const productName = row.product_name ? String(row.product_name).trim() : '';
+        if (!productName) {
           errors.push({
             rowNumber,
             field: 'product_name',
-            message: 'Product name is required and must be text',
+            message: 'Product name is required and cannot be empty',
+          });
+        } else if (productName.length > 200) {
+          errors.push({
+            rowNumber,
+            field: 'product_name',
+            message: 'Product name must be less than 200 characters',
           });
         }
 
@@ -415,8 +422,8 @@ export function ProductImportDialog({
 
           const { error: insertError } = await supabase.from('client_products').insert({
             company_id: company.id,
-            name: product.name,
-            variants: variants.length > 0 ? variants : [{ attribute: '', values: [{ value: '', quantity: product.totalQuantity }] }],
+            name: product.name.trim(),
+            variants: variants.length > 0 ? variants : [], // Use empty array instead of malformed structure
             is_active: true,
           });
 

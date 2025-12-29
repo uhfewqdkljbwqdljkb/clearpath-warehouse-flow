@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Select,
   SelectContent,
@@ -10,7 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, AlertCircle } from 'lucide-react';
+import { validateProduct } from '@/utils/productValidation';
 
 interface Variant {
   attribute: string;
@@ -107,13 +109,48 @@ export const ProductFormWithVariants: React.FC<ProductFormWithVariantsProps> = (
     setFormData({ ...formData, variants: updated });
   };
 
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    
+    // Validate product
+    const result = validateProduct({
+      name: formData.name,
+      variants: formData.variants,
+    });
+    
+    if (!result.valid) {
+      setValidationErrors(result.errors);
+      return;
+    }
+    
+    setValidationErrors([]);
+    
+    // Clean and submit
+    onSubmit({
+      ...formData,
+      name: result.cleanedData?.name || formData.name,
+      variants: result.cleanedData?.variants || formData.variants,
+    });
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Validation errors */}
+      {validationErrors.length > 0 && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            <ul className="list-disc list-inside text-sm">
+              {validationErrors.map((error, i) => (
+                <li key={i}>{error}</li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <Label htmlFor="sku">SKU *</Label>
