@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { AlertTriangle, CheckCircle2, Trash2, Edit2, RefreshCw, Database } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Trash2, Edit2, RefreshCw, Database, Info } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 
@@ -437,6 +438,23 @@ export const DataCleanup: React.FC = () => {
           Refresh
         </Button>
       </div>
+
+      {/* Explanation Alert */}
+      <Alert>
+        <Info className="h-4 w-4" />
+        <AlertTitle>What causes these issues?</AlertTitle>
+        <AlertDescription className="mt-2 space-y-2">
+          <p><strong>Empty Names:</strong> Occurs when products are created via Excel import with missing name columns, or when the product creation form submits with validation bypassed.</p>
+          <p><strong>Malformed Variants:</strong> Happens when variant data has empty attribute names (e.g., "" instead of "Size") or empty values (e.g., "" instead of "Large"). This can occur from:</p>
+          <ul className="list-disc list-inside ml-4 text-sm">
+            <li>Excel imports where variant columns contain empty cells</li>
+            <li>Partially filled variant forms during product creation</li>
+            <li>Data migration from older systems with inconsistent formatting</li>
+            <li>API integrations that send incomplete variant structures</li>
+          </ul>
+          <p><strong>Empty Variants:</strong> Products with an empty variants array ([]). This is normal for simple products without size/color options.</p>
+        </AlertDescription>
+      </Alert>
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
