@@ -56,12 +56,14 @@ export const ExistingProductsDialog: React.FC<ExistingProductsDialogProps> = ({
 
   // Filter products based on search query and limit for performance
   const filteredProducts = useMemo(() => {
-    let filtered = existingProducts;
+    // First filter out products with empty names
+    let filtered = existingProducts.filter(p => p.name && p.name.trim().length > 0);
+    
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = existingProducts.filter(
+      filtered = filtered.filter(
         (p) =>
-          p.name.toLowerCase().includes(query) ||
+          (p.name && p.name.toLowerCase().includes(query)) ||
           (p.sku && p.sku.toLowerCase().includes(query))
       );
     }
@@ -377,8 +379,9 @@ export const ExistingProductsDialog: React.FC<ExistingProductsDialogProps> = ({
               )}
             </p>
             {filteredProducts.products.map((product) => {
-              const hasVariants = Array.isArray(product.variants) && product.variants.length > 0 && 
-                product.variants.some((v: any) => v && v.attribute && v.values && Array.isArray(v.values) && v.values.length > 0);
+              // Parse variants to check if they're actually valid after filtering
+              const parsedVariants = parseVariantsFromDb(product.variants);
+              const hasVariants = parsedVariants.length > 0;
               const selectedProduct = selectedProducts.get(product.id);
               const isNewVariantExpanded = expandedNewVariants.has(product.id);
               const productNewVariants = newVariants.get(product.id) || [];
@@ -410,7 +413,7 @@ export const ExistingProductsDialog: React.FC<ExistingProductsDialogProps> = ({
                     ) : (
                       <div className="space-y-3">
                         <Label>Select Variants and Quantities</Label>
-                        {parseVariantsFromDb(product.variants).map((variant, variantIndex) => (
+                        {parsedVariants.map((variant, variantIndex) => (
                           <div key={variantIndex} className="space-y-2">
                             <p className="text-sm font-medium">{variant.attribute}</p>
                             <div className="grid grid-cols-2 gap-2">
@@ -419,7 +422,7 @@ export const ExistingProductsDialog: React.FC<ExistingProductsDialogProps> = ({
                                 
                                 return (
                                   <div key={valueIndex} className="flex items-center gap-2">
-                                    <Label className="text-sm min-w-[100px]">{value.value}</Label>
+                                    <Label className="text-sm min-w-[100px]">{value.value || '(No label)'}</Label>
                                     <Input
                                       type="number"
                                       placeholder="Qty"
