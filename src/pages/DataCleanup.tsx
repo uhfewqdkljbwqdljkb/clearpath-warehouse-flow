@@ -28,10 +28,21 @@ interface CleanupStats {
   malformed_variants: number;
 }
 
+interface ClientIssueStats {
+  company_id: string;
+  company_name: string;
+  empty_names: number;
+  malformed_variants: number;
+  total_issues: number;
+  severity: 'critical' | 'warning' | 'info';
+}
+
 export const DataCleanup: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<CleanupStats | null>(null);
   const [problematicProducts, setProblematicProducts] = useState<ProblematicProduct[]>([]);
+  const [clientStats, setClientStats] = useState<ClientIssueStats[]>([]);
+  const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string>('all');
   const [selectedProduct, setSelectedProduct] = useState<ProblematicProduct | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [newName, setNewName] = useState('');
@@ -142,6 +153,49 @@ export const DataCleanup: React.FC = () => {
       }
 
       setProblematicProducts(problematic);
+
+      // Calculate per-client stats for hierarchy
+      const clientStatsMap = new Map<string, ClientIssueStats>();
+      
+      for (const p of problematic) {
+        const existing = clientStatsMap.get(p.company_id) || {
+          company_id: p.company_id,
+          company_name: p.company_name,
+          empty_names: 0,
+          malformed_variants: 0,
+          total_issues: 0,
+          severity: 'info' as const,
+        };
+        
+        if (p.issue_type === 'empty_name') {
+          existing.empty_names++;
+        } else if (p.issue_type === 'malformed_variants') {
+          existing.malformed_variants++;
+        }
+        existing.total_issues = existing.empty_names + existing.malformed_variants;
+        
+        // Determine severity based on issue count and types
+        if (existing.empty_names > 0 || existing.total_issues >= 10) {
+          existing.severity = 'critical';
+        } else if (existing.malformed_variants > 5) {
+          existing.severity = 'warning';
+        } else {
+          existing.severity = 'info';
+        }
+        
+        clientStatsMap.set(p.company_id, existing);
+      }
+      
+      // Sort by severity (critical first) then by total issues
+      const sortedClientStats = Array.from(clientStatsMap.values()).sort((a, b) => {
+        const severityOrder = { critical: 0, warning: 1, info: 2 };
+        if (severityOrder[a.severity] !== severityOrder[b.severity]) {
+          return severityOrder[a.severity] - severityOrder[b.severity];
+        }
+        return b.total_issues - a.total_issues;
+      });
+      
+      setClientStats(sortedClientStats);
     } catch (error) {
       console.error('Error fetching cleanup stats:', error);
       toast({
@@ -421,6 +475,11 @@ export const DataCleanup: React.FC = () => {
     }
   };
 
+  // Filter products based on selected company
+  const filteredProducts = selectedCompanyFilter === 'all'
+    ? problematicProducts
+    : problematicProducts.filter(p => p.company_id === selectedCompanyFilter);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -499,29 +558,100 @@ export const DataCleanup: React.FC = () => {
         </Card>
       </div>
 
+      {/* Client Alert Hierarchy */}
+      {clientStats.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              Client Issue Hierarchy
+            </CardTitle>
+            <CardDescription>Clients sorted by issue severity - click to filter</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {clientStats.map((client) => (
+                <button
+                  key={client.company_id}
+                  onClick={() => setSelectedCompanyFilter(
+                    selectedCompanyFilter === client.company_id ? 'all' : client.company_id
+                  )}
+                  className={`w-full flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                    selectedCompanyFilter === client.company_id 
+                      ? 'bg-primary/10 border-primary' 
+                      : 'hover:bg-muted/50'
+                  } ${
+                    client.severity === 'critical' 
+                      ? 'border-l-4 border-l-destructive' 
+                      : client.severity === 'warning'
+                        ? 'border-l-4 border-l-amber-500'
+                        : 'border-l-4 border-l-blue-500'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <p className="font-medium text-left">{client.company_name}</p>
+                      <p className="text-sm text-muted-foreground text-left">
+                        {client.empty_names > 0 && `${client.empty_names} empty name${client.empty_names > 1 ? 's' : ''}`}
+                        {client.empty_names > 0 && client.malformed_variants > 0 && ', '}
+                        {client.malformed_variants > 0 && `${client.malformed_variants} malformed variant${client.malformed_variants > 1 ? 's' : ''}`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge 
+                      variant={client.severity === 'critical' ? 'destructive' : client.severity === 'warning' ? 'secondary' : 'outline'}
+                      className={client.severity === 'warning' ? 'bg-amber-500/20 text-amber-700' : ''}
+                    >
+                      {client.total_issues} issue{client.total_issues > 1 ? 's' : ''}
+                    </Badge>
+                    {selectedCompanyFilter === client.company_id && (
+                      <Badge variant="outline">Filtered</Badge>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+            {selectedCompanyFilter !== 'all' && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="mt-3"
+                onClick={() => setSelectedCompanyFilter('all')}
+              >
+                Clear filter
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Bulk Actions */}
       {problematicProducts.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Bulk Actions</CardTitle>
-            <CardDescription>Fix multiple issues at once</CardDescription>
+            <CardDescription>
+              Fix multiple issues at once
+              {selectedCompanyFilter !== 'all' && ` (filtered to ${clientStats.find(c => c.company_id === selectedCompanyFilter)?.company_name})`}
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex gap-4">
             <Button 
               onClick={handleBulkFixEmptyNames} 
-              disabled={isProcessing || !problematicProducts.some(p => p.issue_type === 'empty_name')}
+              disabled={isProcessing || !filteredProducts.some(p => p.issue_type === 'empty_name')}
               variant="outline"
             >
               <Edit2 className="h-4 w-4 mr-2" />
-              Fix All Empty Names ({problematicProducts.filter(p => p.issue_type === 'empty_name').length})
+              Fix All Empty Names ({filteredProducts.filter(p => p.issue_type === 'empty_name').length})
             </Button>
             <Button 
               onClick={handleBulkCleanMalformedVariants} 
-              disabled={isProcessing || !problematicProducts.some(p => p.issue_type === 'malformed_variants')}
+              disabled={isProcessing || !filteredProducts.some(p => p.issue_type === 'malformed_variants')}
               variant="outline"
             >
               <RefreshCw className="h-4 w-4 mr-2" />
-              Clean All Malformed Variants ({problematicProducts.filter(p => p.issue_type === 'malformed_variants').length})
+              Clean All Malformed Variants ({filteredProducts.filter(p => p.issue_type === 'malformed_variants').length})
             </Button>
           </CardContent>
         </Card>
@@ -530,16 +660,27 @@ export const DataCleanup: React.FC = () => {
       {/* Problematic Products Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Problematic Products ({problematicProducts.length})</CardTitle>
+          <CardTitle>
+            Problematic Products ({filteredProducts.length})
+            {selectedCompanyFilter !== 'all' && (
+              <span className="text-sm font-normal text-muted-foreground ml-2">
+                — {clientStats.find(c => c.company_id === selectedCompanyFilter)?.company_name}
+              </span>
+            )}
+          </CardTitle>
           <CardDescription>Products that require attention</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="text-center py-8 text-muted-foreground">Loading...</div>
-          ) : problematicProducts.length === 0 ? (
+          ) : filteredProducts.length === 0 ? (
             <div className="text-center py-8">
               <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto mb-2" />
-              <p className="text-muted-foreground">All products are in good shape!</p>
+              <p className="text-muted-foreground">
+                {selectedCompanyFilter !== 'all' 
+                  ? 'No issues for this client!' 
+                  : 'All products are in good shape!'}
+              </p>
             </div>
           ) : (
             <Table>
@@ -553,7 +694,7 @@ export const DataCleanup: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {problematicProducts.map((product) => (
+                {filteredProducts.map((product) => (
                   <TableRow key={product.id}>
                     <TableCell className="font-medium">{product.company_name}</TableCell>
                     <TableCell>
