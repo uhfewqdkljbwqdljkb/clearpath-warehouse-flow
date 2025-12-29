@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, X } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Package, X, AlertCircle } from 'lucide-react';
+import { validateProduct } from '@/utils/productValidation';
 
 interface Variant {
   attribute: string;
@@ -117,9 +119,40 @@ export const ClientCreationProductForm: React.FC<ClientCreationProductFormProps>
     setProducts(updated);
   };
 
+  const [validationErrors, setValidationErrors] = useState<Map<number, string[]>>(new Map());
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(products);
+    
+    // Validate all products
+    const errorsMap = new Map<number, string[]>();
+    let hasErrors = false;
+    
+    products.forEach((product, index) => {
+      const result = validateProduct(product);
+      if (!result.valid) {
+        errorsMap.set(index, result.errors);
+        hasErrors = true;
+      }
+    });
+    
+    setValidationErrors(errorsMap);
+    
+    if (hasErrors) {
+      return; // Don't submit if there are validation errors
+    }
+    
+    // Clean and submit products
+    const cleanedProducts = products.map(product => {
+      const result = validateProduct(product);
+      return {
+        ...product,
+        name: result.cleanedData?.name || product.name,
+        variants: result.cleanedData?.variants || product.variants,
+      };
+    });
+    
+    onSubmit(cleanedProducts);
   };
 
   return (
@@ -136,7 +169,20 @@ export const ClientCreationProductForm: React.FC<ClientCreationProductFormProps>
         </CardHeader>
         <CardContent className="space-y-6">
           {products.map((product, productIndex) => (
-            <div key={productIndex} className="border rounded-lg p-4 space-y-4">
+            <div key={productIndex} className={`border rounded-lg p-4 space-y-4 ${validationErrors.has(productIndex) ? 'border-destructive' : ''}`}>
+              {/* Validation errors for this product */}
+              {validationErrors.has(productIndex) && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    <ul className="list-disc list-inside text-sm">
+                      {validationErrors.get(productIndex)?.map((error, i) => (
+                        <li key={i}>{error}</li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              )}
               <div className="flex items-center justify-between">
                 <h4 className="font-medium">Product {productIndex + 1}</h4>
                 <Button
