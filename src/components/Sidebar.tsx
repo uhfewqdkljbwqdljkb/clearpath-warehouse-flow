@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { LayoutDashboard, Warehouse, MessageSquare, User, Package, Settings, Menu, Sparkles, PackageCheck, PackageOpen, Truck, ClipboardCheck } from 'lucide-react';
+import { LayoutDashboard, Warehouse, MessageSquare, User, Package, Settings, Menu, Sparkles, PackageCheck, PackageOpen, Truck, ClipboardCheck, Database } from 'lucide-react';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -25,6 +25,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     '/dashboard/check-out-requests': ['admin', 'super_admin', 'warehouse_manager', 'logistics_coordinator'],
     '/dashboard/ship-products': ['admin', 'super_admin', 'warehouse_manager', 'logistics_coordinator'],
     '/dashboard/jarde': ['admin', 'super_admin', 'warehouse_manager'],
+    '/dashboard/data-cleanup': ['admin', 'super_admin'],
     '/dashboard/ai-assistant': ['admin', 'super_admin', 'warehouse_manager', 'logistics_coordinator'],
     '/dashboard/users': ['super_admin'], // Only super_admin can access
   };
@@ -65,6 +66,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     name: 'JARDE',
     path: '/dashboard/jarde',
     icon: ClipboardCheck
+  }, {
+    name: 'Data Cleanup',
+    path: '/dashboard/data-cleanup',
+    icon: Database
   }, {
     name: 'AI Assistant',
     path: '/dashboard/ai-assistant',

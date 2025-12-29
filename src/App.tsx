@@ -33,6 +33,7 @@ import { CheckInRequests } from "@/pages/CheckInRequests";
 import { CheckOutRequests } from "@/pages/CheckOutRequests";
 import { ShipProducts } from "@/pages/ShipProducts";
 import { Jarde } from "@/pages/Jarde";
+import { DataCleanup } from "@/pages/DataCleanup";
 import { RealTimeNotifications } from "@/components/RealTimeNotifications";
 import AIAssistant from "@/pages/AIAssistant";
 import ClientAIAssistant from "@/pages/client/ClientAIAssistant";
@@ -147,6 +148,7 @@ const App = () => {
                   <Route path="check-out-requests" element={<CheckOutRequests />} />
                   <Route path="ship-products" element={<ShipProducts />} />
                   <Route path="jarde" element={<Jarde />} />
+                  <Route path="data-cleanup" element={<DataCleanup />} />
                   <Route path="ai-assistant" element={<AIAssistant />} />
                 </Route>
 
