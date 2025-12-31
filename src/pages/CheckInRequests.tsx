@@ -21,6 +21,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { calculateNestedVariantQuantity, getVariantBreakdown, hasNestedVariants, Variant, VariantValue } from '@/types/variants';
 import { NestedVariantEditor } from '@/components/NestedVariantEditor';
+import { parseSupabaseError, logError, getUserFriendlyMessage } from '@/utils/errorLogging';
 
 // Helper function to merge new variants into existing variants
 // Adds new variant types or new values to existing types, accumulating quantities
@@ -212,49 +213,87 @@ export const CheckInRequests: React.FC = () => {
 
   const handleApprove = async (request: CheckInRequest) => {
     setIsProcessing(true);
+    let currentStep = 'initialization';
+    
     try {
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+      currentStep = 'fetching user';
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        const parsedError = parseSupabaseError(userError, { operation: 'get user', table: 'auth.users', userId: user?.id });
+        logError(parsedError);
+        throw new Error(getUserFriendlyMessage(parsedError));
+      }
+
+      console.log(`[CHECK-IN APPROVAL] Starting approval for request ${request.request_number} by user ${user?.id}`);
+      
       // Get or create products and update inventory
       const productsToProcess = request.was_amended && request.amended_products 
         ? request.amended_products 
         : request.requested_products;
 
-      for (const product of productsToProcess) {
+      console.log(`[CHECK-IN APPROVAL] Processing ${productsToProcess.length} products`);
+
+      for (let i = 0; i < productsToProcess.length; i++) {
+        const product = productsToProcess[i];
         let productId: string;
         let existingProduct: { id: string } | null = null;
 
+        currentStep = `checking existing product (${i + 1}/${productsToProcess.length}): ${product.name}`;
+        console.log(`[CHECK-IN APPROVAL] ${currentStep}`);
+
         // First, check if we have an existing product ID from the check-in request
         if (product.existingProductId) {
-          const { data: productById } = await supabase
+          const { data: productById, error: lookupError } = await supabase
             .from('client_products')
             .select('id')
             .eq('id', product.existingProductId)
             .maybeSingle();
+          
+          if (lookupError) {
+            const parsedError = parseSupabaseError(lookupError, { table: 'client_products', operation: 'SELECT by ID', userId: user?.id });
+            logError(parsedError);
+            console.warn(`[CHECK-IN APPROVAL] Warning: Could not lookup product by ID: ${parsedError.message}`);
+          }
           existingProduct = productById;
         }
         
         // Fallback to name search if no existing product ID
         if (!existingProduct) {
-          const { data: productByName } = await supabase
+          const { data: productByName, error: nameSearchError } = await supabase
             .from('client_products')
             .select('id')
             .eq('company_id', request.company_id)
             .eq('name', product.name)
             .maybeSingle();
+          
+          if (nameSearchError) {
+            const parsedError = parseSupabaseError(nameSearchError, { table: 'client_products', operation: 'SELECT by name', userId: user?.id });
+            logError(parsedError);
+            console.warn(`[CHECK-IN APPROVAL] Warning: Could not lookup product by name: ${parsedError.message}`);
+          }
           existingProduct = productByName;
         }
 
         if (existingProduct) {
           // Use existing product
           productId = existingProduct.id;
+          currentStep = `updating existing product: ${productId}`;
+          console.log(`[CHECK-IN APPROVAL] ${currentStep}`);
           
           // Merge new variants into existing product variants and update value/minimum_quantity if provided
-          const { data: productData } = await supabase
+          const { data: productData, error: fetchError } = await supabase
             .from('client_products')
             .select('variants, value, minimum_quantity, is_active')
             .eq('id', productId)
             .single();
+          
+          if (fetchError) {
+            const parsedError = parseSupabaseError(fetchError, { table: 'client_products', operation: 'SELECT product details', userId: user?.id });
+            logError(parsedError);
+            throw new Error(`Failed to fetch product details: ${getUserFriendlyMessage(parsedError)}`);
+          }
           
           const updateData: any = {};
           
@@ -263,10 +302,10 @@ export const CheckInRequests: React.FC = () => {
             const existingVariants = productData?.variants || [];
             const mergedVariants = mergeVariants(existingVariants as any[], product.variants);
             
-            console.log('Merging variants for product:', productId);
-            console.log('Existing variants:', existingVariants);
-            console.log('New variants from check-in:', product.variants);
-            console.log('Merged result:', mergedVariants);
+            console.log('[CHECK-IN APPROVAL] Merging variants for product:', productId);
+            console.log('[CHECK-IN APPROVAL] Existing variants:', existingVariants);
+            console.log('[CHECK-IN APPROVAL] New variants from check-in:', product.variants);
+            console.log('[CHECK-IN APPROVAL] Merged result:', mergedVariants);
             
             updateData.variants = mergedVariants;
           }
@@ -284,21 +323,28 @@ export const CheckInRequests: React.FC = () => {
           // Reactivate product if it was inactive (inventory is being added)
           if (productData?.is_active === false) {
             updateData.is_active = true;
-            console.log(`Product ${productId} reactivated due to check-in inventory addition`);
+            console.log(`[CHECK-IN APPROVAL] Product ${productId} reactivated due to check-in inventory addition`);
           }
           
           if (Object.keys(updateData).length > 0) {
+            currentStep = `saving product updates: ${productId}`;
             const { error: updateError } = await supabase
               .from('client_products')
               .update(updateData)
               .eq('id', productId);
             
             if (updateError) {
-              console.error('Error updating product:', updateError);
+              const parsedError = parseSupabaseError(updateError, { table: 'client_products', operation: 'UPDATE', userId: user?.id });
+              logError(parsedError);
+              throw new Error(`Failed to update product: ${getUserFriendlyMessage(parsedError)}`);
             }
+            console.log(`[CHECK-IN APPROVAL] Successfully updated product ${productId}`);
           }
         } else {
           // Create new product
+          currentStep = `creating new product: ${product.name}`;
+          console.log(`[CHECK-IN APPROVAL] ${currentStep}`);
+          
           const { data: newProduct, error: insertError } = await supabase
             .from('client_products')
             .insert({
@@ -312,8 +358,13 @@ export const CheckInRequests: React.FC = () => {
             .select('id')
             .single();
 
-          if (insertError) throw insertError;
+          if (insertError) {
+            const parsedError = parseSupabaseError(insertError, { table: 'client_products', operation: 'INSERT', userId: user?.id });
+            logError(parsedError);
+            throw new Error(`Failed to create product "${product.name}": ${getUserFriendlyMessage(parsedError)}`);
+          }
           productId = newProduct.id;
+          console.log(`[CHECK-IN APPROVAL] Successfully created product ${productId}`);
         }
 
         // Calculate total quantity for products with variants (supports nested)
@@ -321,9 +372,11 @@ export const CheckInRequests: React.FC = () => {
         if (product.variants && product.variants.length > 0) {
           totalQuantity = calculateNestedVariantQuantity(product.variants);
         }
+        console.log(`[CHECK-IN APPROVAL] Calculated total quantity: ${totalQuantity}`);
 
         // Check if inventory item exists for this product
-        const { data: existingInventory } = await supabase
+        currentStep = `checking inventory for product: ${productId}`;
+        const { data: existingInventory, error: inventoryCheckError } = await supabase
           .from('inventory_items')
           .select('id, quantity')
           .eq('product_id', productId)
@@ -332,8 +385,17 @@ export const CheckInRequests: React.FC = () => {
           .is('variant_attribute', null)
           .maybeSingle();
 
+        if (inventoryCheckError) {
+          const parsedError = parseSupabaseError(inventoryCheckError, { table: 'inventory_items', operation: 'SELECT', userId: user?.id });
+          logError(parsedError);
+          throw new Error(`Failed to check inventory: ${getUserFriendlyMessage(parsedError)}`);
+        }
+
         if (existingInventory) {
           // Update existing inventory by ADDING to current quantity
+          currentStep = `updating inventory quantity for product: ${productId}`;
+          console.log(`[CHECK-IN APPROVAL] ${currentStep} - Adding ${totalQuantity} to existing ${existingInventory.quantity}`);
+          
           const { error: updateError } = await supabase
             .from('inventory_items')
             .update({ 
@@ -342,19 +404,34 @@ export const CheckInRequests: React.FC = () => {
             })
             .eq('id', existingInventory.id);
 
-          if (updateError) throw updateError;
+          if (updateError) {
+            const parsedError = parseSupabaseError(updateError, { table: 'inventory_items', operation: 'UPDATE', userId: user?.id });
+            logError(parsedError);
+            throw new Error(`Failed to update inventory: ${getUserFriendlyMessage(parsedError)}`);
+          }
+          console.log(`[CHECK-IN APPROVAL] Successfully updated inventory for product ${productId}`);
         } else {
           // No inventory_items record exists - check if product has existing variant quantities
-          const { data: existingProduct } = await supabase
+          currentStep = `creating inventory record for product: ${productId}`;
+          console.log(`[CHECK-IN APPROVAL] ${currentStep}`);
+          
+          const { data: existingProductData, error: productFetchError } = await supabase
             .from('client_products')
             .select('variants')
             .eq('id', productId)
             .single();
           
+          if (productFetchError) {
+            const parsedError = parseSupabaseError(productFetchError, { table: 'client_products', operation: 'SELECT variants', userId: user?.id });
+            logError(parsedError);
+            // Non-fatal, continue with zero existing quantity
+            console.warn(`[CHECK-IN APPROVAL] Could not fetch product variants: ${parsedError.message}`);
+          }
+          
           // Calculate existing quantity from product variants (if any)
           let existingVariantQuantity = 0;
-          if (existingProduct?.variants && Array.isArray(existingProduct.variants) && existingProduct.variants.length > 0) {
-            existingVariantQuantity = calculateNestedVariantQuantity(existingProduct.variants as unknown as Variant[]);
+          if (existingProductData?.variants && Array.isArray(existingProductData.variants) && existingProductData.variants.length > 0) {
+            existingVariantQuantity = calculateNestedVariantQuantity(existingProductData.variants as unknown as Variant[]);
           }
           
           // Create new inventory item with existing + new quantity
@@ -367,11 +444,19 @@ export const CheckInRequests: React.FC = () => {
               received_date: new Date().toISOString()
             });
 
-          if (insertError) throw insertError;
+          if (insertError) {
+            const parsedError = parseSupabaseError(insertError, { table: 'inventory_items', operation: 'INSERT', userId: user?.id });
+            logError(parsedError);
+            throw new Error(`Failed to create inventory record: ${getUserFriendlyMessage(parsedError)}`);
+          }
+          console.log(`[CHECK-IN APPROVAL] Successfully created inventory for product ${productId}`);
         }
       }
 
       // Update request status
+      currentStep = 'updating request status to approved';
+      console.log(`[CHECK-IN APPROVAL] ${currentStep}`);
+      
       const { error: updateError } = await supabase
         .from('check_in_requests')
         .update({
@@ -381,8 +466,14 @@ export const CheckInRequests: React.FC = () => {
         })
         .eq('id', request.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        const parsedError = parseSupabaseError(updateError, { table: 'check_in_requests', operation: 'UPDATE status', userId: user?.id });
+        logError(parsedError);
+        throw new Error(`Failed to update request status: ${getUserFriendlyMessage(parsedError)}`);
+      }
 
+      console.log(`[CHECK-IN APPROVAL] Successfully approved request ${request.request_number}`);
+      
       toast({
         title: "Success",
         description: "Check-in request approved and products added to inventory",
@@ -392,10 +483,18 @@ export const CheckInRequests: React.FC = () => {
       setIsReviewDialogOpen(false);
       setSelectedRequest(null);
     } catch (error) {
-      console.error('Error approving request:', error);
+      console.error(`[CHECK-IN APPROVAL] Error at step "${currentStep}":`, error);
+      
+      // Parse and log the error with full context
+      const parsedError = parseSupabaseError(error, { 
+        operation: `approve check-in (${currentStep})`, 
+        context: { requestId: request.id, requestNumber: request.request_number }
+      });
+      logError(parsedError);
+      
       toast({
         title: "Error",
-        description: "Failed to approve check-in request",
+        description: error instanceof Error ? error.message : getUserFriendlyMessage(parsedError),
         variant: "destructive",
       });
     } finally {
@@ -416,7 +515,15 @@ export const CheckInRequests: React.FC = () => {
     setIsProcessing(true);
     try {
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        const parsedError = parseSupabaseError(userError, { operation: 'get user', userId: user?.id });
+        logError(parsedError);
+        throw new Error(getUserFriendlyMessage(parsedError));
+      }
+
+      console.log(`[CHECK-IN REJECTION] Rejecting request ${request.request_number} by user ${user?.id}`);
       
       const { error } = await supabase
         .from('check_in_requests')
@@ -428,7 +535,13 @@ export const CheckInRequests: React.FC = () => {
         })
         .eq('id', request.id);
 
-      if (error) throw error;
+      if (error) {
+        const parsedError = parseSupabaseError(error, { table: 'check_in_requests', operation: 'UPDATE status to rejected', userId: user?.id });
+        logError(parsedError);
+        throw new Error(getUserFriendlyMessage(parsedError));
+      }
+
+      console.log(`[CHECK-IN REJECTION] Successfully rejected request ${request.request_number}`);
 
       toast({
         title: "Success",
@@ -440,10 +553,18 @@ export const CheckInRequests: React.FC = () => {
       setSelectedRequest(null);
       setRejectionReason('');
     } catch (error) {
-      console.error('Error rejecting request:', error);
+      console.error('[CHECK-IN REJECTION] Error rejecting request:', error);
+      
+      const parsedError = parseSupabaseError(error, { 
+        table: 'check_in_requests', 
+        operation: 'reject request',
+        context: { requestId: request.id, requestNumber: request.request_number }
+      });
+      logError(parsedError);
+      
       toast({
         title: "Error",
-        description: "Failed to reject check-in request",
+        description: error instanceof Error ? error.message : getUserFriendlyMessage(parsedError),
         variant: "destructive",
       });
     } finally {
