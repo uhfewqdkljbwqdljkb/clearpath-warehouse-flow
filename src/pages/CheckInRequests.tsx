@@ -153,9 +153,32 @@ export const CheckInRequests: React.FC = () => {
   const [suppliersMap, setSuppliersMap] = useState<Record<string, string>>({});
   const [customersMap, setCustomersMap] = useState<Record<string, string>>({});
 
+  // Real-time subscription for check-in requests
   useEffect(() => {
     fetchRequests();
     fetchSuppliersAndCustomers();
+
+    // Subscribe to real-time changes on check_in_requests table
+    const channel = supabase
+      .channel('admin-check-in-requests')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'check_in_requests'
+        },
+        (payload) => {
+          console.log('Real-time check-in request update:', payload);
+          // Refresh the requests list when any change occurs
+          fetchRequests();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchSuppliersAndCustomers = async () => {
