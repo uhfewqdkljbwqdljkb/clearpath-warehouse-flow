@@ -60,9 +60,32 @@ export const CheckOutRequests: React.FC = () => {
   const [selectionModeActive, setSelectionModeActive] = useState(false);
   const [customersMap, setCustomersMap] = useState<Record<string, string>>({});
 
+  // Real-time subscription for check-out requests
   useEffect(() => {
     fetchRequests();
     fetchCustomers();
+
+    // Subscribe to real-time changes on check_out_requests table
+    const channel = supabase
+      .channel('admin-check-out-requests')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'check_out_requests'
+        },
+        (payload) => {
+          console.log('Real-time check-out request update:', payload);
+          // Refresh the requests list when any change occurs
+          fetchRequests();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchCustomers = async () => {
