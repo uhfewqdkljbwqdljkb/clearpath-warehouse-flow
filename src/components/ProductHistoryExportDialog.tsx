@@ -61,7 +61,46 @@ export const ProductHistoryExportDialog: React.FC<ProductHistoryExportDialogProp
     setIsExporting(true);
     try {
       const workbook = XLSX.utils.book_new();
-      
+
+      const normalizeName = (name: string) =>
+        (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      const levenshtein = (a: string, b: string) => {
+        const alen = a.length;
+        const blen = b.length;
+        if (alen === 0) return blen;
+        if (blen === 0) return alen;
+
+        const v0 = new Array(blen + 1).fill(0);
+        const v1 = new Array(blen + 1).fill(0);
+
+        for (let i = 0; i <= blen; i++) v0[i] = i;
+
+        for (let i = 0; i < alen; i++) {
+          v1[0] = i + 1;
+          for (let j = 0; j < blen; j++) {
+            const cost = a[i] === b[j] ? 0 : 1;
+            v1[j + 1] = Math.min(v1[j] + 1, v0[j + 1] + 1, v0[j] + cost);
+          }
+          for (let j = 0; j <= blen; j++) v0[j] = v1[j];
+        }
+
+        return v1[blen];
+      };
+
+      const isLikelySameProduct = (a: string, b: string) => {
+        const na = normalizeName(a);
+        const nb = normalizeName(b);
+        if (!na || !nb) return false;
+
+        if (na === nb) return true;
+        if (na.includes(nb) || nb.includes(na)) return true;
+
+        const dist = levenshtein(na, nb);
+        const similarity = 1 - dist / Math.max(na.length, nb.length);
+        return similarity >= 0.82;
+      };
+
       // Product Info Sheet
       const productInfo = [
         ['Product History Report'],
