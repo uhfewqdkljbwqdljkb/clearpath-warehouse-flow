@@ -230,13 +230,13 @@ export const ProductHistoryExportDialog: React.FC<ProductHistoryExportDialogProp
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-background">
+      <DialogContent className="max-w-md w-[calc(100%-2rem)] overflow-hidden">
         <DialogHeader className="pb-2">
           <DialogTitle className="flex items-center gap-2 text-lg">
-            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
               <FileSpreadsheet className="h-4 w-4 text-primary" />
             </div>
-            Export Product History
+            <span className="truncate">Export Product History</span>
           </DialogTitle>
           <DialogDescription className="text-sm">
             Download historical data for this product as an Excel file.
@@ -245,17 +245,17 @@ export const ProductHistoryExportDialog: React.FC<ProductHistoryExportDialogProp
 
         <div className="space-y-5 pt-2">
           {/* Product Info */}
-          <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+          <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30 min-w-0 overflow-hidden">
             <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
               <Package className="h-5 w-5 text-primary" />
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 overflow-hidden">
               <div className="font-medium text-sm truncate">{product.name}</div>
-              <div className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5">
-                <code className="bg-muted px-1.5 py-0.5 rounded text-xs">{product.sku || 'No SKU'}</code>
+              <div className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5 min-w-0">
+                <code className="bg-muted px-1.5 py-0.5 rounded text-xs shrink-0 max-w-[100px] truncate">{product.sku || 'No SKU'}</code>
                 {isAdmin && product.companies && (
                   <>
-                    <span className="text-muted-foreground/50">•</span>
+                    <span className="text-muted-foreground/50 shrink-0">•</span>
                     <span className="truncate">{product.companies.name}</span>
                   </>
                 )}
@@ -297,55 +297,58 @@ export const ProductHistoryExportDialog: React.FC<ProductHistoryExportDialogProp
             <div className="space-y-2">
               <label 
                 htmlFor="checkIns" 
-                className="flex items-center gap-3 p-3 rounded-lg border bg-background hover:bg-muted/30 transition-colors cursor-pointer"
+                className="flex items-center gap-3 p-3 rounded-lg border bg-background hover:bg-muted/30 transition-colors cursor-pointer min-w-0"
               >
                 <Checkbox
                   id="checkIns"
                   checked={includeCheckIns}
                   onCheckedChange={(checked) => setIncludeCheckIns(checked as boolean)}
+                  className="shrink-0"
                 />
                 <div className="h-8 w-8 rounded-md bg-green-500/10 flex items-center justify-center shrink-0">
                   <ArrowDownToLine className="h-4 w-4 text-green-600" />
                 </div>
-                <div className="flex-1">
-                  <div className="text-sm font-medium">Check-In Requests</div>
-                  <div className="text-xs text-muted-foreground">Inbound inventory records</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">Check-In Requests</div>
+                  <div className="text-xs text-muted-foreground truncate">Inbound inventory records</div>
                 </div>
               </label>
               
               <label 
                 htmlFor="checkOuts" 
-                className="flex items-center gap-3 p-3 rounded-lg border bg-background hover:bg-muted/30 transition-colors cursor-pointer"
+                className="flex items-center gap-3 p-3 rounded-lg border bg-background hover:bg-muted/30 transition-colors cursor-pointer min-w-0"
               >
                 <Checkbox
                   id="checkOuts"
                   checked={includeCheckOuts}
                   onCheckedChange={(checked) => setIncludeCheckOuts(checked as boolean)}
+                  className="shrink-0"
                 />
                 <div className="h-8 w-8 rounded-md bg-orange-500/10 flex items-center justify-center shrink-0">
                   <ArrowUpFromLine className="h-4 w-4 text-orange-600" />
                 </div>
-                <div className="flex-1">
-                  <div className="text-sm font-medium">Check-Out Requests</div>
-                  <div className="text-xs text-muted-foreground">Outbound inventory records</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">Check-Out Requests</div>
+                  <div className="text-xs text-muted-foreground truncate">Outbound inventory records</div>
                 </div>
               </label>
               
               <label 
                 htmlFor="shipments" 
-                className="flex items-center gap-3 p-3 rounded-lg border bg-background hover:bg-muted/30 transition-colors cursor-pointer"
+                className="flex items-center gap-3 p-3 rounded-lg border bg-background hover:bg-muted/30 transition-colors cursor-pointer min-w-0"
               >
                 <Checkbox
                   id="shipments"
                   checked={includeShipments}
                   onCheckedChange={(checked) => setIncludeShipments(checked as boolean)}
+                  className="shrink-0"
                 />
                 <div className="h-8 w-8 rounded-md bg-blue-500/10 flex items-center justify-center shrink-0">
                   <Truck className="h-4 w-4 text-blue-600" />
                 </div>
-                <div className="flex-1">
-                  <div className="text-sm font-medium">Shipments</div>
-                  <div className="text-xs text-muted-foreground">Delivered shipment records</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">Shipments</div>
+                  <div className="text-xs text-muted-foreground truncate">Delivered shipment records</div>
                 </div>
               </label>
             </div>
