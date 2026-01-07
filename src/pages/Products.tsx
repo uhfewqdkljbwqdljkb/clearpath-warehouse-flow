@@ -18,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Package, TrendingUp, Box, Plus, ArrowLeft, Upload } from 'lucide-react';
+import { Search, Package, TrendingUp, Box, Plus, ArrowLeft, Upload, Boxes, Building2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ProductForm } from '@/components/ProductForm';
@@ -32,6 +32,7 @@ interface Product {
   variants?: any;
   is_active: boolean;
   company_id: string;
+  minimum_quantity?: number;
   companies?: {
     id: string;
     name: string;
@@ -39,9 +40,38 @@ interface Product {
   };
 }
 
+interface InventoryData {
+  product_id: string;
+  quantity: number;
+}
+
+// Helper to calculate quantity from variants
+const calculateVariantQuantity = (variants: any): number => {
+  if (!variants || !Array.isArray(variants)) return 0;
+  
+  let total = 0;
+  
+  const processVariant = (variant: any) => {
+    if (variant.values && Array.isArray(variant.values)) {
+      variant.values.forEach((value: any) => {
+        if (value.quantity !== undefined) {
+          total += Number(value.quantity) || 0;
+        }
+        if (value.children && Array.isArray(value.children)) {
+          value.children.forEach(processVariant);
+        }
+      });
+    }
+  };
+  
+  variants.forEach(processVariant);
+  return total;
+};
+
 export const Products: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [clients, setClients] = useState<any[]>([]);
+  const [inventoryData, setInventoryData] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClient, setSelectedClient] = useState<string>('all');
@@ -79,6 +109,23 @@ export const Products: React.FC = () => {
 
       if (productsError) throw productsError;
 
+      // Fetch inventory data for quantities
+      const { data: inventoryItems, error: inventoryError } = await supabase
+        .from('inventory_items')
+        .select('product_id, quantity');
+
+      if (inventoryError) throw inventoryError;
+
+      // Aggregate inventory by product
+      const inventoryMap: Record<string, number> = {};
+      inventoryItems?.forEach((item: InventoryData) => {
+        if (!inventoryMap[item.product_id]) {
+          inventoryMap[item.product_id] = 0;
+        }
+        inventoryMap[item.product_id] += item.quantity;
+      });
+      setInventoryData(inventoryMap);
+
       // Fetch clients for filter
       const { data: clientsData, error: clientsError } = await supabase
         .from('companies')
@@ -102,16 +149,30 @@ export const Products: React.FC = () => {
     }
   };
 
+  // Get quantity for a product - prioritize variants, fallback to inventory
+  const getProductQuantity = (product: Product): number => {
+    // First try to calculate from variants
+    if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
+      const variantTotal = calculateVariantQuantity(product.variants);
+      if (variantTotal > 0) return variantTotal;
+    }
+    // Fallback to inventory_items
+    return inventoryData[product.id] || 0;
+  };
+
   // Calculate metrics
   const totalProducts = products.length;
   const activeProducts = products.filter(p => p.is_active).length;
   const uniqueClients = new Set(products.map(p => p.company_id)).size;
+  const totalQuantity = products.reduce((acc, p) => acc + getProductQuantity(p), 0);
 
   // Filter products
   const filteredProducts = products.filter(product => {
     const matchesSearch = 
       product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.companies?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+      product.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.companies?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.companies?.client_code?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesClient = 
       selectedClient === 'all' || product.company_id === selectedClient;
@@ -120,6 +181,26 @@ export const Products: React.FC = () => {
   });
 
   const selectedClientInfo = clients.find(c => c.id === clientId);
+
+  // Get variant count
+  const getVariantCount = (variants: any): number => {
+    if (!variants || !Array.isArray(variants)) return 0;
+    
+    let count = 0;
+    const countVariants = (variant: any) => {
+      if (variant.values && Array.isArray(variant.values)) {
+        count += variant.values.length;
+        variant.values.forEach((value: any) => {
+          if (value.children && Array.isArray(value.children)) {
+            value.children.forEach(countVariants);
+          }
+        });
+      }
+    };
+    
+    variants.forEach(countVariants);
+    return count || variants.length;
+  };
 
   return (
     <div className="space-y-6">
@@ -135,7 +216,7 @@ export const Products: React.FC = () => {
       ) : (
         <>
           {/* Header */}
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <div className="flex items-center gap-2">
                 {clientId && (
@@ -177,151 +258,221 @@ export const Products: React.FC = () => {
             </div>
           </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Products</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalProducts}</div>
-            <p className="text-xs text-muted-foreground">
-              {activeProducts} active
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Products</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{activeProducts}</div>
-            <p className="text-xs text-muted-foreground">
-              {totalProducts - activeProducts} inactive
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Clients</CardTitle>
-            <Box className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{uniqueClients}</div>
-            <p className="text-xs text-muted-foreground">
-              With products
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+          {/* Summary Cards */}
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Products</CardTitle>
+                <Package className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{totalProducts}</div>
+                <p className="text-xs text-muted-foreground">
+                  {activeProducts} active
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-to-br from-green-500/5 to-green-500/10 border-green-500/20">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Quantity</CardTitle>
+                <Boxes className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{totalQuantity.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">
+                  Units in stock
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-to-br from-blue-500/5 to-blue-500/10 border-blue-500/20">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Active Products</CardTitle>
+                <TrendingUp className="h-4 w-4 text-blue-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{activeProducts}</div>
+                <p className="text-xs text-muted-foreground">
+                  {totalProducts - activeProducts} inactive
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-to-br from-amber-500/5 to-amber-500/10 border-amber-500/20">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Clients</CardTitle>
+                <Building2 className="h-4 w-4 text-amber-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{uniqueClients}</div>
+                <p className="text-xs text-muted-foreground">
+                  With products
+                </p>
+              </CardContent>
+            </Card>
+          </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search products or client..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-8"
-          />
-        </div>
-        <Select value={selectedClient} onValueChange={setSelectedClient}>
-          <SelectTrigger className="w-full sm:w-[250px]">
-            <SelectValue placeholder="Filter by client" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Clients</SelectItem>
-            {clients.map((client) => (
-              <SelectItem key={client.id} value={client.id}>
-                {client.name} ({client.client_code})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Products Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Products ({filteredProducts.length})</CardTitle>
-          <CardDescription>
-            Product catalog across all warehouse clients
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="text-muted-foreground">Loading products...</div>
-            </div>
-          ) : filteredProducts.length === 0 ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="text-muted-foreground">
-                {searchTerm || selectedClient !== 'all' 
-                  ? 'No products found matching your filters.' 
-                  : 'No products found. Products will appear here once clients add them.'}
+          {/* Filters */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by product name, SKU, or client..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Select value={selectedClient} onValueChange={setSelectedClient}>
+                  <SelectTrigger className="w-full sm:w-[280px]">
+                    <SelectValue placeholder="Filter by client" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Clients</SelectItem>
+                    {clients.map((client) => (
+                      <SelectItem key={client.id} value={client.id}>
+                        {client.name} ({client.client_code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            </div>
-          ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>SKU</TableHead>
-                    <TableHead>Product Name</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead>Variants</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredProducts.map((product) => (
-                    <TableRow key={product.id}>
-                      <TableCell className="font-mono text-sm font-medium">
-                        {product.sku || 'Pending...'}
-                      </TableCell>
-                      <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="text-sm font-medium">
-                            {product.companies?.name || 'Unknown'}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {product.companies?.client_code}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {product.variants && Array.isArray(product.variants) && product.variants.length > 0 ? (
-                          <div className="space-y-1">
-                            <Badge variant="secondary">
-                              {product.variants.length} variant{product.variants.length > 1 ? 's' : ''}
-                            </Badge>
-                            {product.variants.map((variant: any, idx: number) => (
-                              <div key={idx} className="text-xs text-muted-foreground">
-                                {variant.sku && (
-                                  <span className="font-mono">{variant.sku}</span>
+            </CardContent>
+          </Card>
+
+          {/* Products Table */}
+          <Card>
+            <CardHeader className="border-b bg-muted/30">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg">Products</CardTitle>
+                  <CardDescription>
+                    Showing {filteredProducts.length} of {totalProducts} products
+                  </CardDescription>
+                </div>
+                {filteredProducts.length > 0 && (
+                  <Badge variant="outline" className="text-sm">
+                    {filteredProducts.reduce((acc, p) => acc + getProductQuantity(p), 0).toLocaleString()} total units
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-muted-foreground">Loading products...</div>
+                </div>
+              ) : filteredProducts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Package className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                  <div className="text-muted-foreground font-medium">
+                    {searchTerm || selectedClient !== 'all' 
+                      ? 'No products found matching your filters.' 
+                      : 'No products found.'}
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Products will appear here once clients add them.
+                  </p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/30 hover:bg-muted/30">
+                      <TableHead className="font-semibold">Product</TableHead>
+                      <TableHead className="font-semibold">SKU</TableHead>
+                      <TableHead className="font-semibold">Client</TableHead>
+                      <TableHead className="font-semibold text-center">Variants</TableHead>
+                      <TableHead className="font-semibold text-right">Quantity</TableHead>
+                      <TableHead className="font-semibold text-center">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredProducts.map((product) => {
+                      const quantity = getProductQuantity(product);
+                      const variantCount = getVariantCount(product.variants);
+                      const isLowStock = product.minimum_quantity && quantity <= product.minimum_quantity;
+                      
+                      return (
+                        <TableRow key={product.id} className="group">
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                                <Package className="h-5 w-5 text-primary" />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="font-medium truncate max-w-[200px]">
+                                  {product.name}
+                                </div>
+                                {product.minimum_quantity && product.minimum_quantity > 0 && (
+                                  <div className="text-xs text-muted-foreground">
+                                    Min: {product.minimum_quantity}
+                                  </div>
                                 )}
                               </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">No variants</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={product.is_active ? "default" : "secondary"}>
-                          {product.is_active ? "Active" : "Inactive"}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-          )}
-        </CardContent>
-      </Card>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <code className="text-sm bg-muted px-2 py-1 rounded font-mono">
+                              {product.sku || 'N/A'}
+                            </code>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className="h-8 w-8 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0">
+                                <Building2 className="h-4 w-4 text-amber-600" />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="font-medium text-sm truncate max-w-[150px]">
+                                  {product.companies?.name || 'Unknown'}
+                                </div>
+                                <div className="text-xs text-muted-foreground font-mono">
+                                  {product.companies?.client_code || '-'}
+                                </div>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {variantCount > 0 ? (
+                              <Badge variant="secondary" className="font-medium">
+                                {variantCount}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <span className={`font-semibold text-base ${
+                                isLowStock ? 'text-destructive' : 'text-foreground'
+                              }`}>
+                                {quantity.toLocaleString()}
+                              </span>
+                              {isLowStock && (
+                                <Badge variant="destructive" className="text-xs">
+                                  Low
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge 
+                              variant={product.is_active ? "default" : "secondary"}
+                              className={product.is_active 
+                                ? "bg-green-500/10 text-green-600 hover:bg-green-500/20 border-green-500/20" 
+                                : ""
+                              }
+                            >
+                              {product.is_active ? "Active" : "Inactive"}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
         </>
       )}
 
