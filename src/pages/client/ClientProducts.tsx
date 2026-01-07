@@ -8,8 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, Plus, Package, MoreVertical, X, Upload, PackageOpen, RefreshCw } from 'lucide-react';
+import { Search, Plus, Package, MoreVertical, X, Upload, PackageOpen, RefreshCw, Download } from 'lucide-react';
 import { ProductImportDialog } from '@/components/ProductImportDialog';
+import { ProductHistoryExportDialog } from '@/components/ProductHistoryExportDialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -153,6 +154,11 @@ interface Product {
   created_at: string;
   minimum_quantity?: number;
   value?: number;
+  company_id?: string;
+  companies?: {
+    name: string;
+    client_code?: string;
+  };
 }
 
 interface InventoryData {
@@ -197,6 +203,7 @@ export const ClientProducts: React.FC = () => {
   const [isSavingVariants, setIsSavingVariants] = useState(false);
   const [editValue, setEditValue] = useState<number>(0);
   const [isSavingValue, setIsSavingValue] = useState(false);
+  const [selectedProductForExport, setSelectedProductForExport] = useState<Product | null>(null);
 
   useEffect(() => {
     if (profile?.company_id) {
@@ -869,9 +876,17 @@ export const ClientProducts: React.FC = () => {
                             <MoreVertical className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
+                        <DropdownMenuContent align="end" className="bg-background border shadow-lg z-50">
                           <DropdownMenuItem onClick={() => handleViewDetails(product)}>
                             View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setSelectedProductForExport({
+                            ...product,
+                            company_id: profile?.company_id || '',
+                            companies: companyInfo ? { name: companyInfo.name, client_code: companyInfo.client_code } : undefined
+                          })}>
+                            <Download className="h-4 w-4 mr-2" />
+                            Export History
                           </DropdownMenuItem>
                           <DropdownMenuItem 
                             className="text-destructive"
@@ -1253,6 +1268,14 @@ export const ClientProducts: React.FC = () => {
           onReassignComplete={fetchProducts}
         />
       )}
+
+      {/* Export History Dialog */}
+      <ProductHistoryExportDialog
+        open={!!selectedProductForExport}
+        onOpenChange={(open) => !open && setSelectedProductForExport(null)}
+        product={selectedProductForExport}
+        isAdmin={false}
+      />
     </div>
   );
 };

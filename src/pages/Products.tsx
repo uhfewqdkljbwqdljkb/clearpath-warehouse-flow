@@ -25,12 +25,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, Package, TrendingUp, Plus, ArrowLeft, Upload, Boxes, Building2, Tag, Hash } from 'lucide-react';
+import { Search, Package, TrendingUp, Plus, ArrowLeft, Upload, Boxes, Building2, Tag, Hash, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ProductForm } from '@/components/ProductForm';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ProductImportDialog } from '@/components/ProductImportDialog';
+import { ProductHistoryExportDialog } from '@/components/ProductHistoryExportDialog';
 
 interface Product {
   id: string;
@@ -85,6 +86,7 @@ export const Products: React.FC = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [selectedProductForVariants, setSelectedProductForVariants] = useState<Product | null>(null);
+  const [selectedProductForExport, setSelectedProductForExport] = useState<Product | null>(null);
   const { toast } = useToast();
   const { clientId } = useParams();
   const navigate = useNavigate();
@@ -423,6 +425,7 @@ export const Products: React.FC = () => {
                       <TableHead className="font-semibold text-center">Variants</TableHead>
                       <TableHead className="font-semibold text-right">Quantity</TableHead>
                       <TableHead className="font-semibold text-center">Status</TableHead>
+                      <TableHead className="font-semibold text-center w-[80px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -510,6 +513,16 @@ export const Products: React.FC = () => {
                             >
                               {product.is_active ? "Active" : "Inactive"}
                             </Badge>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setSelectedProductForExport(product)}
+                              title="Export History"
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
                           </TableCell>
                         </TableRow>
                       );
@@ -633,6 +646,14 @@ export const Products: React.FC = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Export Dialog */}
+      <ProductHistoryExportDialog
+        open={!!selectedProductForExport}
+        onOpenChange={(open) => !open && setSelectedProductForExport(null)}
+        product={selectedProductForExport}
+        isAdmin={true}
+      />
     </div>
   );
 };
