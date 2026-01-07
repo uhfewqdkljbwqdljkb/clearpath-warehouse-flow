@@ -245,18 +245,18 @@ export const ProductHistoryExportDialog: React.FC<ProductHistoryExportDialogProp
 
         <div className="space-y-5 pt-2">
           {/* Product Info */}
-          <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30 min-w-0 overflow-hidden">
+          <div className="flex items-start gap-3 p-3 rounded-lg border bg-muted/30">
             <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
               <Package className="h-5 w-5 text-primary" />
             </div>
-            <div className="flex-1 min-w-0 overflow-hidden">
-              <div className="font-medium text-sm truncate">{product.name}</div>
-              <div className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5 min-w-0">
-                <code className="bg-muted px-1.5 py-0.5 rounded text-xs shrink-0 max-w-[100px] truncate">{product.sku || 'No SKU'}</code>
+            <div className="flex-1 min-w-0">
+              <div className="font-medium text-sm break-words">{product.name}</div>
+              <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 mt-0.5">
+                <code className="bg-muted px-1.5 py-0.5 rounded text-xs break-all">{product.sku || 'No SKU'}</code>
                 {isAdmin && product.companies && (
                   <>
-                    <span className="text-muted-foreground/50 shrink-0">•</span>
-                    <span className="truncate">{product.companies.name}</span>
+                    <span className="text-muted-foreground/50">•</span>
+                    <span className="break-words">{product.companies.name}</span>
                   </>
                 )}
               </div>
