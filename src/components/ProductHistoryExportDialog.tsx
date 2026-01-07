@@ -87,24 +87,65 @@ export const ProductHistoryExportDialog: React.FC<ProductHistoryExportDialogProp
           .order('created_at', { ascending: false });
 
         const checkInRows: any[][] = [
-          ['Request #', 'Date', 'Status', 'Product Name', 'Quantity', 'Notes', 'Required Date']
+          ['Request #', 'Date', 'Status', 'Product Name', 'Variant', 'Quantity', 'Notes', 'Required Date']
         ];
+
+        // Helper to normalize product name for comparison
+        const normalizeProductName = (name: string) => 
+          name?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
+
+        const targetProductName = normalizeProductName(product.name);
 
         checkIns?.forEach(request => {
           const products = request.requested_products as any[];
           if (Array.isArray(products)) {
             products.forEach(p => {
-              // Check if this product matches
-              if (p.name === product.name || p.product_id === product.id) {
-                checkInRows.push([
-                  request.request_number,
-                  format(new Date(request.created_at), 'MMM dd, yyyy'),
-                  request.status,
-                  p.name || product.name,
-                  p.quantity || p.total_quantity || 0,
-                  request.notes || '',
-                  request.required_date ? format(new Date(request.required_date), 'MMM dd, yyyy') : ''
-                ]);
+              // Check if this product matches (by product_id or normalized name)
+              const matchesById = p.product_id === product.id;
+              const matchesByName = normalizeProductName(p.name).includes(targetProductName) || 
+                                    targetProductName.includes(normalizeProductName(p.name));
+              
+              if (matchesById || matchesByName) {
+                // Extract quantity from variants structure
+                const variants = p.variants as any[];
+                if (Array.isArray(variants) && variants.length > 0) {
+                  variants.forEach((variant: any) => {
+                    const variantAttr = variant.attribute || '';
+                    const values = variant.values as any[];
+                    if (Array.isArray(values)) {
+                      values.forEach((v: any) => {
+                        const qty = v.quantity || parseInt(v.value) || 0;
+                        if (qty > 0) {
+                          checkInRows.push([
+                            request.request_number,
+                            format(new Date(request.created_at), 'MMM dd, yyyy'),
+                            request.status,
+                            p.name || product.name,
+                            variantAttr ? `${variantAttr}: ${v.value || ''}` : (v.value || ''),
+                            qty,
+                            request.notes || '',
+                            request.required_date ? format(new Date(request.required_date), 'MMM dd, yyyy') : ''
+                          ]);
+                        }
+                      });
+                    }
+                  });
+                } else {
+                  // Fallback if no variants structure
+                  const qty = p.quantity || p.total_quantity || 0;
+                  if (qty > 0) {
+                    checkInRows.push([
+                      request.request_number,
+                      format(new Date(request.created_at), 'MMM dd, yyyy'),
+                      request.status,
+                      p.name || product.name,
+                      '',
+                      qty,
+                      request.notes || '',
+                      request.required_date ? format(new Date(request.required_date), 'MMM dd, yyyy') : ''
+                    ]);
+                  }
+                }
               }
             });
           }
@@ -130,17 +171,28 @@ export const ProductHistoryExportDialog: React.FC<ProductHistoryExportDialogProp
           ['Request #', 'Date', 'Status', 'Product Name', 'Variant', 'Quantity', 'Delivery Date', 'Notes']
         ];
 
+        // Helper to normalize product name for comparison
+        const normalizeProductName = (name: string) => 
+          name?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
+
+        const targetProductName = normalizeProductName(product.name);
+
         checkOuts?.forEach(request => {
           const items = request.requested_items as any[];
           if (Array.isArray(items)) {
             items.forEach(item => {
-              if (item.product_name === product.name || item.product_id === product.id) {
+              // Check if this product matches (by product_id or normalized name)
+              const matchesById = item.product_id === product.id;
+              const matchesByName = normalizeProductName(item.product_name).includes(targetProductName) || 
+                                    targetProductName.includes(normalizeProductName(item.product_name));
+              
+              if (matchesById || matchesByName) {
                 checkOutRows.push([
                   request.request_number,
                   format(new Date(request.created_at), 'MMM dd, yyyy'),
                   request.status,
                   item.product_name || product.name,
-                  item.variant_details || '',
+                  item.variant_value || item.variant_details || '',
                   item.quantity || 0,
                   request.delivery_date ? format(new Date(request.delivery_date), 'MMM dd, yyyy') : '',
                   request.notes || ''
