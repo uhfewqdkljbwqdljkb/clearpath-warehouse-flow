@@ -9,8 +9,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Download, FileSpreadsheet, Calendar, Package, ArrowDownToLine, ArrowUpFromLine, Truck, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -232,130 +230,152 @@ export const ProductHistoryExportDialog: React.FC<ProductHistoryExportDialogProp
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileSpreadsheet className="h-5 w-5 text-primary" />
+      <DialogContent className="max-w-md bg-background">
+        <DialogHeader className="pb-2">
+          <DialogTitle className="flex items-center gap-2 text-lg">
+            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <FileSpreadsheet className="h-4 w-4 text-primary" />
+            </div>
             Export Product History
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-sm">
             Download historical data for this product as an Excel file.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="space-y-5 pt-2">
           {/* Product Info */}
-          <Card className="bg-muted/50">
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Package className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium truncate">{product.name}</div>
-                  <div className="text-sm text-muted-foreground flex items-center gap-2">
-                    <code className="text-xs">{product.sku || 'No SKU'}</code>
-                    {isAdmin && product.companies && (
-                      <>
-                        <span>•</span>
-                        <span>{product.companies.name}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
+          <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30">
+            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Package className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-medium text-sm truncate">{product.name}</div>
+              <div className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5">
+                <code className="bg-muted px-1.5 py-0.5 rounded text-xs">{product.sku || 'No SKU'}</code>
+                {isAdmin && product.companies && (
+                  <>
+                    <span className="text-muted-foreground/50">•</span>
+                    <span className="truncate">{product.companies.name}</span>
+                  </>
+                )}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Date Range */}
-          <div className="space-y-3">
-            <Label className="flex items-center gap-2 text-sm font-medium">
-              <Calendar className="h-4 w-4" />
-              Date Range
-            </Label>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <Label className="text-sm font-medium">Date Range</Label>
+            </div>
             <div className="grid grid-cols-2 gap-3">
-              <div>
+              <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">From</Label>
                 <Input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
+                  className="h-9 text-sm"
                 />
               </div>
-              <div>
+              <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">To</Label>
                 <Input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
+                  className="h-9 text-sm"
                 />
               </div>
             </div>
           </div>
 
           {/* Data to Include */}
-          <div className="space-y-3">
+          <div className="space-y-2">
             <Label className="text-sm font-medium">Include in Export</Label>
             <div className="space-y-2">
-              <div className="flex items-center gap-3 p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors">
+              <label 
+                htmlFor="checkIns" 
+                className="flex items-center gap-3 p-3 rounded-lg border bg-background hover:bg-muted/30 transition-colors cursor-pointer"
+              >
                 <Checkbox
                   id="checkIns"
                   checked={includeCheckIns}
                   onCheckedChange={(checked) => setIncludeCheckIns(checked as boolean)}
                 />
-                <label htmlFor="checkIns" className="flex items-center gap-2 flex-1 cursor-pointer">
+                <div className="h-8 w-8 rounded-md bg-green-500/10 flex items-center justify-center shrink-0">
                   <ArrowDownToLine className="h-4 w-4 text-green-600" />
-                  <span className="text-sm">Check-In Requests</span>
-                </label>
-                <Badge variant="secondary" className="text-xs">Inbound</Badge>
-              </div>
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-medium">Check-In Requests</div>
+                  <div className="text-xs text-muted-foreground">Inbound inventory records</div>
+                </div>
+              </label>
               
-              <div className="flex items-center gap-3 p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors">
+              <label 
+                htmlFor="checkOuts" 
+                className="flex items-center gap-3 p-3 rounded-lg border bg-background hover:bg-muted/30 transition-colors cursor-pointer"
+              >
                 <Checkbox
                   id="checkOuts"
                   checked={includeCheckOuts}
                   onCheckedChange={(checked) => setIncludeCheckOuts(checked as boolean)}
                 />
-                <label htmlFor="checkOuts" className="flex items-center gap-2 flex-1 cursor-pointer">
+                <div className="h-8 w-8 rounded-md bg-orange-500/10 flex items-center justify-center shrink-0">
                   <ArrowUpFromLine className="h-4 w-4 text-orange-600" />
-                  <span className="text-sm">Check-Out Requests</span>
-                </label>
-                <Badge variant="secondary" className="text-xs">Outbound</Badge>
-              </div>
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-medium">Check-Out Requests</div>
+                  <div className="text-xs text-muted-foreground">Outbound inventory records</div>
+                </div>
+              </label>
               
-              <div className="flex items-center gap-3 p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors">
+              <label 
+                htmlFor="shipments" 
+                className="flex items-center gap-3 p-3 rounded-lg border bg-background hover:bg-muted/30 transition-colors cursor-pointer"
+              >
                 <Checkbox
                   id="shipments"
                   checked={includeShipments}
                   onCheckedChange={(checked) => setIncludeShipments(checked as boolean)}
                 />
-                <label htmlFor="shipments" className="flex items-center gap-2 flex-1 cursor-pointer">
+                <div className="h-8 w-8 rounded-md bg-blue-500/10 flex items-center justify-center shrink-0">
                   <Truck className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm">Shipments</span>
-                </label>
-                <Badge variant="secondary" className="text-xs">Delivered</Badge>
-              </div>
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-medium">Shipments</div>
+                  <div className="text-xs text-muted-foreground">Delivered shipment records</div>
+                </div>
+              </label>
             </div>
           </div>
 
           {/* Export Button */}
-          <Button 
-            onClick={handleExport} 
-            className="w-full"
-            disabled={isExporting || (!includeCheckIns && !includeCheckOuts && !includeShipments)}
-          >
-            {isExporting ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Generating Export...
-              </>
-            ) : (
-              <>
-                <Download className="h-4 w-4 mr-2" />
-                Export to Excel
-              </>
+          <div className="pt-2">
+            <Button 
+              onClick={handleExport} 
+              className="w-full h-10"
+              disabled={isExporting || (!includeCheckIns && !includeCheckOuts && !includeShipments)}
+            >
+              {isExporting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Generating Export...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4 mr-2" />
+                  Export to Excel
+                </>
+              )}
+            </Button>
+            {(!includeCheckIns && !includeCheckOuts && !includeShipments) && (
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                Select at least one data type to export
+              </p>
             )}
-          </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
