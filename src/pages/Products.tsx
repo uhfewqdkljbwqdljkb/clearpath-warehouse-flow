@@ -18,7 +18,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Package, TrendingUp, Box, Plus, ArrowLeft, Upload, Boxes, Building2 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Search, Package, TrendingUp, Plus, ArrowLeft, Upload, Boxes, Building2, Tag, Hash } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ProductForm } from '@/components/ProductForm';
@@ -77,6 +84,7 @@ export const Products: React.FC = () => {
   const [selectedClient, setSelectedClient] = useState<string>('all');
   const [showAddForm, setShowAddForm] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [selectedProductForVariants, setSelectedProductForVariants] = useState<Product | null>(null);
   const { toast } = useToast();
   const { clientId } = useParams();
   const navigate = useNavigate();
@@ -200,6 +208,37 @@ export const Products: React.FC = () => {
     
     variants.forEach(countVariants);
     return count || variants.length;
+  };
+
+  // Flatten variants for display
+  const flattenVariants = (variants: any): Array<{ path: string; quantity: number; sku?: string }> => {
+    if (!variants || !Array.isArray(variants)) return [];
+    
+    const result: Array<{ path: string; quantity: number; sku?: string }> = [];
+    
+    const processVariant = (variant: any, parentPath: string = '') => {
+      if (variant.values && Array.isArray(variant.values)) {
+        const attribute = variant.attribute || 'Variant';
+        variant.values.forEach((value: any) => {
+          const currentPath = parentPath 
+            ? `${parentPath} → ${attribute}: ${value.value || 'N/A'}`
+            : `${attribute}: ${value.value || 'N/A'}`;
+          
+          if (value.children && Array.isArray(value.children) && value.children.length > 0) {
+            value.children.forEach((child: any) => processVariant(child, currentPath));
+          } else {
+            result.push({
+              path: currentPath,
+              quantity: Number(value.quantity) || 0,
+              sku: value.sku
+            });
+          }
+        });
+      }
+    };
+    
+    variants.forEach((v: any) => processVariant(v));
+    return result;
   };
 
   return (
@@ -433,9 +472,16 @@ export const Products: React.FC = () => {
                           </TableCell>
                           <TableCell className="text-center">
                             {variantCount > 0 ? (
-                              <Badge variant="secondary" className="font-medium">
-                                {variantCount}
-                              </Badge>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-auto p-1"
+                                onClick={() => setSelectedProductForVariants(product)}
+                              >
+                                <Badge variant="secondary" className="font-medium cursor-pointer hover:bg-secondary/80">
+                                  {variantCount} variant{variantCount > 1 ? 's' : ''}
+                                </Badge>
+                              </Button>
                             ) : (
                               <span className="text-muted-foreground text-sm">—</span>
                             )}
@@ -486,6 +532,107 @@ export const Products: React.FC = () => {
           onImportComplete={fetchData}
         />
       )}
+
+      {/* Variants Dialog */}
+      <Dialog open={!!selectedProductForVariants} onOpenChange={(open) => !open && setSelectedProductForVariants(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-primary" />
+              {selectedProductForVariants?.name} - Variants
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedProductForVariants && (
+            <div className="space-y-4">
+              {/* Product Info */}
+              <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+                <div className="flex-1 grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2">
+                    <Hash className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <div className="text-xs text-muted-foreground">SKU</div>
+                      <code className="text-sm font-mono">{selectedProductForVariants.sku || 'N/A'}</code>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <div className="text-xs text-muted-foreground">Client</div>
+                      <div className="text-sm font-medium">{selectedProductForVariants.companies?.name}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Boxes className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <div className="text-xs text-muted-foreground">Total Quantity</div>
+                      <div className="text-sm font-bold">{getProductQuantity(selectedProductForVariants).toLocaleString()}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Tag className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <div className="text-xs text-muted-foreground">Status</div>
+                      <Badge variant={selectedProductForVariants.is_active ? "default" : "secondary"} className="mt-0.5">
+                        {selectedProductForVariants.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Variants Table */}
+              <div className="border rounded-lg">
+                <div className="p-3 border-b bg-muted/30">
+                  <h4 className="font-medium text-sm">Variant Details</h4>
+                </div>
+                <ScrollArea className="max-h-[300px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Variant</TableHead>
+                        <TableHead>SKU</TableHead>
+                        <TableHead className="text-right">Quantity</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {flattenVariants(selectedProductForVariants.variants).map((variant, index) => (
+                        <TableRow key={index}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className="h-2 w-2 rounded-full bg-primary/60" />
+                              <span className="text-sm">{variant.path}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {variant.sku ? (
+                              <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">
+                                {variant.sku}
+                              </code>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            {variant.quantity.toLocaleString()}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {flattenVariants(selectedProductForVariants.variants).length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
+                            No variant details available
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
