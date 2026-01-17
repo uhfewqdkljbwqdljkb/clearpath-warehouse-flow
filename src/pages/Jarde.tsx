@@ -250,8 +250,8 @@ export const Jarde: React.FC = () => {
         sum + c.items.filter(i => i.variance !== null && i.variance !== 0).length, 0
       );
 
-      // Update inventory for items with amended quantities (actual_quantity != null and has variance)
-      const inventoryUpdates: Array<{
+      // Collect items that need quantity updates
+      const itemsToUpdate: Array<{
         product_id: string;
         company_id: string;
         quantity: number;
@@ -261,9 +261,9 @@ export const Jarde: React.FC = () => {
 
       for (const clientReport of report) {
         for (const item of clientReport.items) {
-          // Only update items where actual quantity was entered and there's a variance
-          if (item.actual_quantity !== null && item.variance !== null && item.variance !== 0) {
-            inventoryUpdates.push({
+          // Only update items where actual quantity was entered
+          if (item.actual_quantity !== null) {
+            itemsToUpdate.push({
               product_id: item.product_id,
               company_id: clientReport.company_id,
               quantity: item.actual_quantity,
@@ -274,16 +274,116 @@ export const Jarde: React.FC = () => {
         }
       }
 
-      // Process inventory updates with variant-level tracking
-      for (const update of inventoryUpdates) {
-        // Build query with variant matching
+      // Group updates by product_id for batch processing client_products
+      const productUpdates = new Map<string, {
+        company_id: string;
+        baseQuantity: number | null;
+        variantUpdates: Array<{ attribute: string; value: string; quantity: number }>;
+      }>();
+
+      for (const update of itemsToUpdate) {
+        const existing = productUpdates.get(update.product_id) || {
+          company_id: update.company_id,
+          baseQuantity: null,
+          variantUpdates: [],
+        };
+
+        if (update.variant_attribute && update.variant_value) {
+          // Extract just the value part from "Attribute: Value" format
+          const valuePart = update.variant_value.includes(': ') 
+            ? update.variant_value.split(': ').slice(1).join(': ')
+            : update.variant_value;
+          
+          existing.variantUpdates.push({
+            attribute: update.variant_attribute,
+            value: valuePart,
+            quantity: update.quantity,
+          });
+        } else {
+          existing.baseQuantity = update.quantity;
+        }
+
+        productUpdates.set(update.product_id, existing);
+      }
+
+      // Update client_products.variants with the reconciled quantities
+      let productsUpdated = 0;
+      for (const [productId, updates] of productUpdates) {
+        // Fetch current product variants
+        const { data: product, error: fetchError } = await supabase
+          .from('client_products')
+          .select('variants')
+          .eq('id', productId)
+          .single();
+
+        if (fetchError) {
+          console.error('Error fetching product:', fetchError);
+          continue;
+        }
+
+        let variants = product?.variants as any[] || [];
+
+        // Update variant quantities
+        if (updates.variantUpdates.length > 0) {
+          // Helper to recursively update variant values
+          const updateVariantQuantities = (variantArray: any[]): any[] => {
+            return variantArray.map((variant: any) => ({
+              ...variant,
+              values: variant.values?.map((val: any) => {
+                const valueStr = typeof val === 'string' ? val : val.value;
+                
+                // Check if this value matches any update
+                const matchingUpdate = updates.variantUpdates.find(
+                  u => u.value === valueStr
+                );
+
+                if (matchingUpdate) {
+                  return {
+                    ...val,
+                    quantity: matchingUpdate.quantity,
+                  };
+                }
+
+                // Recursively check sub-variants
+                if (val.subVariants && Array.isArray(val.subVariants) && val.subVariants.length > 0) {
+                  return {
+                    ...val,
+                    subVariants: updateVariantQuantities(val.subVariants),
+                  };
+                }
+
+                return val;
+              }) || [],
+            }));
+          };
+
+          variants = updateVariantQuantities(variants);
+        }
+
+        // Update the product
+        const { error: updateError } = await supabase
+          .from('client_products')
+          .update({ 
+            variants: variants,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', productId);
+
+        if (updateError) {
+          console.error('Error updating product variants:', updateError);
+        } else {
+          productsUpdated++;
+        }
+      }
+
+      // Also update inventory_items for tracking
+      for (const update of itemsToUpdate) {
         let query = supabase
           .from('inventory_items')
           .select('id, quantity')
           .eq('product_id', update.product_id)
           .eq('company_id', update.company_id);
 
-        // Match variant columns (null matches null for base products)
         if (update.variant_attribute && update.variant_value) {
           query = query
             .eq('variant_attribute', update.variant_attribute)
@@ -302,7 +402,6 @@ export const Jarde: React.FC = () => {
         }
 
         if (existingItems && existingItems.length > 0) {
-          // Update existing inventory item
           const { error: updateError } = await supabase
             .from('inventory_items')
             .update({ 
@@ -315,7 +414,6 @@ export const Jarde: React.FC = () => {
             console.error('Error updating inventory:', updateError);
           }
         } else {
-          // Create new inventory item with variant-level tracking
           const { error: insertError } = await supabase
             .from('inventory_items')
             .insert({
@@ -347,11 +445,11 @@ export const Jarde: React.FC = () => {
 
       if (error) throw error;
 
-      const updatedCount = inventoryUpdates.length;
+      const updatedCount = productsUpdated;
       toast({
         title: 'Report Saved',
         description: updatedCount > 0 
-          ? `JARDE report saved. ${updatedCount} inventory item(s) updated with reconciled quantities.`
+          ? `JARDE report saved. ${updatedCount} product(s) updated with reconciled quantities.`
           : 'JARDE report has been saved to history',
       });
       fetchSavedReports();
