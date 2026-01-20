@@ -8,6 +8,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
@@ -185,6 +195,7 @@ export const Jarde: React.FC = () => {
   const [activeTab, setActiveTab] = useState('generate');
   const [savedReports, setSavedReports] = useState<SavedReport[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [showSaveConfirmDialog, setShowSaveConfirmDialog] = useState(false);
 
   useEffect(() => {
     fetchCompanies();
@@ -1078,7 +1089,21 @@ export const Jarde: React.FC = () => {
                 {/* Save Button */}
                 <Button 
                   variant="secondary"
-                  onClick={saveReport} 
+                  onClick={() => {
+                    // Count items with actual quantities entered
+                    const itemsWithActual = report.reduce((sum, c) => 
+                      sum + c.items.filter(i => i.actual_quantity !== null).length, 0
+                    );
+                    if (itemsWithActual === 0) {
+                      toast({
+                        title: 'No Quantities Entered',
+                        description: 'Enter actual quantities for at least one product before saving',
+                        variant: 'destructive',
+                      });
+                      return;
+                    }
+                    setShowSaveConfirmDialog(true);
+                  }} 
                   disabled={isSaving || report.length === 0}
                 >
                   <Save className="mr-2 h-4 w-4" />
@@ -1284,6 +1309,40 @@ export const Jarde: React.FC = () => {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Save Confirmation Dialog */}
+      <AlertDialog open={showSaveConfirmDialog} onOpenChange={setShowSaveConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Save & Update Quantities</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                This action will <strong>permanently update product quantities</strong> in the system 
+                based on the actual quantities you entered.
+              </p>
+              <p className="text-amber-600 dark:text-amber-400">
+                ⚠️ {report.reduce((sum, c) => 
+                  sum + c.items.filter(i => i.actual_quantity !== null).length, 0
+                )} product(s) will have their inventory updated to match the reconciled values.
+              </p>
+              <p>
+                Are you sure you want to proceed?
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                setShowSaveConfirmDialog(false);
+                saveReport();
+              }}
+            >
+              Yes, Save & Update
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
