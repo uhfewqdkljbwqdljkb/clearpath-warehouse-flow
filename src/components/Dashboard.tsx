@@ -1,13 +1,28 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Package, Users, Building, Activity } from 'lucide-react';
+import { Package, Users, Building, Activity, DollarSign } from 'lucide-react';
 import { MetricCard } from './MetricCard';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { ActivityFeed } from './ActivityFeed';
 import { AdminDashboardEnhancements } from './AdminDashboardEnhancements';
+import { InventoryValueDrilldown } from './InventoryValueDrilldown';
 import { supabase } from '@/integrations/supabase/client';
+
+interface VariantValue {
+  value: string;
+  quantity: number;
+  subVariants?: {
+    attribute: string;
+    values: VariantValue[];
+  }[];
+}
+
+interface Variant {
+  attribute: string;
+  values: VariantValue[];
+}
 
 interface DashboardStats {
   totalClients: number;
@@ -17,6 +32,28 @@ interface DashboardStats {
   totalOrders: number;
   recentActivities: number;
 }
+
+// Calculate quantity from nested variants
+const calculateVariantQuantity = (variants: Variant[]): number => {
+  if (!variants || variants.length === 0) return 0;
+  
+  let total = 0;
+  for (const variant of variants) {
+    if (!variant.values) continue;
+    for (const val of variant.values) {
+      if (val.subVariants && val.subVariants.length > 0) {
+        for (const subVar of val.subVariants) {
+          for (const subVal of subVar.values) {
+            total += subVal.quantity || 0;
+          }
+        }
+      } else {
+        total += val.quantity || 0;
+      }
+    }
+  }
+  return total;
+};
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -41,13 +78,16 @@ export const Dashboard: React.FC = () => {
         .from('companies')
         .select('*');
       
-      // Fetch products
+      // Fetch products with values and variants
       const { data: products } = await supabase
         .from('client_products')
-        .select(`
-          *,
-          inventory_items(quantity)
-        `);
+        .select('id, value, variants, company_id')
+        .eq('is_active', true);
+      
+      // Fetch inventory items for base quantities
+      const { data: inventoryItems } = await supabase
+        .from('inventory_items')
+        .select('product_id, quantity');
       
       // Fetch orders
       const { data: orders } = await supabase
@@ -61,8 +101,23 @@ export const Dashboard: React.FC = () => {
         .order('created_at', { ascending: false })
         .limit(10);
 
-      // Calculate inventory value - no longer available since unit_value was removed
+      // Calculate inventory value based on product value * quantity
       let totalValue = 0;
+      products?.forEach(product => {
+        const productValue = product.value || 0;
+        const variants = (product.variants as unknown as Variant[]) || [];
+        
+        let quantity = 0;
+        if (variants.length > 0) {
+          quantity = calculateVariantQuantity(variants);
+        } else {
+          // Sum from inventory_items for non-variant products
+          const productInventory = inventoryItems?.filter(i => i.product_id === product.id) || [];
+          quantity = productInventory.reduce((sum, item) => sum + (item.quantity || 0), 0);
+        }
+        
+        totalValue += productValue * quantity;
+      });
 
       setStats({
         totalClients: companies?.length || 0,
@@ -109,7 +164,7 @@ export const Dashboard: React.FC = () => {
         <MetricCard
           title="Inventory Value"
           value={`$${stats.totalInventoryValue.toLocaleString()}`}
-          icon={Building}
+          icon={DollarSign}
           subtitle="Total value"
         />
         <MetricCard
@@ -121,11 +176,16 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Activity Tabs */}
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2">
+      <Tabs defaultValue="inventory" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="inventory">Inventory Value</TabsTrigger>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="activity">Recent Activity</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="inventory" className="space-y-4">
+          <InventoryValueDrilldown />
+        </TabsContent>
 
         <TabsContent value="overview" className="space-y-4">
           <Card>
