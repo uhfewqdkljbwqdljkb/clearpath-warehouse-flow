@@ -1,3 +1,11 @@
+/**
+ * @deprecated This file contains hardcoded sample data and should NOT be used.
+ * All warehouse data should be fetched from Supabase using the warehouseService.ts functions.
+ * Components should use the async functions from src/services/warehouseService.ts instead.
+ * 
+ * This file is kept for reference only and will be removed in a future update.
+ */
+
 // Clean warehouse data for new 8-zone system
 
 // Client data - updated for new zone system

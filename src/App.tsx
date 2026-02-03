@@ -15,6 +15,7 @@ import { ClientLayout } from "@/components/ClientLayout";
 import { Dashboard } from "@/components/Dashboard";
 import { AdminDashboardEnhancements } from "@/components/AdminDashboardEnhancements";
 import { Warehouse } from "@/pages/Warehouse";
+import { WarehouseLocations } from "@/pages/WarehouseLocations";
 import { Messages } from "@/pages/Messages";
 import { Users } from "@/pages/Users";
 import { Clients } from "@/pages/Clients";
@@ -139,6 +140,7 @@ const App = () => {
                 }>
                   <Route index element={<Dashboard />} />
                   <Route path="warehouse" element={<Warehouse />} />
+                  <Route path="warehouse/locations" element={<WarehouseLocations />} />
                   <Route path="messages" element={<Messages />} />
                   <Route path="users" element={<Users />} />
                   <Route path="clients" element={<Clients />} />

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { LayoutDashboard, Warehouse, MessageSquare, User, Package, Settings, Menu, Sparkles, PackageCheck, PackageOpen, Truck, ClipboardCheck, Database } from 'lucide-react';
+import { LayoutDashboard, Warehouse, MessageSquare, User, Package, Settings, Menu, Sparkles, PackageCheck, PackageOpen, Truck, ClipboardCheck, Database, MapPin } from 'lucide-react';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -18,6 +18,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const pagePermissions: Record<string, string[]> = {
     '/dashboard': ['admin', 'super_admin', 'warehouse_manager', 'logistics_coordinator'],
     '/dashboard/warehouse': ['admin', 'super_admin', 'warehouse_manager'],
+    '/dashboard/warehouse/locations': ['admin', 'super_admin'],
     '/dashboard/messages': ['admin', 'super_admin', 'warehouse_manager', 'logistics_coordinator'],
     '/dashboard/clients': ['admin', 'super_admin'],
     '/dashboard/products': ['admin', 'super_admin', 'warehouse_manager'],
@@ -38,6 +39,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     name: 'Warehouse',
     path: '/dashboard/warehouse',
     icon: Warehouse
+  }, {
+    name: 'Location Mgmt',
+    path: '/dashboard/warehouse/locations',
+    icon: MapPin
   }, {
     name: 'Messages',
     path: '/dashboard/messages',
