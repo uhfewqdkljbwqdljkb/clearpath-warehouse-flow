@@ -134,7 +134,7 @@ export function useAIChat({ conversationId: initialConversationId, context = 'ge
         const errorData = await response.json().catch(() => ({}));
         
         if (response.status === 402) {
-          throw new Error(errorData.message || 'DeepSeek API account needs to be topped up with credits. Please add funds at https://platform.deepseek.com');
+          throw new Error(errorData.message || 'Please add credits to your Lovable AI workspace to continue using the AI Assistant.');
         }
         
         throw new Error(errorData.error || 'Failed to get AI response');
