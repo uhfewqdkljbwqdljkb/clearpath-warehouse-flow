@@ -1210,7 +1210,7 @@ Your goal is to be a complete business partner, helping with both warehouse oper
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemini-3-flash-preview',
         messages: [
           { role: 'system', content: systemPrompt },
           ...messages
@@ -1269,7 +1269,7 @@ Your goal is to be a complete business partner, helping with both warehouse oper
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
+          model: 'google/gemini-3-flash-preview',
           messages: [
             { role: 'system', content: systemPrompt },
             ...messages,
@@ -1299,7 +1299,7 @@ Your goal is to be a complete business partner, helping with both warehouse oper
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemini-3-flash-preview',
         messages: [
           { role: 'system', content: systemPrompt },
           ...messages
