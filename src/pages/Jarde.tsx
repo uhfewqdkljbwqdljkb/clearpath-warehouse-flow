@@ -711,7 +711,9 @@ export const Jarde: React.FC = () => {
 
         const companyCheckIns = checkInsByCompany.get(companyId) || [];
         const companyCheckOuts = checkOutsByCompany.get(companyId) || [];
-        const companyProducts = productsByCompany.get(companyId) || [];
+        const companyProducts = (productsByCompany.get(companyId) || [])
+          .slice()
+          .sort((a, b) => a.name.localeCompare(b.name));
 
         const items: JardeReportItem[] = [];
 
