@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Package, Plus, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import {
   Select,
   SelectContent,
@@ -327,13 +328,16 @@ export const ClientCheckOut: React.FC = () => {
     variantVal: string,
     quantity: number
   ) => {
+    const draft = itemDrafts[itemIndex];
+    const maxAvailable = getVariantAvailableQuantity(draft.product_id, variantAttr, variantVal);
+    const cappedQuantity = Math.min(Math.max(0, quantity), maxAvailable);
+    
     const updated = [...itemDrafts];
-    const draft = updated[itemIndex];
-    const variant = draft.selectedVariants.find(
+    const variant = updated[itemIndex].selectedVariants.find(
       sv => sv.attribute === variantAttr && sv.value === variantVal
     );
     if (variant) {
-      variant.quantity = quantity;
+      variant.quantity = cappedQuantity;
     }
     setItemDrafts(updated);
   };
@@ -381,9 +385,12 @@ export const ClientCheckOut: React.FC = () => {
     subVal: string,
     quantity: number
   ) => {
+    const draft = itemDrafts[itemIndex];
+    const maxAvailable = getSubVariantAvailableQuantity(draft.product_id, variantAttr, variantVal, subAttr, subVal);
+    const cappedQuantity = Math.min(Math.max(0, quantity), maxAvailable);
+    
     const updated = [...itemDrafts];
-    const draft = updated[itemIndex];
-    const variant = draft.selectedVariants.find(
+    const variant = updated[itemIndex].selectedVariants.find(
       sv => sv.attribute === variantAttr && sv.value === variantVal
     );
     if (!variant || !variant.subVariants) return;
@@ -392,14 +399,16 @@ export const ClientCheckOut: React.FC = () => {
       sub => sub.attribute === subAttr && sub.value === subVal
     );
     if (subVariant) {
-      subVariant.quantity = quantity;
+      subVariant.quantity = cappedQuantity;
     }
     setItemDrafts(updated);
   };
 
   const updateNoVariantQuantity = (index: number, quantity: number) => {
+    const maxAvailable = getProductAvailableQuantity(itemDrafts[index].product_id);
+    const cappedQuantity = Math.min(Math.max(0, quantity), maxAvailable);
     const updated = [...itemDrafts];
-    updated[index].noVariantQuantity = quantity;
+    updated[index].noVariantQuantity = cappedQuantity;
     setItemDrafts(updated);
   };
 
@@ -490,6 +499,55 @@ export const ClientCheckOut: React.FC = () => {
   };
 
   const handleSubmit = async () => {
+    // Validate quantities don't exceed available stock
+    for (const draft of itemDrafts) {
+      if (!draft.product_id) continue;
+      
+      const variants = getProductVariants(draft.product_id);
+      
+      if (variants.length === 0) {
+        // No variants - check base quantity
+        const available = getProductAvailableQuantity(draft.product_id);
+        if (draft.noVariantQuantity > available) {
+          toast({
+            title: "Quantity Exceeds Stock",
+            description: `${draft.product_name} only has ${available} available`,
+            variant: "destructive",
+          });
+          return;
+        }
+      } else {
+        // Has variants - check each selected variant
+        for (const sv of draft.selectedVariants) {
+          if (sv.subVariants && sv.subVariants.length > 0) {
+            for (const sub of sv.subVariants) {
+              const available = getSubVariantAvailableQuantity(
+                draft.product_id, sv.attribute, sv.value, sub.attribute, sub.value
+              );
+              if (sub.quantity > available) {
+                toast({
+                  title: "Quantity Exceeds Stock",
+                  description: `${draft.product_name} (${sv.value} / ${sub.value}) only has ${available} available`,
+                  variant: "destructive",
+                });
+                return;
+              }
+            }
+          } else {
+            const available = getVariantAvailableQuantity(draft.product_id, sv.attribute, sv.value);
+            if (sv.quantity > available) {
+              toast({
+                title: "Quantity Exceeds Stock",
+                description: `${draft.product_name} (${sv.value}) only has ${available} available`,
+                variant: "destructive",
+              });
+              return;
+            }
+          }
+        }
+      }
+    }
+
     const checkOutItems = buildCheckOutItems();
 
     if (checkOutItems.length === 0) {
@@ -685,9 +743,17 @@ export const ClientCheckOut: React.FC = () => {
                           min="1"
                           max={getProductAvailableQuantity(draft.product_id)}
                           placeholder="Enter quantity"
+                          className={cn(
+                            draft.noVariantQuantity > getProductAvailableQuantity(draft.product_id) && 
+                            "border-destructive focus-visible:ring-destructive"
+                          )}
                           value={draft.noVariantQuantity || ''}
                           onChange={(e) => updateNoVariantQuantity(itemIndex, parseInt(e.target.value) || 0)}
+                          disabled={getProductAvailableQuantity(draft.product_id) === 0}
                         />
+                        {getProductAvailableQuantity(draft.product_id) === 0 && (
+                          <p className="text-xs text-destructive">Out of stock</p>
+                        )}
                       </div>
                     )}
 
@@ -719,25 +785,41 @@ export const ClientCheckOut: React.FC = () => {
                                       <Checkbox
                                         id={`variant-${itemIndex}-${variant.attribute}-${val.value}`}
                                         checked={isSelected}
+                                        disabled={getVariantAvailableQuantity(draft.product_id, variant.attribute, val.value) === 0}
                                         onCheckedChange={() => toggleVariantSelection(itemIndex, variant.attribute, val.value)}
                                       />
                                       <label
                                         htmlFor={`variant-${itemIndex}-${variant.attribute}-${val.value}`}
-                                        className="flex-1 text-sm cursor-pointer"
+                                        className={cn(
+                                          "flex-1 text-sm cursor-pointer",
+                                          getVariantAvailableQuantity(draft.product_id, variant.attribute, val.value) === 0 && "text-muted-foreground"
+                                        )}
                                       >
                                         {val.value}
                                       </label>
                                       
-                                      <span className="text-xs text-muted-foreground px-2 py-0.5 bg-muted rounded">
-                                        {getVariantAvailableQuantity(draft.product_id, variant.attribute, val.value)} available
+                                      <span className={cn(
+                                        "text-xs px-2 py-0.5 rounded",
+                                        getVariantAvailableQuantity(draft.product_id, variant.attribute, val.value) === 0 
+                                          ? "text-destructive bg-destructive/10" 
+                                          : "text-muted-foreground bg-muted"
+                                      )}>
+                                        {getVariantAvailableQuantity(draft.product_id, variant.attribute, val.value) === 0 
+                                          ? "Out of stock" 
+                                          : `${getVariantAvailableQuantity(draft.product_id, variant.attribute, val.value)} available`}
                                       </span>
                                       
                                       {isSelected && !hasSubVariants && (
                                         <Input
                                           type="number"
                                           min="1"
+                                          max={getVariantAvailableQuantity(draft.product_id, variant.attribute, val.value)}
                                           placeholder="Qty"
-                                          className="w-24 h-8"
+                                          className={cn(
+                                            "w-24 h-8",
+                                            selectedData?.quantity && selectedData.quantity > getVariantAvailableQuantity(draft.product_id, variant.attribute, val.value) && 
+                                            "border-destructive focus-visible:ring-destructive"
+                                          )}
                                           value={selectedData?.quantity || ''}
                                           onClick={(e) => e.stopPropagation()}
                                           onChange={(e) => updateVariantQuantity(
@@ -790,6 +872,13 @@ export const ClientCheckOut: React.FC = () => {
                                                   <Checkbox
                                                     id={`sub-${itemIndex}-${variant.attribute}-${val.value}-${subVar.attribute}-${subVal.value}`}
                                                     checked={isSubSelected}
+                                                    disabled={getSubVariantAvailableQuantity(
+                                                      draft.product_id,
+                                                      variant.attribute,
+                                                      val.value,
+                                                      subVar.attribute,
+                                                      subVal.value
+                                                    ) === 0}
                                                     onCheckedChange={() => toggleSubVariantSelection(
                                                       itemIndex,
                                                       variant.attribute,
@@ -800,27 +889,71 @@ export const ClientCheckOut: React.FC = () => {
                                                   />
                                                   <label
                                                     htmlFor={`sub-${itemIndex}-${variant.attribute}-${val.value}-${subVar.attribute}-${subVal.value}`}
-                                                    className="text-sm cursor-pointer"
+                                                    className={cn(
+                                                      "text-sm cursor-pointer",
+                                                      getSubVariantAvailableQuantity(
+                                                        draft.product_id,
+                                                        variant.attribute,
+                                                        val.value,
+                                                        subVar.attribute,
+                                                        subVal.value
+                                                      ) === 0 && "text-muted-foreground"
+                                                    )}
                                                   >
                                                     {subVal.value}
                                                   </label>
                                                   
-                                                  <span className="text-xs text-muted-foreground px-2 py-0.5 bg-muted rounded flex-shrink-0">
+                                                  <span className={cn(
+                                                    "text-xs px-2 py-0.5 rounded flex-shrink-0",
+                                                    getSubVariantAvailableQuantity(
+                                                      draft.product_id,
+                                                      variant.attribute,
+                                                      val.value,
+                                                      subVar.attribute,
+                                                      subVal.value
+                                                    ) === 0 
+                                                      ? "text-destructive bg-destructive/10" 
+                                                      : "text-muted-foreground bg-muted"
+                                                  )}>
                                                     {getSubVariantAvailableQuantity(
                                                       draft.product_id,
                                                       variant.attribute,
                                                       val.value,
                                                       subVar.attribute,
                                                       subVal.value
-                                                    )} available
+                                                    ) === 0 
+                                                      ? "Out of stock" 
+                                                      : `${getSubVariantAvailableQuantity(
+                                                          draft.product_id,
+                                                          variant.attribute,
+                                                          val.value,
+                                                          subVar.attribute,
+                                                          subVal.value
+                                                        )} available`}
                                                   </span>
                                                   
                                                   {isSubSelected && (
                                                     <Input
                                                       type="number"
                                                       min="1"
+                                                      max={getSubVariantAvailableQuantity(
+                                                        draft.product_id,
+                                                        variant.attribute,
+                                                        val.value,
+                                                        subVar.attribute,
+                                                        subVal.value
+                                                      )}
                                                       placeholder="Qty"
-                                                      className="w-24 h-8"
+                                                      className={cn(
+                                                        "w-24 h-8",
+                                                        subData?.quantity && subData.quantity > getSubVariantAvailableQuantity(
+                                                          draft.product_id,
+                                                          variant.attribute,
+                                                          val.value,
+                                                          subVar.attribute,
+                                                          subVal.value
+                                                        ) && "border-destructive focus-visible:ring-destructive"
+                                                      )}
                                                       value={subData?.quantity || ''}
                                                       onClick={(e) => e.stopPropagation()}
                                                       onChange={(e) => updateSubVariantQuantity(
