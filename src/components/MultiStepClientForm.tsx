@@ -39,6 +39,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { uploadContractDocument, getContractDocumentUrl } from '@/utils/fileUpload';
 
+// Helper to check if a location value is actually selected (not empty or "none")
+const isValidLocationId = (value: string | undefined): boolean => {
+  return Boolean(value && value !== 'none' && value.trim() !== '');
+};
+
 const clientSchema = z.object({
   client_code: z.string().min(1, 'Client code is required'),
   company_name: z.string().min(1, 'Company name is required'),
@@ -57,11 +62,10 @@ const clientSchema = z.object({
   client_user_email: z.string().email('Valid email required').optional().or(z.literal('')),
   client_user_password: z.string().min(8, 'Password must be at least 8 characters').optional().or(z.literal('')),
 }).refine((data) => {
-  // At least one location must be selected
-  if (!data.assigned_floor_zone_id && !data.assigned_row_id) {
-    return false;
-  }
-  return true;
+  // At least one valid location must be selected (not "none" or empty)
+  const hasFloorZone = isValidLocationId(data.assigned_floor_zone_id);
+  const hasShelfRow = isValidLocationId(data.assigned_row_id);
+  return hasFloorZone || hasShelfRow;
 }, {
   message: "Please select at least one warehouse location (floor zone or shelf row)",
   path: ["assigned_floor_zone_id"],

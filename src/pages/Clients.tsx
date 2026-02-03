@@ -181,6 +181,14 @@ export const Clients: React.FC = () => {
         client_code = generatedCode;
       }
 
+      // Clean up location IDs - convert "none" or empty strings to null
+      const cleanFloorZoneId = clientData.assigned_floor_zone_id && clientData.assigned_floor_zone_id !== 'none' 
+        ? clientData.assigned_floor_zone_id 
+        : null;
+      const cleanRowId = clientData.assigned_row_id && clientData.assigned_row_id !== 'none' 
+        ? clientData.assigned_row_id 
+        : null;
+
       const insertData = {
         client_code,
         name: clientData.company_name,
@@ -193,8 +201,8 @@ export const Clients: React.FC = () => {
         contract_document_url: clientData.contract_document_url || null,
         is_active: clientData.is_active,
         location_type: clientData.location_type || null,
-        assigned_floor_zone_id: clientData.assigned_floor_zone_id || null,
-        assigned_row_id: clientData.assigned_row_id || null,
+        assigned_floor_zone_id: cleanFloorZoneId,
+        assigned_row_id: cleanRowId,
       };
 
       const { data, error } = await supabase
@@ -214,14 +222,14 @@ export const Clients: React.FC = () => {
       }
 
       // Create allocation record if location is assigned
-      if (data && (clientData.assigned_floor_zone_id || clientData.assigned_row_id)) {
+      if (data && (cleanFloorZoneId || cleanRowId)) {
         const { error: allocError } = await supabase
           .from('client_allocations')
           .insert({
             company_id: data.id,
             location_type: clientData.location_type,
-            assigned_floor_zone_id: clientData.assigned_floor_zone_id || null,
-            assigned_row_id: clientData.assigned_row_id || null,
+            assigned_floor_zone_id: cleanFloorZoneId,
+            assigned_row_id: cleanRowId,
           });
 
         if (allocError) {
@@ -302,6 +310,15 @@ export const Clients: React.FC = () => {
 
     try {
       console.log('Updating company with data:', clientData);
+      
+      // Clean up location IDs - convert "none" or empty strings to null
+      const cleanFloorZoneId = clientData.assigned_floor_zone_id && clientData.assigned_floor_zone_id !== 'none' 
+        ? clientData.assigned_floor_zone_id 
+        : null;
+      const cleanRowId = clientData.assigned_row_id && clientData.assigned_row_id !== 'none' 
+        ? clientData.assigned_row_id 
+        : null;
+
       const updatePayload = {
         client_code: clientData.client_code,
         name: clientData.company_name,
@@ -314,8 +331,8 @@ export const Clients: React.FC = () => {
         contract_document_url: clientData.contract_document_url || null,
         is_active: clientData.is_active,
         location_type: clientData.location_type || null,
-        assigned_floor_zone_id: clientData.assigned_floor_zone_id || null,
-        assigned_row_id: clientData.assigned_row_id || null,
+        assigned_floor_zone_id: cleanFloorZoneId,
+        assigned_row_id: cleanRowId,
         updated_at: new Date().toISOString(),
       };
       console.log('Supabase update payload:', updatePayload);
@@ -336,7 +353,7 @@ export const Clients: React.FC = () => {
       }
 
       // Sync allocation record
-      if (clientData.assigned_floor_zone_id || clientData.assigned_row_id) {
+      if (cleanFloorZoneId || cleanRowId) {
         // Check if allocation exists
         const { data: existingAlloc } = await supabase
           .from('client_allocations')
@@ -350,8 +367,8 @@ export const Clients: React.FC = () => {
             .from('client_allocations')
             .update({
               location_type: clientData.location_type,
-              assigned_floor_zone_id: clientData.assigned_floor_zone_id || null,
-              assigned_row_id: clientData.assigned_row_id || null,
+              assigned_floor_zone_id: cleanFloorZoneId,
+              assigned_row_id: cleanRowId,
             })
             .eq('id', existingAlloc.id);
 
@@ -365,8 +382,8 @@ export const Clients: React.FC = () => {
             .insert({
               company_id: editingClient.id,
               location_type: clientData.location_type,
-              assigned_floor_zone_id: clientData.assigned_floor_zone_id || null,
-              assigned_row_id: clientData.assigned_row_id || null,
+              assigned_floor_zone_id: cleanFloorZoneId,
+              assigned_row_id: cleanRowId,
             });
 
           if (allocError) {
