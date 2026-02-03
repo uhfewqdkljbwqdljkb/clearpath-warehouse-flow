@@ -40,6 +40,14 @@ import AIAssistant from "@/pages/AIAssistant";
 import ClientAIAssistant from "@/pages/client/ClientAIAssistant";
 import { ClientSuppliers } from "@/pages/client/ClientSuppliers";
 import { ClientCustomers } from "@/pages/client/ClientCustomers";
+// Delivery & Financials
+import DeliveryOverview from "@/pages/admin/delivery/DeliveryOverview";
+import DeliveryOrders from "@/pages/admin/delivery/DeliveryOrders";
+import DeliveryCarriers from "@/pages/admin/delivery/DeliveryCarriers";
+import DeliveryDrivers from "@/pages/admin/delivery/DeliveryDrivers";
+import DeliveryIntegrations from "@/pages/admin/delivery/DeliveryIntegrations";
+import FinancialOverview from "@/pages/admin/financials/FinancialOverview";
+import FinancialTransactions from "@/pages/admin/financials/FinancialTransactions";
 
 const queryClient = new QueryClient();
 
@@ -152,6 +160,15 @@ const App = () => {
                   <Route path="jarde" element={<Jarde />} />
                   <Route path="data-cleanup" element={<DataCleanup />} />
                   <Route path="ai-assistant" element={<AIAssistant />} />
+                  {/* Delivery Routes */}
+                  <Route path="delivery/overview" element={<DeliveryOverview />} />
+                  <Route path="delivery/orders" element={<DeliveryOrders />} />
+                  <Route path="delivery/carriers" element={<DeliveryCarriers />} />
+                  <Route path="delivery/drivers" element={<DeliveryDrivers />} />
+                  <Route path="delivery/integrations" element={<DeliveryIntegrations />} />
+                  {/* Financial Routes */}
+                  <Route path="financials/overview" element={<FinancialOverview />} />
+                  <Route path="financials/transactions" element={<FinancialTransactions />} />
                 </Route>
 
                 {/* Client login route */}

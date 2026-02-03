@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { LayoutDashboard, Warehouse, MessageSquare, User, Package, Settings, Menu, Sparkles, PackageCheck, PackageOpen, Truck, ClipboardCheck, Database, MapPin } from 'lucide-react';
+import { LayoutDashboard, Warehouse, MessageSquare, User, Package, Settings, Menu, Sparkles, PackageCheck, PackageOpen, Truck, ClipboardCheck, Database, MapPin, DollarSign, Plug } from 'lucide-react';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -28,7 +28,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     '/dashboard/jarde': ['admin', 'super_admin', 'warehouse_manager'],
     '/dashboard/data-cleanup': ['admin', 'super_admin'],
     '/dashboard/ai-assistant': ['admin', 'super_admin', 'warehouse_manager', 'logistics_coordinator'],
-    '/dashboard/users': ['super_admin'], // Only super_admin can access
+    '/dashboard/users': ['super_admin'],
+    '/dashboard/delivery/overview': ['admin', 'super_admin', 'warehouse_manager', 'logistics_coordinator'],
+    '/dashboard/delivery/orders': ['admin', 'super_admin', 'warehouse_manager', 'logistics_coordinator'],
+    '/dashboard/delivery/carriers': ['admin', 'super_admin'],
+    '/dashboard/delivery/drivers': ['admin', 'super_admin', 'warehouse_manager'],
+    '/dashboard/delivery/integrations': ['admin', 'super_admin'],
+    '/dashboard/financials/overview': ['admin', 'super_admin'],
+    '/dashboard/financials/transactions': ['admin', 'super_admin'],
   };
 
   const allNavItems = [{
@@ -79,6 +86,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     name: 'AI Assistant',
     path: '/dashboard/ai-assistant',
     icon: Sparkles
+  }, {
+    name: 'Delivery',
+    path: '/dashboard/delivery/overview',
+    icon: Truck
+  }, {
+    name: 'Financials',
+    path: '/dashboard/financials/overview',
+    icon: DollarSign
   }, {
     name: 'Users',
     path: '/dashboard/users',
