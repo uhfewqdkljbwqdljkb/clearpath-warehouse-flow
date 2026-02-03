@@ -138,13 +138,23 @@ const ProductRow: React.FC<ProductRowProps> = ({
         <td className="text-right py-2 px-2 text-red-600">-{baseItem.check_outs}</td>
         <td className="text-right py-2 px-2 font-medium">{baseItem.expected_quantity}</td>
         <td className="text-right py-2 px-2">
-          <Input
-            type="number"
-            className="w-20 h-8 text-right"
-            value={baseItem.actual_quantity ?? ''}
-            onChange={(e) => onActualQuantityChange(companyId, baseIndex, e.target.value)}
-            placeholder="-"
-          />
+          <div className="flex items-center justify-end gap-1">
+            {hasVariants && (
+              <span className="text-xs text-muted-foreground whitespace-nowrap">(enter on variants)</span>
+            )}
+            <Input
+              type="number"
+              className={cn(
+                "w-20 h-8 text-right",
+                hasVariants && "bg-muted cursor-not-allowed opacity-50"
+              )}
+              value={hasVariants ? '' : (baseItem.actual_quantity ?? '')}
+              onChange={(e) => onActualQuantityChange(companyId, baseIndex, e.target.value)}
+              placeholder={hasVariants ? "—" : "-"}
+              disabled={hasVariants}
+              title={hasVariants ? "Enter quantities on individual variants below" : undefined}
+            />
+          </div>
         </td>
         <td className={cn("text-right py-2 px-2 font-medium", getVarianceColor(baseItem.variance))}>
           {baseItem.variance !== null ? baseItem.variance : '-'}
