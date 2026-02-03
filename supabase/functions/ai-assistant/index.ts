@@ -35,20 +35,32 @@ serve(async (req) => {
 
     const { messages, conversationId, context } = await req.json();
 
-    // Fetch user profile and company info
+    // Fetch user profile with company info
     const { data: profile } = await supabase
       .from('profiles')
       .select('*, companies(*)')
       .eq('id', user.id)
       .single();
 
-    // Check if user is admin
+    // If company wasn't joined but profile has company_id, fetch it separately
+    let company = profile?.companies;
+    if (!company && profile?.company_id) {
+      const { data: companyData } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('id', profile.company_id)
+        .single();
+      company = companyData;
+    }
+
+    // Check if user is admin (any admin role)
     const { data: userRoles } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id);
     
-    const isAdmin = userRoles?.some((r: any) => r.role === 'admin');
+    const adminRoles = ['admin', 'super_admin', 'warehouse_manager', 'logistics_coordinator'];
+    const isAdmin = userRoles?.some((r: any) => adminRoles.includes(r.role));
 
     // Define comprehensive tools for database queries and actions
     const tools = isAdmin ? [
@@ -410,8 +422,6 @@ Critical Guidelines:
 
 Your goal is to be a valuable business partner AND operational assistant, whether helping with warehouse operations OR broader business strategy.`;
     } else {
-      const company = profile?.companies;
-
       systemPrompt = `You are Clearpath AI, a versatile business and operations assistant for ${company?.name || 'your company'}.
 
 You are here to help with:
@@ -836,7 +846,7 @@ Your goal is to be a complete business partner, helping with both warehouse oper
             
             // ============ CLIENT READ TOOLS ============
             case 'get_company_stats': {
-              const companyId = profile?.companies?.id;
+              const companyId = company?.id;
               if (!companyId) {
                 result = { error: 'No company associated with user' };
                 break;
@@ -881,7 +891,7 @@ Your goal is to be a complete business partner, helping with both warehouse oper
             }
             
             case 'get_product_inventory': {
-              const companyId = profile?.companies?.id;
+              const companyId = company?.id;
               if (!companyId) {
                 result = { error: 'No company associated with user' };
                 break;
@@ -945,7 +955,7 @@ Your goal is to be a complete business partner, helping with both warehouse oper
             }
             
             case 'get_check_in_requests': {
-              const companyId = profile?.companies?.id;
+              const companyId = company?.id;
               if (!companyId) {
                 result = { error: 'No company associated with user' };
                 break;
@@ -968,7 +978,7 @@ Your goal is to be a complete business partner, helping with both warehouse oper
             }
             
             case 'get_check_out_requests': {
-              const companyId = profile?.companies?.id;
+              const companyId = company?.id;
               if (!companyId) {
                 result = { error: 'No company associated with user' };
                 break;
@@ -991,7 +1001,7 @@ Your goal is to be a complete business partner, helping with both warehouse oper
             }
             
             case 'get_orders': {
-              const companyId = profile?.companies?.id;
+              const companyId = company?.id;
               if (!companyId) {
                 result = { error: 'No company associated with user' };
                 break;
@@ -1017,7 +1027,7 @@ Your goal is to be a complete business partner, helping with both warehouse oper
             }
             
             case 'get_shipments': {
-              const companyId = profile?.companies?.id;
+              const companyId = company?.id;
               if (!companyId) {
                 result = { error: 'No company associated with user' };
                 break;
@@ -1058,7 +1068,7 @@ Your goal is to be a complete business partner, helping with both warehouse oper
             }
             
             case 'get_dashboard_metrics': {
-              const companyId = profile?.companies?.id;
+              const companyId = company?.id;
               if (!companyId) {
                 result = { error: 'No company associated with user' };
                 break;
@@ -1095,7 +1105,7 @@ Your goal is to be a complete business partner, helping with both warehouse oper
             
             // ============ CLIENT ACTION TOOLS ============
             case 'create_check_in_request': {
-              const companyId = profile?.companies?.id;
+              const companyId = company?.id;
               if (!companyId) {
                 result = { error: 'No company associated with user' };
                 break;
@@ -1140,7 +1150,7 @@ Your goal is to be a complete business partner, helping with both warehouse oper
             }
             
             case 'create_check_out_request': {
-              const companyId = profile?.companies?.id;
+              const companyId = company?.id;
               if (!companyId) {
                 result = { error: 'No company associated with user' };
                 break;
