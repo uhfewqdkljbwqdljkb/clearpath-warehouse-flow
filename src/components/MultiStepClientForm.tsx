@@ -248,20 +248,34 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
   };
 
   const nextStep = async () => {
+    // Step 2: manually validate location selection (avoids zod refine + trigger issues)
+    if (currentStep === 2) {
+      const floorZone = form.getValues('assigned_floor_zone_id');
+      const shelfRow = form.getValues('assigned_row_id');
+      const hasFloorZone = isValidLocationId(floorZone);
+      const hasShelfRow = isValidLocationId(shelfRow);
+
+      if (!hasFloorZone && !hasShelfRow) {
+        form.setError('assigned_floor_zone_id', {
+          type: 'manual',
+          message: 'Please select at least one warehouse location (floor zone or shelf row)',
+        });
+        return;
+      }
+      // Clear any stale error from a previous attempt
+      form.clearErrors('assigned_floor_zone_id');
+      setCurrentStep(3);
+      return;
+    }
+
     const fieldsToValidate = getFieldsForStep(currentStep);
-    console.log('Validating step', currentStep, 'fields:', fieldsToValidate);
     const isStepValid = await form.trigger(fieldsToValidate);
-    console.log('Step validation result:', isStepValid, 'Errors:', form.formState.errors);
     
     if (isStepValid) {
       const nextStepNumber = currentStep + 1;
-      
       if (nextStepNumber <= steps.length) {
-        console.log('Moving to step', nextStepNumber);
         setCurrentStep(nextStepNumber);
       }
-    } else {
-      console.log('Validation failed for step', currentStep);
     }
   };
 
@@ -275,11 +289,8 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
     switch (step) {
       case 1:
         return ['client_code', 'company_name'];
-      case 2:
-        // Validate that at least one location is selected
-        return ['assigned_floor_zone_id'];
       case 3:
-        return ['contract_start_date', 'contract_end_date']; // Validate dates if provided
+        return ['contract_start_date', 'contract_end_date'];
       case 4:
         const createPortal = form.getValues('create_portal_access');
         if (createPortal) return ['client_user_email', 'client_user_password'];
