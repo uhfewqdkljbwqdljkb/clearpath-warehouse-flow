@@ -39,9 +39,30 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { uploadContractDocument, getContractDocumentUrl } from '@/utils/fileUpload';
 
-// Helper to check if a location value is actually selected (not empty or "none")
-const isValidLocationId = (value: string | undefined): boolean => {
+// Helper to check if a location value is actually selected (not empty, null, or "none")
+const isValidLocationId = (value: string | null | undefined): boolean => {
   return Boolean(value && value !== 'none' && value.trim() !== '');
+};
+
+// Helper to map field names to their step number for error navigation
+const getStepForField = (fieldName: string): number | null => {
+  const fieldStepMap: Record<string, number> = {
+    client_code: 1,
+    company_name: 1,
+    contact_email: 1,
+    contact_phone: 1,
+    address: 1,
+    assigned_floor_zone_id: 2,
+    assigned_row_id: 2,
+    contract_start_date: 3,
+    contract_end_date: 3,
+    billing_address: 3,
+    contract_document_url: 3,
+    create_portal_access: 4,
+    client_user_email: 4,
+    client_user_password: 4,
+  };
+  return fieldStepMap[fieldName] ?? null;
 };
 
 const clientSchema = z.object({
@@ -146,10 +167,20 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
   
   const onInvalid = (errors: any) => {
     console.error('Form invalid on submit:', errors);
-    const firstKey = Object.keys(errors)[0];
+    const errorFields = Object.keys(errors);
+    const firstKey = errorFields[0];
+
+    // Navigate to the step containing the first error
+    if (firstKey) {
+      const errorStep = getStepForField(firstKey);
+      if (errorStep && errorStep !== currentStep) {
+        setCurrentStep(errorStep);
+      }
+    }
+
     const message = firstKey ? (errors as any)[firstKey]?.message || 'Please check highlighted fields' : 'Please check highlighted fields';
     toast({
-      title: 'Fix errors to continue',
+      title: 'Validation Error',
       description: String(message),
       variant: 'destructive',
     });
@@ -260,22 +291,30 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
           type: 'manual',
           message: 'Please select at least one warehouse location (floor zone or shelf row)',
         });
+        toast({
+          title: "Validation Error",
+          description: "Please select at least one warehouse location.",
+          variant: "destructive",
+        });
         return;
       }
       // Clear any stale error from a previous attempt
       form.clearErrors('assigned_floor_zone_id');
+      form.clearErrors('assigned_row_id');
       setCurrentStep(3);
       return;
     }
 
     const fieldsToValidate = getFieldsForStep(currentStep);
+    if (fieldsToValidate.length === 0) {
+      // No validation needed, proceed
+      setCurrentStep((prev) => Math.min(prev + 1, steps.length));
+      return;
+    }
+
     const isStepValid = await form.trigger(fieldsToValidate);
-    
     if (isStepValid) {
-      const nextStepNumber = currentStep + 1;
-      if (nextStepNumber <= steps.length) {
-        setCurrentStep(nextStepNumber);
-      }
+      setCurrentStep((prev) => Math.min(prev + 1, steps.length));
     }
   };
 
@@ -289,6 +328,8 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
     switch (step) {
       case 1:
         return ['client_code', 'company_name'];
+      case 2:
+        return ['assigned_floor_zone_id', 'assigned_row_id'];
       case 3:
         return ['contract_start_date', 'contract_end_date'];
       case 4:
@@ -313,7 +354,6 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
       
       // Upload contract document if a new file is provided
       if (contractFile) {
-        // Use client ID if editing, otherwise generate temp ID
         const folderId = client?.id || crypto.randomUUID();
         const uploadResult = await uploadContractDocument(contractFile, folderId);
         
@@ -330,33 +370,33 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
         contractDocUrl = uploadResult.url;
       }
       
-      // Prepare submission data
+      // Clean "none" and invalid values FIRST, before any logic depends on them
+      const cleanFloorZoneId = isValidLocationId(data.assigned_floor_zone_id)
+        ? data.assigned_floor_zone_id!
+        : null;
+      const cleanRowId = isValidLocationId(data.assigned_row_id)
+        ? data.assigned_row_id!
+        : null;
+
+      // Determine location_type from CLEANED data
+      let locationType: 'floor_zone' | 'shelf_row' | null = null;
+      if (cleanFloorZoneId) {
+        locationType = 'floor_zone';
+      } else if (cleanRowId) {
+        locationType = 'shelf_row';
+      }
+      
+      // Prepare submission data with cleaned values
       const submissionData: any = {
         ...data,
         contact_name: data.contact_email || '',
         email: data.contact_email || '',
         phone: data.contact_phone || '',
         contract_document_url: contractDocUrl,
+        assigned_floor_zone_id: cleanFloorZoneId,
+        assigned_row_id: cleanRowId,
+        location_type: locationType,
       };
-      
-      // Determine location_type based on what's assigned
-      let locationType = null;
-      if (submissionData.assigned_floor_zone_id === 'none') {
-        submissionData.assigned_floor_zone_id = null;
-      }
-      if (submissionData.assigned_row_id === 'none') {
-        submissionData.assigned_row_id = null;
-      }
-      
-      if (submissionData.assigned_floor_zone_id && submissionData.assigned_row_id) {
-        locationType = 'floor_zone'; // Both assigned
-      } else if (submissionData.assigned_floor_zone_id) {
-        locationType = 'floor_zone';
-      } else if (submissionData.assigned_row_id) {
-        locationType = 'shelf_row';
-      }
-      
-      submissionData.location_type = locationType;
       
       onSubmit(submissionData);
     } catch (error: any) {
@@ -563,77 +603,77 @@ export const MultiStepClientForm: React.FC<MultiStepClientFormProps> = ({
                 <FormField
                   control={form.control}
                   name="assigned_floor_zone_id"
-                  render={({ field }) => {
-                    console.log('Floor zone field value:', field.value);
-                    return (
-                      <FormItem>
-                        <FormLabel>Floor Zone (Optional)</FormLabel>
-                        <FormDescription>
-                          Assign a dedicated floor zone for exclusive storage
-                        </FormDescription>
-                        <Select 
-                          onValueChange={(value) => {
-                            console.log('Floor zone selected:', value);
-                            field.onChange(value);
-                          }} 
-                          value={field.value || undefined}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Choose a floor zone (optional)" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent className="z-50 bg-popover">
-                            <SelectItem value="none">None</SelectItem>
-                            {floorZones.map((zone) => (
-                              <SelectItem key={zone.id} value={zone.id}>
-                                {zone.code} - {zone.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    );
-                  }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Floor Zone (Optional)</FormLabel>
+                      <FormDescription>
+                        Assign a dedicated floor zone for exclusive storage
+                      </FormDescription>
+                      <Select 
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          // Clear location error when user makes a selection
+                          if (isValidLocationId(value)) {
+                            form.clearErrors('assigned_floor_zone_id');
+                          }
+                        }} 
+                        value={field.value || undefined}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Choose a floor zone (optional)" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="z-50 bg-popover">
+                          <SelectItem value="none">None</SelectItem>
+                          {floorZones.map((zone) => (
+                            <SelectItem key={zone.id} value={zone.id}>
+                              {zone.code} - {zone.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
 
                 <FormField
                   control={form.control}
                   name="assigned_row_id"
-                  render={({ field }) => {
-                    console.log('Shelf row field value:', field.value);
-                    return (
-                      <FormItem>
-                        <FormLabel>Shelf Row (Optional)</FormLabel>
-                        <FormDescription>
-                          Assign a specific shelf row for organized storage
-                        </FormDescription>
-                        <Select 
-                          onValueChange={(value) => {
-                            console.log('Shelf row selected:', value);
-                            field.onChange(value);
-                          }} 
-                          value={field.value || undefined}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Choose a shelf row (optional)" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent className="z-50 bg-popover">
-                            <SelectItem value="none">None</SelectItem>
-                            {shelfRows.map((row) => (
-                              <SelectItem key={row.id} value={row.id}>
-                                {row.code} - Row {row.row_number}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    );
-                  }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Shelf Row (Optional)</FormLabel>
+                      <FormDescription>
+                        Assign a specific shelf row for organized storage
+                      </FormDescription>
+                      <Select 
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          // Clear location error when user makes a selection
+                          if (isValidLocationId(value)) {
+                            form.clearErrors('assigned_floor_zone_id');
+                          }
+                        }} 
+                        value={field.value || undefined}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Choose a shelf row (optional)" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="z-50 bg-popover">
+                          <SelectItem value="none">None</SelectItem>
+                          {shelfRows.map((row) => (
+                            <SelectItem key={row.id} value={row.id}>
+                              {row.code} - Row {row.row_number}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
 
                 <div className="bg-muted/50 p-4 rounded-lg">
