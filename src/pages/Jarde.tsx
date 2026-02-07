@@ -871,15 +871,22 @@ export const Jarde: React.FC = () => {
       yPosition += 8;
 
       // Table
-      const tableData = clientReport.items.map(item => [
-        item.product_name,
-        item.starting_quantity.toString(),
-        item.check_ins.toString(),
-        item.check_outs.toString(),
-        item.expected_quantity.toString(),
-        item.actual_quantity !== null ? item.actual_quantity.toString() : '-',
-        item.variance !== null ? item.variance.toString() : '-',
-      ]);
+      const tableData = clientReport.items.map(item => {
+        // Show variant label indented under parent product
+        const displayName = item.variant_value
+          ? `    ↳ ${item.variant_value}`
+          : item.product_name;
+
+        return [
+          displayName,
+          item.starting_quantity.toString(),
+          item.check_ins.toString(),
+          item.check_outs.toString(),
+          item.expected_quantity.toString(),
+          item.actual_quantity !== null ? item.actual_quantity.toString() : '-',
+          item.variance !== null ? item.variance.toString() : '-',
+        ];
+      });
 
       autoTable(doc, {
         startY: yPosition,
