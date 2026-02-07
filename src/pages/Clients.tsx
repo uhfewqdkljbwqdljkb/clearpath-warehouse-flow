@@ -221,22 +221,22 @@ export const Clients: React.FC = () => {
         return;
       }
 
-      // Create allocation record if location is assigned
-      if (data && (cleanFloorZoneId || cleanRowId)) {
+      // Create allocation record only if we have a valid location_type AND at least one location
+      if (data && clientData.location_type && (cleanFloorZoneId || cleanRowId)) {
         const { error: allocError } = await supabase
           .from('client_allocations')
           .insert({
             company_id: data.id,
-            location_type: clientData.location_type,
+            location_type: clientData.location_type as 'floor_zone' | 'shelf_row',
             assigned_floor_zone_id: cleanFloorZoneId,
             assigned_row_id: cleanRowId,
           });
 
         if (allocError) {
-          console.error('Error creating allocation:', allocError);
+          console.error('Allocation insert error:', allocError);
           toast({
             title: "Warning",
-            description: "Client created but allocation record failed.",
+            description: "Client created but warehouse allocation failed. You can update this later.",
             variant: "destructive",
           });
         }
@@ -352,8 +352,8 @@ export const Clients: React.FC = () => {
         return;
       }
 
-      // Sync allocation record
-      if (cleanFloorZoneId || cleanRowId) {
+      // Sync allocation record — only if location_type is valid
+      if ((cleanFloorZoneId || cleanRowId) && clientData.location_type) {
         // Check if allocation exists
         const { data: existingAlloc } = await supabase
           .from('client_allocations')
@@ -366,7 +366,7 @@ export const Clients: React.FC = () => {
           const { error: allocError } = await supabase
             .from('client_allocations')
             .update({
-              location_type: clientData.location_type,
+              location_type: clientData.location_type as 'floor_zone' | 'shelf_row',
               assigned_floor_zone_id: cleanFloorZoneId,
               assigned_row_id: cleanRowId,
             })
@@ -381,7 +381,7 @@ export const Clients: React.FC = () => {
             .from('client_allocations')
             .insert({
               company_id: editingClient.id,
-              location_type: clientData.location_type,
+              location_type: clientData.location_type as 'floor_zone' | 'shelf_row',
               assigned_floor_zone_id: cleanFloorZoneId,
               assigned_row_id: cleanRowId,
             });
