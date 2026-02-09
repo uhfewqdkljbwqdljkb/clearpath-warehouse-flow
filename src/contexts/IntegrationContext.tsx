@@ -30,15 +30,25 @@ export const IntegrationProvider: React.FC<IntegrationProviderProps> = ({ childr
     if (!profile?.user_id) return;
 
     try {
-      await supabase.from('client_activity_logs').insert([{
+      const companyId = profile.company_id || clientCompany?.id;
+      if (!companyId) {
+        console.warn('logActivity skipped: no company_id available');
+        return;
+      }
+
+      const { error } = await supabase.from('client_activity_logs').insert([{
         user_id: profile.user_id,
-        company_id: profile.company_id || clientCompany?.id,
+        company_id: companyId,
         activity_type: activityType,
         activity_description: description,
         metadata,
-        ip_address: null, // Will be populated by triggers if needed
+        ip_address: null,
         user_agent: navigator.userAgent
       }]);
+
+      if (error) {
+        console.warn('Activity logging failed:', error.message);
+      }
     } catch (error) {
       console.error('Error logging activity:', error);
     }
