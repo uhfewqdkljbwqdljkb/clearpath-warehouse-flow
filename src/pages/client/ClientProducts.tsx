@@ -374,30 +374,32 @@ export const ClientProducts: React.FC = () => {
   }, [profile?.company_id, products, inventoryRows]);
 
   const getProductQuantity = (product: Product) => {
-    const inventoryTotal = inventoryData[product.id] ?? 0;
+    try {
+      const inventoryTotal = inventoryData[product.id] ?? 0;
 
-    const hasVariantStructure =
-      !!product.variants && Array.isArray(product.variants) && product.variants.length > 0;
+      const hasVariantStructure =
+        !!product.variants && Array.isArray(product.variants) && product.variants.length > 0;
 
-    let variantsTotal = 0;
-    let variantQuantities: { [key: string]: number } | null = null;
+      let variantsTotal = 0;
+      let variantQuantities: { [key: string]: number } | null = null;
 
-    if (hasVariantStructure) {
-      // Use nested variant calculation
-      variantsTotal = calculateNestedVariantQuantity(product.variants);
-      variantQuantities = getVariantBreakdown(product.variants);
+      if (hasVariantStructure) {
+        variantsTotal = calculateNestedVariantQuantity(product.variants);
+        variantQuantities = getVariantBreakdown(product.variants);
+      }
+
+      const total = hasVariantStructure ? variantsTotal : inventoryTotal;
+
+      return {
+        total,
+        variants: variantQuantities,
+        hasVariants: !!variantQuantities && Object.keys(variantQuantities).length > 0,
+        hasNestedVariants: hasNestedVariants(product.variants),
+      };
+    } catch (error) {
+      console.error('Error calculating product quantity for:', product.id, product.name, error);
+      return { total: 0, variants: null, hasVariants: false, hasNestedVariants: false };
     }
-
-    // For products with variants, the displayed total should match the sum of variant quantities.
-    // For products without variants, use inventory_items when available (fallback to 0).
-    const total = hasVariantStructure ? variantsTotal : inventoryTotal;
-
-    return {
-      total,
-      variants: variantQuantities,
-      hasVariants: !!variantQuantities && Object.keys(variantQuantities).length > 0,
-      hasNestedVariants: hasNestedVariants(product.variants),
-    };
   };
 
   const filteredProducts = products.filter(product =>

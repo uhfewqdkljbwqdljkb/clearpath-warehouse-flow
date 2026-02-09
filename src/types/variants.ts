@@ -118,15 +118,14 @@ export function calculateNestedVariantQuantity(variants: Variant[]): number {
   let total = 0;
 
   const calculateValueQuantity = (values: VariantValue[]): number => {
+    if (!values || !Array.isArray(values)) return 0;
     let sum = 0;
     for (const val of values) {
-      if (val.subVariants && val.subVariants.length > 0) {
-        // If has sub-variants, sum their quantities instead
+      if (val.subVariants && Array.isArray(val.subVariants) && val.subVariants.length > 0) {
         for (const subVariant of val.subVariants) {
-          sum += calculateValueQuantity(subVariant.values);
+          sum += calculateValueQuantity(subVariant?.values);
         }
       } else {
-        // Leaf node - use this value's quantity
         sum += val.quantity || 0;
       }
     }
@@ -134,6 +133,7 @@ export function calculateNestedVariantQuantity(variants: Variant[]): number {
   };
 
   for (const variant of variants) {
+    if (!variant?.values || !Array.isArray(variant.values)) continue;
     total += calculateValueQuantity(variant.values);
   }
 
@@ -150,18 +150,17 @@ export function getVariantBreakdown(variants: Variant[]): { [key: string]: numbe
     values: VariantValue[], 
     parentPath: string = ''
   ) => {
+    if (!values || !Array.isArray(values)) return;
     for (const val of values) {
       const currentPath = parentPath 
         ? `${parentPath} / ${val.value}` 
         : val.value;
       
-      if (val.subVariants && val.subVariants.length > 0) {
-        // Process nested variants
+      if (val.subVariants && Array.isArray(val.subVariants) && val.subVariants.length > 0) {
         for (const subVariant of val.subVariants) {
-          processValues(subVariant.values, `${currentPath} - ${subVariant.attribute}`);
+          processValues(subVariant?.values, `${currentPath} - ${subVariant?.attribute}`);
         }
       } else {
-        // Leaf node - record the quantity
         if (val.quantity > 0) {
           breakdown[currentPath] = val.quantity;
         }
@@ -170,13 +169,14 @@ export function getVariantBreakdown(variants: Variant[]): { [key: string]: numbe
   };
 
   for (const variant of variants) {
+    if (!variant?.values || !Array.isArray(variant.values)) continue;
     const basePath = variant.attribute;
     for (const val of variant.values) {
       const currentPath = `${basePath}: ${val.value}`;
       
-      if (val.subVariants && val.subVariants.length > 0) {
+      if (val.subVariants && Array.isArray(val.subVariants) && val.subVariants.length > 0) {
         for (const subVariant of val.subVariants) {
-          processValues(subVariant.values, `${currentPath} → ${subVariant.attribute}`);
+          processValues(subVariant?.values, `${currentPath} → ${subVariant?.attribute}`);
         }
       } else {
         if (val.quantity > 0) {
