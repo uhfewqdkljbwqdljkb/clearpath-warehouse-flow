@@ -15,12 +15,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import * as XLSX from 'xlsx';
 import { format, subMonths } from 'date-fns';
+import { calculateNestedVariantQuantity, getVariantBreakdown } from '@/types/variants';
 
 interface Product {
   id: string;
   name: string;
   sku?: string | null;
   company_id?: string;
+  variants?: any;
+  value?: number;
+  minimum_quantity?: number;
+  is_active?: boolean;
   companies?: {
     name: string;
     client_code?: string;
@@ -102,16 +107,37 @@ export const ProductHistoryExportDialog: React.FC<ProductHistoryExportDialogProp
       };
 
       // Product Info Sheet
-      const productInfo = [
+      const variantBreakdown = product.variants && Array.isArray(product.variants) 
+        ? getVariantBreakdown(product.variants) : {};
+      const totalQty = product.variants && Array.isArray(product.variants) && product.variants.length > 0
+        ? calculateNestedVariantQuantity(product.variants) : 0;
+      const productValue = (product as any).value || 0;
+
+      const productInfo: any[][] = [
         ['Product History Report'],
         [''],
         ['Product Name', product.name],
         ['SKU', product.sku || 'N/A'],
         ['Client', product.companies?.name || 'Unknown'],
         ['Client Code', product.companies?.client_code || 'N/A'],
+        ['Unit Value', productValue ? `$${productValue.toFixed(2)}` : 'N/A'],
+        ['Total Quantity', totalQty.toLocaleString()],
+        ['Total Inventory Value', productValue && totalQty ? `$${(productValue * totalQty).toFixed(2)}` : 'N/A'],
+        ['Minimum Quantity', (product as any).minimum_quantity || 'N/A'],
+        ['Status', (product as any).is_active !== false ? 'Active' : 'Inactive'],
         ['Report Period', `${format(new Date(startDate), 'MMM dd, yyyy')} - ${format(new Date(endDate), 'MMM dd, yyyy')}`],
         ['Generated On', format(new Date(), 'MMM dd, yyyy HH:mm')],
       ];
+
+      // Add variant breakdown to summary
+      const variantEntries = Object.entries(variantBreakdown);
+      if (variantEntries.length > 0) {
+        productInfo.push(['']);
+        productInfo.push(['Variant Breakdown']);
+        variantEntries.forEach(([path, qty]) => {
+          productInfo.push([path, qty.toString()]);
+        });
+      }
       const productSheet = XLSX.utils.aoa_to_sheet(productInfo);
       XLSX.utils.book_append_sheet(workbook, productSheet, 'Summary');
 
