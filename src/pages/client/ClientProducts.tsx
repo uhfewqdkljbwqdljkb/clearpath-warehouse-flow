@@ -8,9 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, Plus, Package, MoreVertical, X, Upload, PackageOpen, RefreshCw, Download } from 'lucide-react';
+import { Search, Plus, Package, MoreVertical, X, Upload, PackageOpen, RefreshCw, Download, FileText } from 'lucide-react';
 import { ProductImportDialog } from '@/components/ProductImportDialog';
 import { ProductHistoryExportDialog } from '@/components/ProductHistoryExportDialog';
+import { exportProductListPDF } from '@/utils/productListPdfExport';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -760,6 +761,24 @@ export const ClientProducts: React.FC = () => {
           <p className="text-muted-foreground">View your product catalog and manage check-in/check-out requests</p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            variant="outline"
+            onClick={() => {
+              const prods = filteredProducts.length > 0 ? filteredProducts : products;
+              const filename = exportProductListPDF({
+                products: prods,
+                inventoryData,
+                title: `${companyInfo?.name || 'My'} Products`,
+                clientName: companyInfo?.name,
+                clientCode: companyInfo?.client_code,
+                isAdmin: false,
+              });
+              toast({ title: "Export Complete", description: `Exported to ${filename}` });
+            }}
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            Export PDF
+          </Button>
           {companyInfo?.client_type === 'b2b' && (
             <Button variant="outline" onClick={() => setShowReassignDialog(true)}>
               <RefreshCw className="h-4 w-4 mr-2" />

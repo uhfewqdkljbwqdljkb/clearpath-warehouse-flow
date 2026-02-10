@@ -25,13 +25,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, Package, TrendingUp, Plus, ArrowLeft, Upload, Boxes, Building2, Tag, Hash, Download } from 'lucide-react';
+import { Search, Package, TrendingUp, Plus, ArrowLeft, Upload, Boxes, Building2, Tag, Hash, Download, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ProductForm } from '@/components/ProductForm';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ProductImportDialog } from '@/components/ProductImportDialog';
 import { ProductHistoryExportDialog } from '@/components/ProductHistoryExportDialog';
+import { exportProductListPDF } from '@/utils/productListPdfExport';
 
 interface Product {
   id: string;
@@ -286,6 +287,25 @@ export const Products: React.FC = () => {
               </div>
             </div>
             <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  const clientInfo = clientId ? clients.find(c => c.id === clientId) : undefined;
+                  const prods = filteredProducts.length > 0 ? filteredProducts : products;
+                  const filename = exportProductListPDF({
+                    products: prods,
+                    inventoryData,
+                    title: clientInfo ? `${clientInfo.name} - Products` : 'Product Catalog',
+                    clientName: clientInfo?.name,
+                    clientCode: clientInfo?.client_code,
+                    isAdmin: true,
+                  });
+                  toast({ title: "Export Complete", description: `Exported to ${filename}` });
+                }}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Export PDF
+              </Button>
               {clientId && selectedClientInfo && (
                 <Button variant="outline" onClick={() => setShowImportDialog(true)}>
                   <Upload className="h-4 w-4 mr-2" />
