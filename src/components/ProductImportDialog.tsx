@@ -23,7 +23,7 @@ export interface ImportedProduct {
   quantity: number;
   variants: Array<{
     attribute: string;
-    values: Array<{ value: string; quantity: number }>;
+    values: Array<{ value: string; quantity: number; subVariants?: Array<{ attribute: string; values: Array<{ value: string; quantity: number }> }> }>;
   }>;
 }
 
@@ -31,6 +31,8 @@ interface ParsedProduct {
   product_name: string;
   variant_attribute?: string;
   variant_value?: string;
+  sub_variant_attribute?: string;
+  sub_variant_value?: string;
   quantity: number;
   notes?: string;
   rowNumber: number;
@@ -46,7 +48,7 @@ interface GroupedProduct {
   name: string;
   variants: Array<{
     attribute: string;
-    values: Array<{ value: string; quantity: number }>;
+    values: Array<{ value: string; quantity: number; subVariants?: Array<{ attribute: string; values: Array<{ value: string; quantity: number }> }> }>;
   }>;
   totalQuantity: number;
   notes?: string;
@@ -84,13 +86,17 @@ export function ProductImportDialog({
       ['2. product_name: Required - Name of the product'],
       ['3. variant_attribute: Optional - Type of variant (e.g., Size, Color, Material)'],
       ['4. variant_value: Optional - Specific value (e.g., Small, Red, Cotton)'],
-      ['5. quantity: Required - Must be a positive number'],
-      ['6. notes: Optional - Any additional information'],
+      ['5. sub_variant_attribute: Optional - Type of sub-variant under the variant (e.g., Color under Size)'],
+      ['6. sub_variant_value: Optional - Specific sub-variant value (e.g., Red, Blue)'],
+      ['7. quantity: Required - Must be a positive number'],
+      ['8. notes: Optional - Any additional information'],
       [''],
       ['Important Notes:'],
       ['- Multiple rows with same product_name will be grouped as variants'],
       ['- Leave variant fields empty for products without variants'],
       ['- If using variants, both attribute and value must be filled'],
+      ['- Sub-variants are optional nested levels under a variant (e.g., Size: Large → Color: Red)'],
+      ['- If using sub-variants, both sub_variant_attribute and sub_variant_value must be filled'],
       ['- Maximum 1000 rows per import'],
       ['- Maximum file size: 5MB'],
     ];
@@ -99,36 +105,29 @@ export function ProductImportDialog({
 
     // Examples sheet with sample data
     const examples = [
-      ['product_name', 'variant_attribute', 'variant_value', 'quantity', 'notes'],
-      ['T-Shirt', 'Size', 'Small', 100, 'Cotton blend, spring collection'],
-      ['T-Shirt', 'Size', 'Medium', 150, 'Cotton blend, spring collection'],
-      ['T-Shirt', 'Size', 'Large', 120, 'Cotton blend, spring collection'],
-      ['T-Shirt', 'Size', 'XL', 80, 'Cotton blend, spring collection'],
-      ['Hoodie', 'Color', 'Black', 50, 'Fleece lined'],
-      ['Hoodie', 'Color', 'Gray', 45, 'Fleece lined'],
-      ['Hoodie', 'Color', 'Navy', 40, 'Fleece lined'],
-      ['Running Shoes', 'Size', '8', 30, 'Athletic footwear'],
-      ['Running Shoes', 'Size', '9', 35, 'Athletic footwear'],
-      ['Running Shoes', 'Size', '10', 40, 'Athletic footwear'],
-      ['Running Shoes', 'Size', '11', 25, 'Athletic footwear'],
-      ['Backpack', 'Material', 'Canvas', 60, 'Water resistant'],
-      ['Backpack', 'Material', 'Leather', 40, 'Premium quality'],
-      ['Backpack', 'Material', 'Nylon', 70, 'Lightweight'],
-      ['Water Bottle', 'Capacity', '500ml', 100, 'Stainless steel'],
-      ['Water Bottle', 'Capacity', '750ml', 80, 'Stainless steel'],
-      ['Water Bottle', 'Capacity', '1L', 60, 'Stainless steel'],
-      ['Laptop Stand', '', '', 200, 'No variants, universal fit'],
-      ['Notebook', 'Pages', '100', 150, 'Ruled paper'],
-      ['Notebook', 'Pages', '200', 100, 'Ruled paper'],
-      ['Desk Lamp', 'Style', 'Modern', 40, 'LED, adjustable'],
-      ['Desk Lamp', 'Style', 'Classic', 35, 'LED, adjustable'],
+      ['product_name', 'variant_attribute', 'variant_value', 'sub_variant_attribute', 'sub_variant_value', 'quantity', 'notes'],
+      ['T-Shirt', 'Size', 'Small', 'Color', 'Red', 50, 'Cotton blend, spring collection'],
+      ['T-Shirt', 'Size', 'Small', 'Color', 'Blue', 50, 'Cotton blend, spring collection'],
+      ['T-Shirt', 'Size', 'Medium', 'Color', 'Red', 75, 'Cotton blend, spring collection'],
+      ['T-Shirt', 'Size', 'Medium', 'Color', 'Blue', 75, 'Cotton blend, spring collection'],
+      ['T-Shirt', 'Size', 'Large', '', '', 120, 'No sub-variant, just size'],
+      ['Hoodie', 'Color', 'Black', '', '', 50, 'Fleece lined'],
+      ['Hoodie', 'Color', 'Gray', '', '', 45, 'Fleece lined'],
+      ['Hoodie', 'Color', 'Navy', '', '', 40, 'Fleece lined'],
+      ['Running Shoes', 'Size', '9', 'Color', 'White', 20, 'Athletic footwear'],
+      ['Running Shoes', 'Size', '9', 'Color', 'Black', 15, 'Athletic footwear'],
+      ['Running Shoes', 'Size', '10', 'Color', 'White', 25, 'Athletic footwear'],
+      ['Running Shoes', 'Size', '10', 'Color', 'Black', 15, 'Athletic footwear'],
+      ['Laptop Stand', '', '', '', '', 200, 'No variants, universal fit'],
+      ['Notebook', 'Pages', '100', '', '', 150, 'Ruled paper'],
+      ['Notebook', 'Pages', '200', '', '', 100, 'Ruled paper'],
     ];
     const wsExamples = XLSX.utils.aoa_to_sheet(examples);
     XLSX.utils.book_append_sheet(wb, wsExamples, 'Examples');
 
     // Empty Products sheet for user to fill in
     const products = [
-      ['product_name', 'variant_attribute', 'variant_value', 'quantity', 'notes'],
+      ['product_name', 'variant_attribute', 'variant_value', 'sub_variant_attribute', 'sub_variant_value', 'quantity', 'notes'],
     ];
     const wsProducts = XLSX.utils.aoa_to_sheet(products);
     XLSX.utils.book_append_sheet(wb, wsProducts, 'Products');
@@ -254,10 +253,40 @@ export function ProductImportDialog({
           });
         }
 
+        // Validate sub-variants
+        const hasSubAttribute = row.sub_variant_attribute && String(row.sub_variant_attribute).trim() !== '';
+        const hasSubValue = row.sub_variant_value && String(row.sub_variant_value).trim() !== '';
+
+        if (hasSubAttribute && !hasSubValue) {
+          errors.push({
+            rowNumber,
+            field: 'sub_variant_value',
+            message: 'Sub-variant value is required when sub-variant attribute is specified',
+          });
+        }
+
+        if (!hasSubAttribute && hasSubValue) {
+          errors.push({
+            rowNumber,
+            field: 'sub_variant_attribute',
+            message: 'Sub-variant attribute is required when sub-variant value is specified',
+          });
+        }
+
+        if ((hasSubAttribute || hasSubValue) && (!hasAttribute || !hasValue)) {
+          errors.push({
+            rowNumber,
+            field: 'sub_variant_attribute',
+            message: 'A variant (attribute + value) is required when using sub-variants',
+          });
+        }
+
         parsed.push({
           product_name: String(row.product_name || '').trim(),
           variant_attribute: hasAttribute ? String(row.variant_attribute).trim() : undefined,
           variant_value: hasValue ? String(row.variant_value).trim() : undefined,
+          sub_variant_attribute: hasSubAttribute ? String(row.sub_variant_attribute).trim() : undefined,
+          sub_variant_value: hasSubValue ? String(row.sub_variant_value).trim() : undefined,
           quantity: quantity,
           notes: row.notes ? String(row.notes).trim() : undefined,
           rowNumber,
@@ -327,19 +356,63 @@ export function ProductImportDialog({
           group.variants.push(variantGroup);
         }
 
-        // Check for duplicate variant values
-        const existingValue = variantGroup.values.find(
+        // Find or create variant value entry
+        let existingValue = variantGroup.values.find(
           (v) => v.value.toLowerCase() === product.variant_value!.toLowerCase()
         );
 
-        if (existingValue) {
-          group.errors.push(`Duplicate variant: ${product.variant_attribute} - ${product.variant_value}`);
-          group.status = 'error';
+        if (product.sub_variant_attribute && product.sub_variant_value) {
+          // Has sub-variant: create or find the parent value, then nest
+          if (!existingValue) {
+            existingValue = {
+              value: product.variant_value,
+              quantity: 0,
+              subVariants: [],
+            };
+            variantGroup.values.push(existingValue);
+          }
+
+          if (!existingValue.subVariants) {
+            existingValue.subVariants = [];
+          }
+
+          // Find or create sub-variant attribute group
+          let subVariantGroup = existingValue.subVariants.find(
+            (sv) => sv.attribute.toLowerCase() === product.sub_variant_attribute!.toLowerCase()
+          );
+
+          if (!subVariantGroup) {
+            subVariantGroup = {
+              attribute: product.sub_variant_attribute,
+              values: [],
+            };
+            existingValue.subVariants.push(subVariantGroup);
+          }
+
+          const existingSubValue = subVariantGroup.values.find(
+            (v) => v.value.toLowerCase() === product.sub_variant_value!.toLowerCase()
+          );
+
+          if (existingSubValue) {
+            group.errors.push(`Duplicate sub-variant: ${product.variant_attribute}: ${product.variant_value} → ${product.sub_variant_attribute}: ${product.sub_variant_value}`);
+            group.status = 'error';
+          } else {
+            subVariantGroup.values.push({
+              value: product.sub_variant_value,
+              quantity: product.quantity,
+            });
+          }
         } else {
-          variantGroup.values.push({
-            value: product.variant_value,
-            quantity: product.quantity,
-          });
+          // No sub-variant: flat variant
+          if (existingValue) {
+            group.errors.push(`Duplicate variant: ${product.variant_attribute} - ${product.variant_value}`);
+            group.status = 'error';
+          } else {
+            variantGroup.values.push({
+              value: product.variant_value,
+              quantity: product.quantity,
+            });
+          }
         }
       }
     });
