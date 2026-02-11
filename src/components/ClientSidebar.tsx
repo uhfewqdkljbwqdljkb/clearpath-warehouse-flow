@@ -12,7 +12,8 @@ import {
   Building2,
   ChevronLeft,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  ClipboardCheck
 } from 'lucide-react';
 
 interface ClientSidebarProps {
@@ -50,6 +51,11 @@ export const ClientSidebar: React.FC<ClientSidebarProps> = ({ isCollapsed, onTog
       icon: BarChart3
     },
     {
+      name: 'JARDE Reports',
+      path: '/client/jarde-reports',
+      icon: ClipboardCheck
+    },
+    {
       name: 'Messages',
       path: '/client/messages',
       icon: MessageSquare
@@ -81,9 +87,9 @@ export const ClientSidebar: React.FC<ClientSidebarProps> = ({ isCollapsed, onTog
   ] : [];
 
   const allNavItems = [
-    ...navItems.slice(0, 5), // Dashboard, Products, Requests, Orders, Analytics
+    ...navItems.slice(0, 6), // Dashboard, Products, Requests, Orders, Analytics, JARDE Reports
     ...b2bNavItems,
-    ...navItems.slice(5) // Messages, AI Assistant, Profile
+    ...navItems.slice(6) // Messages, AI Assistant, Profile
   ];
 
   return (

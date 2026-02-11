@@ -40,6 +40,7 @@ import AIAssistant from "@/pages/AIAssistant";
 import ClientAIAssistant from "@/pages/client/ClientAIAssistant";
 import { ClientSuppliers } from "@/pages/client/ClientSuppliers";
 import { ClientCustomers } from "@/pages/client/ClientCustomers";
+import { ClientJardeReports } from "@/pages/client/ClientJardeReports";
 // Delivery & Financials
 import DeliveryOverview from "@/pages/admin/delivery/DeliveryOverview";
 import DeliveryOrders from "@/pages/admin/delivery/DeliveryOrders";
@@ -194,6 +195,7 @@ const App = () => {
                 <Route path="ai-assistant" element={<ClientAIAssistant />} />
                 <Route path="suppliers" element={<ClientSuppliers />} />
                 <Route path="customers" element={<ClientCustomers />} />
+                <Route path="jarde-reports" element={<ClientJardeReports />} />
                 </Route>
                 
                 {/* Redirect root to appropriate dashboard */}
