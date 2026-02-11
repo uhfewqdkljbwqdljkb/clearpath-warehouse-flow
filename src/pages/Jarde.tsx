@@ -299,7 +299,7 @@ export const Jarde: React.FC = () => {
       const productUpdates = new Map<string, {
         company_id: string;
         baseQuantity: number | null;
-        variantUpdates: Array<{ attribute: string; value: string; quantity: number }>;
+        variantUpdates: Array<{ attribute: string; value: string; quantity: number; pathSegments: Array<{ attribute: string; value: string }> }>;
       }>();
 
       for (const update of itemsToUpdate) {
@@ -310,15 +310,19 @@ export const Jarde: React.FC = () => {
         };
 
         if (update.variant_attribute && update.variant_value) {
-          // Extract just the value part from "Attribute: Value" format
-          const valuePart = update.variant_value.includes(': ') 
-            ? update.variant_value.split(': ').slice(1).join(': ')
-            : update.variant_value;
+          // Parse the full path (e.g., "Color: Red → Size: XL") into segments
+          const pathSegments = update.variant_value.split(' → ').map(seg => {
+            const colonIdx = seg.indexOf(': ');
+            return colonIdx >= 0
+              ? { attribute: seg.slice(0, colonIdx), value: seg.slice(colonIdx + 2) }
+              : { attribute: '', value: seg };
+          });
           
           existing.variantUpdates.push({
             attribute: update.variant_attribute,
-            value: valuePart,
+            value: update.variant_value,
             quantity: update.quantity,
+            pathSegments,
           });
         } else {
           existing.baseQuantity = update.quantity;
@@ -344,41 +348,47 @@ export const Jarde: React.FC = () => {
 
         let variants = product?.variants as any[] || [];
 
-        // Update variant quantities
+        // Update variant quantities using path segments
         if (updates.variantUpdates.length > 0) {
-          // Helper to recursively update variant values
-          const updateVariantQuantities = (variantArray: any[]): any[] => {
-            return variantArray.map((variant: any) => ({
-              ...variant,
-              values: variant.values?.map((val: any) => {
-                const valueStr = typeof val === 'string' ? val : val.value;
-                
-                // Check if this value matches any update
-                const matchingUpdate = updates.variantUpdates.find(
-                  u => u.value === valueStr
-                );
-
-                if (matchingUpdate) {
-                  return {
-                    ...val,
-                    quantity: matchingUpdate.quantity,
-                  };
-                }
-
-                // Recursively check sub-variants
-                if (val.subVariants && Array.isArray(val.subVariants) && val.subVariants.length > 0) {
-                  return {
-                    ...val,
-                    subVariants: updateVariantQuantities(val.subVariants),
-                  };
-                }
-
-                return val;
-              }) || [],
-            }));
+          const applyUpdate = (
+            variantArray: any[],
+            pathSegments: Array<{ attribute: string; value: string }>,
+            quantity: number
+          ): any[] => {
+            if (pathSegments.length === 0) return variantArray;
+            
+            const [current, ...remaining] = pathSegments;
+            
+            return variantArray.map((variant: any) => {
+              // Match by attribute (case-insensitive trim)
+              const attrMatch = (variant.attribute || '').trim().toLowerCase() === current.attribute.trim().toLowerCase();
+              if (!attrMatch) return variant;
+              
+              return {
+                ...variant,
+                values: (variant.values || []).map((val: any) => {
+                  const valueStr = typeof val === 'string' ? val : (val.value || '');
+                  const valueMatch = valueStr.trim().toLowerCase() === current.value.trim().toLowerCase();
+                  if (!valueMatch) return val;
+                  
+                  if (remaining.length === 0) {
+                    // This is the leaf - update quantity
+                    return { ...val, quantity };
+                  } else {
+                    // Navigate into sub-variants
+                    return {
+                      ...val,
+                      subVariants: applyUpdate(val.subVariants || [], remaining, quantity),
+                    };
+                  }
+                }),
+              };
+            });
           };
 
-          variants = updateVariantQuantities(variants);
+          for (const update of updates.variantUpdates) {
+            variants = applyUpdate(variants, update.pathSegments, update.quantity);
+          }
         }
 
         // Update the product
@@ -738,42 +748,63 @@ export const Jarde: React.FC = () => {
             variance: null,
           });
 
-          // Calculate for each variant (single-level display, supports nested data)
+          // Calculate for each variant and sub-variant (recursively flatten)
           if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
-            for (const variant of product.variants as any[]) {
-              const variantAttribute = variant.attribute || '';
-              if (variant.values && Array.isArray(variant.values)) {
+            const flattenVariants = (
+              variantArray: any[],
+              parentPath: string
+            ) => {
+              for (const variant of variantArray) {
+                const variantAttribute = variant.attribute || '';
+                if (!variant.values || !Array.isArray(variant.values)) continue;
+                
                 for (const variantValue of variant.values) {
                   const valueStr = typeof variantValue === 'string' ? variantValue : variantValue.value;
                   if (!valueStr) continue;
 
-                  const displayLabel = variantAttribute
+                  const currentLabel = variantAttribute
                     ? `${variantAttribute}: ${valueStr}`
                     : valueStr;
+                  const fullPath = parentPath
+                    ? `${parentPath} → ${currentLabel}`
+                    : currentLabel;
 
-                  const variantStarting =
-                    getCheckInQuantity(companyCheckIns, product.name, valueStr, null, startDate) -
-                    getCheckOutQuantity(companyCheckOuts, product.name, valueStr, null, startDate);
+                  // If this value has sub-variants, recurse into them instead
+                  const hasSubVariants = variantValue.subVariants && 
+                    Array.isArray(variantValue.subVariants) && 
+                    variantValue.subVariants.length > 0 &&
+                    variantValue.subVariants.some((sv: any) => sv.values && Array.isArray(sv.values) && sv.values.length > 0);
 
-                  const variantCheckIns = getCheckInQuantity(companyCheckIns, product.name, valueStr, startDate, endDate);
-                  const variantCheckOuts = getCheckOutQuantity(companyCheckOuts, product.name, valueStr, startDate, endDate);
-                  const variantExpected = variantStarting + variantCheckIns - variantCheckOuts;
+                  if (hasSubVariants) {
+                    flattenVariants(variantValue.subVariants, fullPath);
+                  } else {
+                    // Leaf variant - add as a row
+                    const variantStarting =
+                      getCheckInQuantity(companyCheckIns, product.name, valueStr, null, startDate) -
+                      getCheckOutQuantity(companyCheckOuts, product.name, valueStr, null, startDate);
 
-                  items.push({
-                    product_id: product.id,
-                    product_name: product.name,
-                    variant_attribute: variantAttribute,
-                    variant_value: displayLabel,
-                    starting_quantity: variantStarting,
-                    check_ins: variantCheckIns,
-                    check_outs: variantCheckOuts,
-                    expected_quantity: variantExpected,
-                    actual_quantity: null,
-                    variance: null,
-                  });
+                    const variantCheckIns = getCheckInQuantity(companyCheckIns, product.name, valueStr, startDate, endDate);
+                    const variantCheckOuts = getCheckOutQuantity(companyCheckOuts, product.name, valueStr, startDate, endDate);
+                    const variantExpected = variantStarting + variantCheckIns - variantCheckOuts;
+
+                    items.push({
+                      product_id: product.id,
+                      product_name: product.name,
+                      variant_attribute: variantAttribute,
+                      variant_value: fullPath,
+                      starting_quantity: variantStarting,
+                      check_ins: variantCheckIns,
+                      check_outs: variantCheckOuts,
+                      expected_quantity: variantExpected,
+                      actual_quantity: null,
+                      variance: null,
+                    });
+                  }
                 }
               }
-            }
+            };
+
+            flattenVariants(product.variants as any[], '');
           }
         }
 
