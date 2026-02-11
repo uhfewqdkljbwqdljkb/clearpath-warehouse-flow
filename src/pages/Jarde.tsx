@@ -562,23 +562,21 @@ export const Jarde: React.FC = () => {
       const endOfDay = new Date(endDate);
       endOfDay.setHours(23, 59, 59, 999);
 
-      // BATCH QUERY 1: Fetch ALL approved check-ins up to end date
+      // BATCH QUERY 1: Fetch ALL approved check-ins (no date limit - needed for back-calculation)
       const { data: allCheckIns, error: checkInError } = await supabase
         .from('check_in_requests')
         .select('company_id, requested_products, amended_products, was_amended, reviewed_at')
         .eq('status', 'approved')
-        .in('company_id', companyFilter)
-        .lte('reviewed_at', endOfDay.toISOString());
+        .in('company_id', companyFilter);
 
       if (checkInError) throw checkInError;
 
-      // BATCH QUERY 2: Fetch ALL approved check-outs up to end date
+      // BATCH QUERY 2: Fetch ALL approved check-outs (no date limit - needed for back-calculation)
       const { data: allCheckOuts, error: checkOutError } = await supabase
         .from('check_out_requests')
         .select('company_id, requested_items, reviewed_at')
         .eq('status', 'approved')
-        .in('company_id', companyFilter)
-        .lte('reviewed_at', endOfDay.toISOString());
+        .in('company_id', companyFilter);
 
       if (checkOutError) throw checkOutError;
 
@@ -728,14 +726,22 @@ export const Jarde: React.FC = () => {
         const items: JardeReportItem[] = [];
 
         for (const product of companyProducts) {
-          // Calculate for base product
-          const startingQty = 
-            getCheckInQuantity(companyCheckIns, product.name, null, null, startDate) -
-            getCheckOutQuantity(companyCheckOuts, product.name, null, null, startDate);
+          // Use current DB quantity as the source of truth (includes JARDE reconciliation)
+          const currentProductQty = (product.variants && Array.isArray(product.variants) && product.variants.length > 0)
+            ? calculateNestedVariantQuantity(product.variants)
+            : 0;
 
+          // Check-ins and check-outs during the selected period
           const checkIns = getCheckInQuantity(companyCheckIns, product.name, null, startDate, endDate);
           const checkOuts = getCheckOutQuantity(companyCheckOuts, product.name, null, startDate, endDate);
-          const expectedQty = startingQty + checkIns - checkOuts;
+
+          // Check-ins and check-outs AFTER the end date (to back-calculate from current qty)
+          const checkInsAfterEnd = getCheckInQuantity(companyCheckIns, product.name, null, endOfDay, new Date('2099-12-31'));
+          const checkOutsAfterEnd = getCheckOutQuantity(companyCheckOuts, product.name, null, endOfDay, new Date('2099-12-31'));
+
+          // Expected = current qty adjusted for transactions after the period
+          const expectedQty = currentProductQty - checkInsAfterEnd + checkOutsAfterEnd;
+          const startingQty = expectedQty - checkIns + checkOuts;
 
           items.push({
             product_id: product.id,
@@ -761,6 +767,7 @@ export const Jarde: React.FC = () => {
                 for (const variantValue of variant.values) {
                   const valueStr = typeof variantValue === 'string' ? variantValue : variantValue.value;
                   if (!valueStr) continue;
+                  const currentVariantQty = (typeof variantValue === 'object' ? variantValue.quantity : 0) || 0;
 
                   const currentLabel = variantAttribute
                     ? `${variantAttribute}: ${valueStr}`
@@ -778,14 +785,14 @@ export const Jarde: React.FC = () => {
                   if (hasSubVariants) {
                     flattenVariants(variantValue.subVariants, fullPath);
                   } else {
-                    // Leaf variant - add as a row
-                    const variantStarting =
-                      getCheckInQuantity(companyCheckIns, product.name, valueStr, null, startDate) -
-                      getCheckOutQuantity(companyCheckOuts, product.name, valueStr, null, startDate);
-
+                    // Leaf variant - use current variant quantity from DB
                     const variantCheckIns = getCheckInQuantity(companyCheckIns, product.name, valueStr, startDate, endDate);
                     const variantCheckOuts = getCheckOutQuantity(companyCheckOuts, product.name, valueStr, startDate, endDate);
-                    const variantExpected = variantStarting + variantCheckIns - variantCheckOuts;
+                    const variantCheckInsAfterEnd = getCheckInQuantity(companyCheckIns, product.name, valueStr, endOfDay, new Date('2099-12-31'));
+                    const variantCheckOutsAfterEnd = getCheckOutQuantity(companyCheckOuts, product.name, valueStr, endOfDay, new Date('2099-12-31'));
+
+                    const variantExpected = currentVariantQty - variantCheckInsAfterEnd + variantCheckOutsAfterEnd;
+                    const variantStarting = variantExpected - variantCheckIns + variantCheckOuts;
 
                     items.push({
                       product_id: product.id,
