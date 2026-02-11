@@ -811,16 +811,7 @@ export const Jarde: React.FC = () => {
         reportData.push({
           company_id: companyId,
           company_name: company.name,
-          items: items.filter(item =>
-            item.variant_value
-              ? true // Always include variants so you can count them even if no movement
-              : (
-                item.starting_quantity !== 0 ||
-                item.check_ins !== 0 ||
-                item.check_outs !== 0 ||
-                item.expected_quantity !== 0
-              )
-          ),
+          items,
         });
       }
 
