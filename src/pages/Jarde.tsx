@@ -589,6 +589,23 @@ export const Jarde: React.FC = () => {
 
       if (productsError) throw productsError;
 
+      // BATCH QUERY 4: Fetch inventory_items for products without variants (base quantity)
+      const { data: allInventory, error: inventoryError } = await supabase
+        .from('inventory_items')
+        .select('product_id, company_id, quantity, variant_attribute, variant_value')
+        .in('company_id', companyFilter);
+
+      if (inventoryError) throw inventoryError;
+
+      // Build inventory lookup: product_id -> total base quantity (where variant is null)
+      const inventoryByProduct = new Map<string, number>();
+      (allInventory || []).forEach((item) => {
+        if (!item.variant_attribute && !item.variant_value) {
+          const key = item.product_id;
+          inventoryByProduct.set(key, (inventoryByProduct.get(key) || 0) + (item.quantity || 0));
+        }
+      });
+
       // Pre-process data into lookup maps by company
       const checkInsByCompany = new Map<string, CheckInRequest[]>();
       const checkOutsByCompany = new Map<string, CheckOutRequest[]>();
@@ -727,9 +744,10 @@ export const Jarde: React.FC = () => {
 
         for (const product of companyProducts) {
           // Use current DB quantity as the source of truth (includes JARDE reconciliation)
-          const currentProductQty = (product.variants && Array.isArray(product.variants) && product.variants.length > 0)
+          const hasVariants = product.variants && Array.isArray(product.variants) && product.variants.length > 0;
+          const currentProductQty = hasVariants
             ? calculateNestedVariantQuantity(product.variants)
-            : 0;
+            : (inventoryByProduct.get(product.id) || 0);
 
           // Check-ins and check-outs during the selected period
           const checkIns = getCheckInQuantity(companyCheckIns, product.name, null, startDate, endDate);
